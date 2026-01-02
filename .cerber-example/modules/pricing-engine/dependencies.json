@@ -1,0 +1,8 @@
+{
+  "dependencies": [
+    "booking-calendar"
+  ],
+  "reason": {
+    "booking-calendar": "Pricing engine needs to check room availability during price calculation to ensure quoted prices are for available rooms"
+  }
+}

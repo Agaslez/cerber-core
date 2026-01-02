@@ -1,0 +1,23 @@
+{
+  "name": "my-project-with-cerber-team",
+  "version": "1.0.0",
+  "description": "Example project using Cerber TEAM with Guardian, Cerber 2.1, and SOLO",
+  "scripts": {
+    "cerber:morning": "bash ../../team/scripts/cerber-team-morning.sh",
+    "cerber:add-module": "bash ../../team/scripts/cerber-add-module.sh",
+    "cerber:focus": "bash ../../team/scripts/cerber-focus.sh",
+    "cerber:check-module": "bash ../../team/scripts/cerber-module-check.sh",
+    "cerber:check-connections": "bash ../../team/scripts/cerber-connections-check.sh",
+    "cerber:repair": "node ../../solo/scripts/cerber-auto-repair.js",
+    "cerber:deps": "node ../../solo/scripts/cerber-deps-health.js",
+    "cerber:docs": "node ../../solo/scripts/cerber-docs-sync.js",
+    "cerber:perf": "node ../../solo/scripts/cerber-performance-budget.js",
+    "cerber:pre-push": "npm run cerber:check-connections && npm run cerber:deps && npm run cerber:docs && npm run cerber:perf",
+    "cerber:dashboard": "bash ../../team/scripts/cerber-team-morning.sh && node ../../solo/scripts/cerber-dashboard.js"
+  },
+  "devDependencies": {
+    "cerber-core": "^2.0.0"
+  },
+  "author": "Stefan Pitek",
+  "license": "MIT"
+}

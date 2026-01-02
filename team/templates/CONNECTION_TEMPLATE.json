@@ -1,0 +1,20 @@
+{
+  "id": "module-a-to-module-b",
+  "from": "module-a",
+  "to": "module-b",
+  "type": "function-call",
+  "interface": {
+    "function": "processData",
+    "input": {
+      "type": "ProcessParams",
+      "fields": ["userId", "data"]
+    },
+    "output": {
+      "type": "ProcessResult",
+      "fields": ["success", "result"]
+    }
+  },
+  "version": "1.0.0",
+  "breaking_changes": [],
+  "notes": ""
+}
