@@ -65,6 +65,7 @@ if [ -f "${TEMPLATE_DIR}/MODULE_TEMPLATE.md" ]; then
     cp "${TEMPLATE_DIR}/MODULE_TEMPLATE.md" "${MODULE_DIR}/MODULE.md"
     
     # Replace placeholder with actual module name
+    # Using sed -i.bak for cross-platform compatibility (works on both Linux and macOS)
     sed -i.bak "s/\[MODULE_NAME\]/${MODULE_NAME}/g" "${MODULE_DIR}/MODULE.md"
     rm -f "${MODULE_DIR}/MODULE.md.bak"
     

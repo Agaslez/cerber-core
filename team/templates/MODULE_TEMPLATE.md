@@ -29,7 +29,7 @@ Description of what it does.
 
 **Example:**
 ```typescript
-import { functionName } from './modules/module-name';
+import { functionName } from './modules/[MODULE_NAME]';
 const result = functionName({ ... });
 ```
 

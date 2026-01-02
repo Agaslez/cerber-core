@@ -63,7 +63,7 @@ echo "" >> "$OUTPUT_FILE"
 echo "---" >> "$OUTPUT_FILE"
 echo "" >> "$OUTPUT_FILE"
 
-# Add MODULE.md
+# Add MODULE.md (required)
 if [ -f "${MODULE_DIR}/MODULE.md" ]; then
     echo "## Module Documentation" >> "$OUTPUT_FILE"
     echo "" >> "$OUTPUT_FILE"
@@ -72,7 +72,11 @@ if [ -f "${MODULE_DIR}/MODULE.md" ]; then
     echo "---" >> "$OUTPUT_FILE"
     echo "" >> "$OUTPUT_FILE"
 else
-    echo -e "${YELLOW}⚠️  Warning: ${MODULE_DIR}/MODULE.md not found${NC}"
+    echo -e "${RED}❌ Error: ${MODULE_DIR}/MODULE.md not found${NC}"
+    echo ""
+    echo "MODULE.md is required for focus mode. Create it with:"
+    echo "  bash team/scripts/cerber-add-module.sh ${MODULE_NAME}"
+    exit 1
 fi
 
 # Add contract.json
