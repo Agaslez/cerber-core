@@ -1,0 +1,47 @@
+{
+  "name": "my-backend-api",
+  "version": "1.0.0",
+  "description": "Example backend API with Cerber SOLO integration",
+  "main": "src/server.js",
+  "scripts": {
+    "dev": "ts-node src/server.ts",
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "test": "jest",
+    "lint": "eslint src/**/*.ts",
+    
+    "cerber:morning": "node ../../solo/scripts/cerber-daily-check.js",
+    "cerber:repair": "node ../../solo/scripts/cerber-auto-repair.js",
+    "cerber:repair:dry": "node ../../solo/scripts/cerber-auto-repair.js --dry-run",
+    "cerber:deps": "node ../../solo/scripts/cerber-deps-health.js",
+    "cerber:perf": "node ../../solo/scripts/cerber-performance-budget.js",
+    "cerber:docs": "node ../../solo/scripts/cerber-docs-sync.js",
+    "cerber:flags": "node ../../solo/scripts/cerber-flags-check.js",
+    "cerber:snapshot": "node ../../solo/scripts/cerber-snapshot.js",
+    "cerber:dashboard": "node ../../solo/scripts/cerber-dashboard.js",
+    
+    "cerber:pre-push": "npm run cerber:deps && npm run cerber:docs && npm run cerber:perf",
+    "cerber:rollback": "node ../../solo/scripts/cerber-rollback.js"
+  },
+  "keywords": [
+    "backend",
+    "api",
+    "cerber",
+    "guardian",
+    "solo"
+  ],
+  "author": "Stefan Pitek",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/node": "^20.10.0",
+    "typescript": "^5.3.0",
+    "ts-node": "^10.9.0",
+    "jest": "^29.7.0",
+    "eslint": "^8.55.0"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "dotenv": "^16.3.1"
+  }
+}
