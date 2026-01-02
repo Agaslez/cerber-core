@@ -1,0 +1,44 @@
+{
+  "id": "booking-to-pricing",
+  "from": "booking-calendar",
+  "to": "pricing-engine",
+  "type": "function-call",
+  "interface": {
+    "function": "calculatePrice",
+    "description": "Booking calendar calls pricing engine when modifying bookings to recalculate total price",
+    "input": {
+      "type": "PriceParams",
+      "fields": {
+        "roomType": "string",
+        "checkIn": "Date",
+        "checkOut": "Date",
+        "guests": "number",
+        "promoCode": "string | undefined"
+      }
+    },
+    "output": {
+      "type": "PriceResult",
+      "fields": {
+        "totalPrice": "number",
+        "basePrice": "number",
+        "breakdown": "PriceBreakdown"
+      }
+    }
+  },
+  "version": "2.0.0",
+  "breaking_changes": [
+    {
+      "version": "2.0.0",
+      "date": "2026-01-02",
+      "description": "Added detailed breakdown to return type",
+      "migration": "Update booking-calendar to handle new breakdown field"
+    },
+    {
+      "version": "2.0.0",
+      "date": "2026-01-02",
+      "description": "Made promoCode parameter optional",
+      "migration": "Can now omit promoCode parameter"
+    }
+  ],
+  "notes": "This connection is used during booking modifications. The booking calendar must recalculate prices with current rates when guests modify their dates."
+}

@@ -1,0 +1,106 @@
+{
+  "version": "2.0.0",
+  "publicInterface": {
+    "checkAvailability": {
+      "name": "checkAvailability",
+      "params": {
+        "roomType": "string",
+        "checkIn": "Date",
+        "checkOut": "Date",
+        "quantity": "number"
+      },
+      "returns": "AvailabilityResult",
+      "description": "Checks if rooms are available for the specified dates"
+    },
+    "createBooking": {
+      "name": "createBooking",
+      "params": {
+        "roomId": "string",
+        "checkIn": "Date",
+        "checkOut": "Date",
+        "guestInfo": "GuestInfo",
+        "totalPrice": "number"
+      },
+      "returns": "BookingResult",
+      "description": "Creates a new booking reservation"
+    },
+    "cancelBooking": {
+      "name": "cancelBooking",
+      "params": {
+        "bookingId": "string"
+      },
+      "returns": "CancellationResult",
+      "description": "Cancels an existing booking"
+    },
+    "getBooking": {
+      "name": "getBooking",
+      "params": {
+        "bookingId": "string"
+      },
+      "returns": "Booking",
+      "description": "Retrieves booking details by ID or confirmation code"
+    },
+    "modifyBooking": {
+      "name": "modifyBooking",
+      "params": {
+        "bookingId": "string",
+        "changes": "BookingChanges"
+      },
+      "returns": "BookingResult",
+      "description": "Modifies an existing booking"
+    }
+  },
+  "types": {
+    "AvailabilityParams": {
+      "roomType": "string",
+      "checkIn": "Date",
+      "checkOut": "Date",
+      "quantity": "number"
+    },
+    "AvailabilityResult": {
+      "available": "boolean",
+      "availableCount": "number",
+      "conflictingBookings": "string[]"
+    },
+    "BookingParams": {
+      "roomId": "string",
+      "checkIn": "Date",
+      "checkOut": "Date",
+      "guestInfo": "GuestInfo",
+      "totalPrice": "number"
+    },
+    "BookingResult": {
+      "bookingId": "string",
+      "confirmationCode": "string",
+      "status": "string"
+    },
+    "GuestInfo": {
+      "name": "string",
+      "email": "string",
+      "phone": "string"
+    },
+    "Booking": {
+      "id": "string",
+      "roomId": "string",
+      "checkIn": "Date",
+      "checkOut": "Date",
+      "guestInfo": "GuestInfo",
+      "totalPrice": "number",
+      "status": "string",
+      "confirmationCode": "string"
+    },
+    "CancellationResult": {
+      "success": "boolean",
+      "refundAmount": "number",
+      "cancellationFee": "number"
+    },
+    "BookingChanges": {
+      "checkIn": "Date | undefined",
+      "checkOut": "Date | undefined",
+      "roomId": "string | undefined"
+    }
+  },
+  "dependencies": [
+    "pricing-engine"
+  ]
+}

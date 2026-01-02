@@ -1,0 +1,64 @@
+{
+  "version": "2.0.0",
+  "publicInterface": {
+    "calculatePrice": {
+      "name": "calculatePrice",
+      "params": {
+        "roomType": "string",
+        "checkIn": "Date",
+        "checkOut": "Date",
+        "guests": "number",
+        "promoCode": "string | undefined"
+      },
+      "returns": "PriceResult",
+      "description": "Calculates the total price for a room booking with detailed breakdown"
+    },
+    "getSeasonalMultiplier": {
+      "name": "getSeasonalMultiplier",
+      "params": {
+        "date": "Date"
+      },
+      "returns": "number",
+      "description": "Returns the seasonal pricing multiplier for a given date"
+    },
+    "validatePromoCode": {
+      "name": "validatePromoCode",
+      "params": {
+        "code": "string"
+      },
+      "returns": "PromoCodeResult",
+      "description": "Validates a promotional code and returns discount information"
+    }
+  },
+  "types": {
+    "PriceParams": {
+      "roomType": "string",
+      "checkIn": "Date",
+      "checkOut": "Date",
+      "guests": "number",
+      "promoCode": "string | undefined"
+    },
+    "PriceResult": {
+      "totalPrice": "number",
+      "basePrice": "number",
+      "breakdown": "PriceBreakdown"
+    },
+    "PriceBreakdown": {
+      "nightlyRates": "number[]",
+      "seasonalAdjustment": "number",
+      "weekendPremium": "number",
+      "advanceBookingDiscount": "number",
+      "lengthOfStayDiscount": "number",
+      "promoDiscount": "number"
+    },
+    "PromoCodeResult": {
+      "valid": "boolean",
+      "discount": "number",
+      "minNights": "number",
+      "expiryDate": "Date"
+    }
+  },
+  "dependencies": [
+    "booking-calendar"
+  ]
+}

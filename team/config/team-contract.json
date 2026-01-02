@@ -1,0 +1,27 @@
+{
+  "version": "2.0-team",
+  "extends": "cerber-core",
+  "team": {
+    "enabled": true,
+    "modulesPath": ".cerber/modules",
+    "connectionsPath": ".cerber/connections/contracts",
+    "biblePath": ".cerber/BIBLE.md"
+  },
+  "moduleValidation": {
+    "requireModuleMd": true,
+    "requireContract": true,
+    "requireDependencies": true,
+    "forbiddenCrossModuleImports": true
+  },
+  "focusMode": {
+    "enabled": true,
+    "outputPath": ".cerber/FOCUS_CONTEXT.md",
+    "includeContracts": true,
+    "includeDependencies": true
+  },
+  "connectionValidation": {
+    "requireBidirectional": true,
+    "checkBreakingChanges": true,
+    "detectCircular": true
+  }
+}

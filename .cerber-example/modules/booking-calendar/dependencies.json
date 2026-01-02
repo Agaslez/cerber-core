@@ -1,0 +1,8 @@
+{
+  "dependencies": [
+    "pricing-engine"
+  ],
+  "reason": {
+    "pricing-engine": "When modifying bookings, need to recalculate prices with current pricing rules"
+  }
+}

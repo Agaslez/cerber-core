@@ -1,0 +1,37 @@
+{
+  "id": "pricing-to-booking",
+  "from": "pricing-engine",
+  "to": "booking-calendar",
+  "type": "function-call",
+  "interface": {
+    "function": "checkAvailability",
+    "description": "Pricing engine calls booking calendar to verify room availability before calculating prices",
+    "input": {
+      "type": "AvailabilityParams",
+      "fields": {
+        "roomType": "string",
+        "checkIn": "Date",
+        "checkOut": "Date",
+        "quantity": "number"
+      }
+    },
+    "output": {
+      "type": "AvailabilityResult",
+      "fields": {
+        "available": "boolean",
+        "availableCount": "number",
+        "conflictingBookings": "string[]"
+      }
+    }
+  },
+  "version": "2.0.0",
+  "breaking_changes": [
+    {
+      "version": "2.0.0",
+      "date": "2026-01-02",
+      "description": "Added 'availableCount' to return type",
+      "migration": "Update pricing-engine to handle new field"
+    }
+  ],
+  "notes": "This connection ensures that quoted prices are only for available rooms. Pricing engine must handle the case where availability changes between price quote and booking."
+}
