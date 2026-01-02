@@ -666,6 +666,69 @@ Deploy:
 
 ---
 
+## 🆕 Cerber TEAM - Team Collaboration Layer
+
+**New in v2.0:** Cerber TEAM adds module system and focus mode for teams working on large codebases.
+
+### What's New
+
+- **Module System** - Clear boundaries between components
+- **Focus Mode** - AI gets 500 LOC context instead of 10,000 LOC (10x faster)
+- **Connection Contracts** - Explicit interfaces between modules
+- **BIBLE.md** - Master project map
+- **Module Validation** - Enforce boundaries, prevent cross-contamination
+
+[📖 Read TEAM documentation](docs/TEAM.md)
+
+### Quick Start (TEAM)
+
+```bash
+# Create module
+bash team/scripts/cerber-add-module.sh pricing-engine
+
+# Work on module (focus!)
+bash team/scripts/cerber-focus.sh pricing-engine
+cat .cerber/FOCUS_CONTEXT.md    # Only 500 LOC!
+
+# Validate
+bash team/scripts/cerber-module-check.sh pricing-engine
+bash team/scripts/cerber-connections-check.sh
+
+# Commit
+git commit                      # Guardian validates
+```
+
+### Integration
+
+```
+Morning:
+  npm run cerber:morning         # SOLO + TEAM dashboard
+  
+Create module:
+  bash team/scripts/cerber-add-module.sh payment
+  
+Focus mode:
+  bash team/scripts/cerber-focus.sh payment
+  # AI gets FOCUS_CONTEXT.md (500 LOC vs 10,000 LOC)
+  
+Validate:
+  bash team/scripts/cerber-module-check.sh payment
+  bash team/scripts/cerber-connections-check.sh
+  
+Commit:
+  git commit                     # Guardian validates
+  
+Before push:
+  npm run cerber:pre-push        # SOLO checks
+  
+Deploy:
+  curl /api/health               # Cerber 2.1 validates
+```
+
+[See full integration guide →](examples/team-integration)
+
+---
+
 <div align="center">
 
 **[⬆ Back to top](#-cerber-core)**
