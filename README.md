@@ -611,6 +611,61 @@ If Cerber Core saved you time, give it a ⭐ on GitHub!
 
 ---
 
+## 🆕 Cerber SOLO - Automation for Solo Developers
+
+**New in v2.0:** Cerber SOLO extends Guardian + Cerber with automation tools for solo developers.
+
+### What's New
+
+- **Auto-repair** - Fixes package.json, .env.example, CHANGELOG automatically
+- **Performance budget** - Enforces bundle size limits
+- **Dependency health** - Weekly security & deprecation checks
+- **Documentation sync** - Validates code vs docs
+- **Feature flags** - Toggle features without redeploy
+- **Daily dashboard** - Morning health overview
+- **Smart rollback** - Surgical file rollback
+
+[📖 Read SOLO documentation](docs/SOLO.md)
+
+### Quick Start (SOLO)
+
+```bash
+# Install SOLO tools (already included in cerber-core)
+npm install cerber-core --save-dev
+
+# Add SOLO scripts to package.json
+# (See examples/solo-integration/package.json)
+
+# Daily workflow
+npm run cerber:morning      # Start day (2 min)
+npm run cerber:repair       # Auto-fix issues
+npm run cerber:pre-push     # Before push (3 min)
+npm run cerber:snapshot     # End of day
+```
+
+### SOLO + Guardian Integration
+
+Cerber SOLO works **alongside** your existing Guardian setup:
+
+```
+Morning:
+  npm run cerber:morning       # SOLO dashboard
+  
+Development:
+  git commit                   # Guardian validates (pre-commit)
+  npm run cerber:repair        # SOLO auto-fixes
+  
+Before Push:
+  npm run cerber:pre-push      # SOLO full check
+  
+Deploy:
+  curl /api/health             # Cerber 2.1 validates
+```
+
+[See full integration guide →](examples/solo-integration)
+
+---
+
 <div align="center">
 
 **[⬆ Back to top](#-cerber-core)**

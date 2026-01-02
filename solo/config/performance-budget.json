@@ -1,0 +1,53 @@
+{
+  "version": "1.0",
+  "description": "Performance budget configuration for Cerber SOLO",
+  
+  "bundleSize": {
+    "max": 500,
+    "warning": 400,
+    "unit": "KB",
+    "description": "Total bundle size limit"
+  },
+  
+  "largestChunk": {
+    "max": 250,
+    "warning": 200,
+    "unit": "KB",
+    "description": "Maximum size for a single chunk"
+  },
+  
+  "images": {
+    "max": 200,
+    "unit": "KB",
+    "description": "Maximum image file size"
+  },
+  
+  "thresholds": {
+    "critical": {
+      "description": "Build fails if exceeded",
+      "bundleSize": 500,
+      "chunkSize": 250
+    },
+    "warning": {
+      "description": "Warning issued but build continues",
+      "bundleSize": 400,
+      "chunkSize": 200
+    }
+  },
+  
+  "excludePaths": [
+    "node_modules",
+    "dist",
+    "build",
+    "coverage",
+    ".next"
+  ],
+  
+  "recommendations": [
+    "Enable code splitting",
+    "Use dynamic imports",
+    "Compress images",
+    "Remove unused dependencies",
+    "Analyze bundle with webpack-bundle-analyzer"
+  ]
+}

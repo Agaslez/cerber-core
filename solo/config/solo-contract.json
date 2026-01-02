@@ -1,0 +1,71 @@
+{
+  "version": "2.0-solo",
+  "extends": "cerber-core",
+  "description": "Cerber SOLO configuration for solo developers",
+  
+  "autoRepair": {
+    "enabled": true,
+    "safe": [
+      "format-package-json",
+      "sync-env",
+      "changelog"
+    ],
+    "description": "Automatically repair common issues"
+  },
+  
+  "performanceBudget": {
+    "bundleSize": {
+      "max": 500,
+      "warning": 400,
+      "unit": "KB"
+    },
+    "largestChunk": {
+      "max": 250,
+      "warning": 200,
+      "unit": "KB"
+    },
+    "images": {
+      "max": 200,
+      "unit": "KB"
+    }
+  },
+  
+  "snapshots": {
+    "enabled": true,
+    "retentionDays": 30,
+    "directory": ".cerber/snapshots"
+  },
+  
+  "dailyChecks": {
+    "enabled": true,
+    "healthEndpoints": [
+      "http://localhost:3000/api/health",
+      "http://localhost:4000/api/health",
+      "http://localhost:5000/api/health"
+    ]
+  },
+  
+  "dependencies": {
+    "checkVulnerabilities": true,
+    "checkOutdated": true,
+    "checkDeprecated": true,
+    "healthScoreThreshold": 60
+  },
+  
+  "documentation": {
+    "syncEnabled": true,
+    "checkEndpoints": true,
+    "checkEnvVars": true,
+    "checkTodos": true
+  },
+  
+  "featureFlags": {
+    "enabled": true,
+    "checkExpired": true
+  },
+  
+  "rollback": {
+    "safetyChecks": true,
+    "requireCleanWorkingDirectory": true
+  }
+}
