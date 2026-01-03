@@ -1395,8 +1395,12 @@ Made with 🛡️ by developers, for developers
 - Former restaurant co-owner
 - Provides business direction and funding
 - Handles legal and financial aspects
+- **Most importantly:** Believed in Stefan's potential when he had zero coding experience
+- Continues to support and encourage through every challenge
 
 **Partnership:** 90/10 split reflecting business ownership and technical contribution.
+
+> *"None of this would exist without Agata's unwavering belief and support. When I wrote my first `console.log`, she saw a future developer. Eight months later, here we are."* — Stefan
 
 **From restaurants to SaaS** - bringing the same attention to quality and customer experience that we learned in hospitality.
 
