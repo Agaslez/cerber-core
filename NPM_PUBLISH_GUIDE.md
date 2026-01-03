@@ -123,7 +123,7 @@ Then go to GitHub:
 - Module system with boundaries
 - Focus Mode (500 LOC context for AI)
 - Connection contracts
-- BIBLE.md project mapping
+- CERBER.md project mapping
 
 ## 📊 Real Production Metrics
 

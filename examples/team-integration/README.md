@@ -21,7 +21,7 @@ npm install cerber-core --save-dev
 ```
 your-project/
 ├── .cerber/                      # TEAM structure
-│   ├── BIBLE.md                  # Master project map
+│   ├── CERBER.md                  # Master project map
 │   ├── CERBER_LAW.md             # Team rules (optional)
 │   ├── modules/                  # Module definitions
 │   │   ├── pricing-engine/
@@ -56,10 +56,10 @@ your-project/
 mkdir -p .cerber/modules
 mkdir -p .cerber/connections/contracts
 
-# Copy BIBLE template
-cp node_modules/cerber-core/team/templates/BIBLE_TEMPLATE.md .cerber/BIBLE.md
+# Copy CERBER template
+cp node_modules/cerber-core/team/templates/CERBER_TEMPLATE.md .cerber/CERBER.md
 
-# Edit BIBLE.md to describe your project
+# Edit CERBER.md to describe your project
 ```
 
 ### 2. Add Scripts to package.json
@@ -294,7 +294,7 @@ Creates new module from template
 2. **Share FOCUS_CONTEXT.md with AI** instead of entire codebase
 3. **Validate before committing** to catch issues early
 4. **Start day with morning dashboard** to see what needs attention
-5. **Update BIBLE.md** when adding major modules
+5. **Update CERBER.md** when adding major modules
 6. **Version connection contracts** to track breaking changes
 
 ## Troubleshooting

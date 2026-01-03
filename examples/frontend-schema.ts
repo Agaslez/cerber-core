@@ -1,6 +1,13 @@
 /**
- * Example Frontend Schema for Guardian
- * Shows typical architecture rules for React/Vue frontends
+ * ⚠️ EXAMPLE PATTERN (NOT SOURCE OF TRUTH)
+ * 
+ * This shows common React/Vue architecture patterns.
+ * DO NOT copy blindly - customize to YOUR project structure.
+ * 
+ * The source of truth is CERBER.md.
+ * This file is a template showing possible rules - YOU decide which fit YOUR architecture.
+ * 
+ * See: https://github.com/Agaslez/cerber-core#one-source-of-truth
  */
 
 import type { GuardianSchema } from '../src/types';

@@ -50,7 +50,7 @@ ROI: Break-even on Day 1
 **For CTOs & Engineering Managers:**
 - **Reduce production incidents** - 95% bugs caught pre-production (vs 60-70% manual reviews)
 - **Cut debugging costs** - 4.5 hours saved per developer per session
-- **Speed up onboarding** - BIBLE.md = instant project understanding for new hires
+- **Speed up onboarding** - CERBER.md = instant project understanding for new hires
 - **Enforce architecture** - Prevent technical debt before it enters codebase
 
 **Cost Comparison:**
@@ -71,7 +71,14 @@ Ongoing savings:         $6,000/month per developer
 
 ## 🎯 What is Cerber Core?
 
-Cerber Core is a comprehensive toolkit for maintaining code quality and architecture in growing Node.js projects.
+**Cerber Core is a control system for Node.js architecture.**
+
+**Critical distinction:** Cerber does NOT design your system. Cerber EXECUTES your design.
+
+```
+You decide    → CERBER.md (roadmap)
+Cerber guards → enforces your decisions
+```
 
 ### 💎 The Core Value: Your Roadmap Becomes Executable Law
 
@@ -84,7 +91,7 @@ Cerber Core is a comprehensive toolkit for maintaining code quality and architec
 
 **Cerber Core solution:**
 ```
-✅ Architect defines rules once (BIBLE.md + Guardian schema)
+✅ Architect defines rules once (CERBER.md contract)
 ✅ Cerber enforces automatically forever
 ✅ Every commit validates against your roadmap (<1 second)
 ✅ Architecture stays intact as team scales
@@ -134,11 +141,168 @@ export const BACKEND_SCHEMA = {
    - **Focus Mode** - Generate 500 LOC context (vs 10K LOC) ⭐
    - Module boundaries enforcement
    - Connection contracts between modules
-   - BIBLE.md project mapping
+   - CERBER.md project mapping
+
+---
+
+## 🎯 ONE SOURCE OF TRUTH
+
+**Critical principle:** Cerber does NOT design your system. Cerber enforces YOUR design.
+
+### The Rule
+
+```
+📜 CERBER.md = Your roadmap (single source of truth)
+🛡️ Guardian = Enforces CERBER.md rules
+📋 Schema files = Optional mirrors of CERBER.md (NOT source of truth)
+```
+
+**What this means:**
+
+✅ **CERBER.md defines everything** - architecture, rules, team mode  
+✅ **Cerber executes CERBER.md** - no assumptions, no magic  
+✅ **Schema files are user-owned** - Cerber helps, never decides  
+✅ **You design. Cerber guards.** - separation of concerns  
+
+❌ **Cerber does NOT guess your architecture**  
+❌ **Cerber does NOT infer folder structures**  
+❌ **Cerber does NOT auto-design systems**  
+
+### Schema Mode: Strict vs Template_Only
+
+In `CERBER.md` contract, you control schema generation:
+
+```yaml
+schema:
+  enabled: true
+  file: BACKEND_SCHEMA.ts
+  mode: strict  # or template_only
+```
+
+**For mature teams → `mode: strict`**
+- ✅ Cerber NEVER creates schema file
+- ✅ You create schema based on YOUR architecture
+- ✅ Full control, no helpers, no assumptions
+- ✅ `npx cerber init` shows: "You must create BACKEND_SCHEMA.ts"
+
+**For beginners → `mode: template_only`**
+- ✅ Cerber creates minimal template if file missing
+- ⚠️ Template says: "NOT SOURCE OF TRUTH - Edit to match CERBER.md"
+- ✅ Empty structures, commented examples only
+- ✅ Helper scaffold, NOT design decision
+
+**Default:** `template_only` (backward compatible)
+
+**Philosophy:**
+
+```
+Traditional tools:
+  → Auto-generate everything
+  → Assume folder structures
+  → "Helpful" magic that creates chaos
+
+Cerber Core:
+  → Execute CERBER.md contract
+  → Never assume architecture
+  → One decision point (CERBER.md)
+  → Works WITH AI agents, not against them
+```
+
+**Why this matters:**
+
+When your team (or AI agents) follow ONE source of truth:
+- ✅ No conflicts between "docs" and "reality"
+- ✅ No drift between "schema" and "roadmap"
+- ✅ Clear authority: CERBER.md decides, Cerber enforces
+- ✅ Architecture stays intact as team/AI scales
+
+**This is not "another tool". This is a control system.**
 
 ---
 
 ## 🚀 Quick Start
+
+### 30-Second Setup ⚡ (New in v1.1.0!)
+
+```bash
+npm install cerber-core --save-dev
+npx cerber init
+```
+
+**How it works:**
+
+**If CERBER.md is missing** → Cerber creates a template and exits.
+
+1. Fill the contract (`CERBER_CONTRACT`) with your project settings
+2. Choose mode: `solo` | `dev` | `team`
+3. Enable features: `guardian`, `health`, `ci`
+
+**Run `npx cerber init` again** to generate:
+
+- ✅ **Guardian hook + runner** - Pre-commit validation
+- ✅ **Health templates** - Production monitoring endpoints
+- ✅ **GitHub Actions workflow** - CI/CD with stable check names
+- ✅ **Team mode: CODEOWNERS** - Schema ownership enforcement
+
+**Example CERBER.md:**
+
+```yaml
+## CERBER_CONTRACT
+\`\`\`yaml
+version: 1
+mode: dev  # solo | dev | team
+
+guardian:
+  enabled: true
+  schemaFile: BACKEND_SCHEMA.ts
+
+schema:
+  enabled: true
+  file: BACKEND_SCHEMA.ts
+  mode: template_only  # strict (mature teams) | template_only (beginners)
+  # strict = You create schema, Cerber never generates
+  # template_only = Cerber creates minimal helper if missing
+
+health:
+  enabled: true
+  endpoint: /api/health
+
+ci:
+  provider: github
+  branches: [main]
+  requiredOnPR: true
+\`\`\`
+```
+
+**Error handling:**
+
+If CERBER.md exists but is invalid → you'll get a **clear error message** with:
+- Exact problem location
+- Expected format
+- Suggestion: `npx cerber init --print-template` to see valid example
+
+**Useful flags:**
+
+```bash
+npx cerber init --dry-run       # Preview without creating files
+npx cerber init --force          # Overwrite existing files
+npx cerber init --print-template # Print template to stdout
+```
+
+**What happens:**
+- ✅ Creates `CERBER.md` with your architecture contract
+- ✅ Generates Guardian pre-commit hooks
+- ✅ Sets up health check templates
+- ✅ Configures GitHub Actions workflow
+- ✅ Adapts to your mode: solo/dev/team
+
+**Next step:** Just commit! Guardian now protects your architecture.
+
+---
+
+### Manual Setup (Alternative)
+
+If you prefer manual configuration, follow the guides below.
 
 ### Installation
 
@@ -148,10 +312,12 @@ npm install cerber-core --save-dev
 
 ### Choose Your Path
 
+> ⚠️ **Note:** Examples below show common patterns. Copy and **customize to YOUR architecture**. Schema files are templates, not decisions.
+
 #### 🎨 **Frontend Developer (React/Vue/Angular)**
 
 ```bash
-# 1. Copy frontend schema example
+# 1. Copy frontend schema example (then customize!)
 cp node_modules/cerber-core/examples/frontend-schema.ts ./FRONTEND_SCHEMA.ts
 
 # 2. Copy validation script
@@ -173,10 +339,12 @@ git commit -m "test"
 - ✅ Required imports (`react`, `react-dom`)
 - ✅ Required files (`tsconfig.json`, `vite.config.ts`)
 
+**Then customize:** Edit FRONTEND_SCHEMA.ts to match YOUR folder structure, YOUR rules, YOUR tech stack.
+
 #### ⚙️ **Backend Developer (Node.js/Express/NestJS)**
 
 ```bash
-# 1. Copy backend schema example
+# 1. Copy backend schema example (then customize!)
 cp node_modules/cerber-core/examples/backend-schema.ts ./BACKEND_SCHEMA.ts
 
 # 2. Copy validation script
@@ -189,6 +357,8 @@ npx husky add .husky/pre-commit "node scripts/validate-schema.mjs"
 
 # 4. Add health endpoint
 ```
+
+**Then customize:** Edit BACKEND_SCHEMA.ts to match YOUR routes, YOUR layers, YOUR security rules.
 
 ```javascript
 // server.js (ESM)
@@ -299,6 +469,27 @@ cerber-morning
 cerber-repair
 cerber-focus
 ```
+
+---
+
+## ⚠️ Important: Schema Files Are NOT Source of Truth
+
+Before diving into examples below, understand this:
+
+**📋 Schema files (BACKEND_SCHEMA.ts, FRONTEND_SCHEMA.ts):**
+- Are **examples** and **optional templates**
+- Mirror YOUR architecture decisions from CERBER.md
+- Are user-owned and user-created (in strict mode)
+- Should be customized to YOUR project structure
+
+**📜 CERBER.md:**
+- Is the ONLY source of truth
+- Defines your roadmap, rules, team mode
+- Controls if/how Cerber helps with schema generation
+
+**Cerber does NOT design your system. The examples below show patterns - YOU decide which patterns fit YOUR architecture.**
+
+---
 
 ### Guardian Setup (3 minutes)
 
@@ -952,88 +1143,6 @@ git commit                      # Guardian validates
 
 ---
 
-## 📖 BIBLE.md - Your Project's Single Source of Truth
-
-**BIBLE.md** is your project's master map - the ONE place where everything is documented.
-
-### Why BIBLE.md?
-
-With AI coding, teams can diverge quickly. Everyone works fast, but in different directions. BIBLE.md keeps everyone aligned:
-
-- **All modules documented** - What exists, who owns it, what it does
-- **All connections mapped** - How modules talk to each other
-- **Team responsibilities clear** - Who works on what
-- **Architecture decisions recorded** - Why things are built this way
-
-### How It Works
-
-```bash
-# 1. Copy template
-cp node_modules/cerber-core/team/templates/BIBLE_TEMPLATE.md .cerber/BIBLE.md
-
-# 2. Describe your architecture
-nano .cerber/BIBLE.md
-
-# 3. Keep it updated when adding modules
-# 4. Reference in code reviews
-```
-
-### What's Inside BIBLE.md?
-
-```markdown
-# PROJECT BIBLE - Master Map
-
-## Architecture Overview
-[Visual diagram of your system]
-
-## Modules Index
-1. **auth-service** - Authentication & JWT
-   - Owner: Alice
-   - Files: `src/modules/auth/`
-   
-2. **payment-service** - Stripe integration
-   - Owner: Bob
-   - Files: `src/modules/payment/`
-
-## Connections Map
-- `auth-service` → `user-service`: validateToken()
-- `payment-service` → `notification-service`: sendReceipt()
-
-## Team Responsibilities
-- Alice: auth, user management
-- Bob: payments, billing
-```
-
-### Integration with Cerber
-
-Cerber automatically reads BIBLE.md from `.cerber/BIBLE.md` when running health checks:
-
-```typescript
-// server.ts
-import { createHealthEndpoint } from 'cerber-core';
-
-const healthChecks = {
-  // Cerber automatically validates against .cerber/BIBLE.md
-  architecture: async () => {
-    // Checks if actual modules match BIBLE structure
-    return await validateArchitectureAgainstBible();
-  }
-};
-
-app.get('/api/health', createHealthEndpoint(healthChecks));
-```
-
-**What Cerber checks:**
-- **Guardian** validates modules match BIBLE structure (pre-commit)
-- **Focus Mode** uses BIBLE to isolate context (500 LOC vs 10K LOC)
-- **Module checks** ensure boundaries defined in BIBLE are respected
-- **Morning checks** verify BIBLE is up-to-date with codebase
-- **Runtime health** checks architecture drift from BIBLE
-
-**Result:** Your team stays aligned even when coding at AI speed! 🚀
-
----
-
 ## 🏆 Why Cerber Core?
 
 ### Unique Innovations
@@ -1141,10 +1250,12 @@ Break-even: Day 1 ✅
 
 ## 💡 Examples
 
+> ⚠️ **Remember:** Examples show patterns, NOT decisions. Copy and customize to YOUR architecture defined in CERBER.md.
+
 ### Complete Examples in `/examples`
 
-- [**Frontend (React + Guardian)**](examples/frontend-schema.ts) - React/Vue architecture rules
-- [**Backend (Express + Cerber)**](examples/backend-schema.ts) - Node.js/Express patterns
+- [**Frontend (React + Guardian)**](examples/frontend-schema.ts) - React/Vue patterns (customize to your structure)
+- [**Backend (Express + Cerber)**](examples/backend-schema.ts) - Node.js/Express patterns (customize to your layers)
 - [**Health Checks**](examples/health-checks.ts) - 6 production-ready checks
 - [**SOLO Integration**](examples/solo-integration/) - Automation setup
 - [**TEAM Integration**](examples/team-integration/) - Module system setup

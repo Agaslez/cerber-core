@@ -95,7 +95,7 @@ git commit
 
 1. All modules pass validation
 2. All connections valid
-3. BIBLE.md updated
+3. CERBER.md updated
 4. FOCUS_CONTEXT.md generated
 5. Tests pass
 6. Guardian pre-commit passed
@@ -157,7 +157,7 @@ bash team/scripts/cerber-module-check.sh payment-gateway
 - Validate before committing
 - Document all public interfaces
 - Version connection contracts
-- Update BIBLE.md with changes
+- Update CERBER.md with changes
 - Follow module boundaries strictly
 
 ## Integration with Guardian + Cerber
