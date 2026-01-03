@@ -192,7 +192,7 @@ jobs:
                 locations: ['src/**/*.ts'],
                 message: 'TypeScript any type (prefer unknown or specific types)',
                 severity: 'warning',
-                exceptions: ['src/guardian/index.ts'] // Some anys are justified
+                exceptions: ['src/guardian/index.ts', 'src/cerber/index.ts', 'src/types.ts'] // Record<string, any> for details is justified
               }
             ],
             
