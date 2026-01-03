@@ -1,6 +1,6 @@
 {
   "name": "cerber-core",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Dual-layer code quality & production health monitoring - Guardian (pre-commit) + Cerber (runtime) + SOLO (automation) + TEAM (collaboration)",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
