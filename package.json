@@ -53,7 +53,17 @@
     "focus-mode",
     "module-system"
   ],
-  "author": "Stefan Pitek",
+  "author": {
+    "name": "Agata Sleziak",
+    "email": "agata@example.com",
+    "url": "https://github.com/Agaslez"
+  },
+  "contributors": [
+    {
+      "name": "Stefan Pitek",
+      "role": "Collaborator"
+    }
+  ],
   "license": "MIT",
   "bugs": {
     "url": "https://github.com/Agaslez/cerber-core/issues"
