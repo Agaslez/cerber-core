@@ -6,7 +6,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![GitHub](https://img.shields.io/badge/GitHub-cerber--core-blue.svg)](https://github.com/Agaslez/cerber-core)
 
-**Created by:** Agata Ślęzak & Stefan Pitek  
+**Owner:** Agata Ślęzak | **Creator:** Stefan Pitek  
 **Status:** Production-ready ✅  
 **License:** MIT
 
@@ -1378,11 +1378,25 @@ Made with 🛡️ by developers, for developers
 
 ---
 
-## 👥 About the Creators
+## 👥 About the Project
 
-**Agata Ślęzak** (Owner) & **Stefan Pitek** (Lead Developer)
+**Founded by Agata Ślęzak**, created and developed by **Stefan Pitek**
 
-Former restaurant owners who pivoted to software development after closing their restaurant business. Now building production-ready tools with a 90/10 partnership split.
+### 🎯 The Story
+
+**Stefan Pitek** - Career changer who started coding in May 2025
+- Former banking professional (10+ years)
+- Co-owned restaurant with Agata
+- First line of code: May 2025
+- 8 months later: 3 production SaaS apps + this open-source tool
+- Built entirely with AI assistance (Claude, ChatGPT, Copilot)
+
+**Agata Ślęzak** - Business owner and project sponsor
+- Former restaurant co-owner
+- Provides business direction and funding
+- Handles legal and financial aspects
+
+**Partnership:** 90/10 split reflecting business ownership and technical contribution.
 
 **From restaurants to SaaS** - bringing the same attention to quality and customer experience that we learned in hospitality.
 
