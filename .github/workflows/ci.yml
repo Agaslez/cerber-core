@@ -297,16 +297,15 @@ jobs:
             
             console.log(\`\n📊 Cerber Health Check Results:\`);
             console.log(\`Status: \${result.status}\`);
-            console.log(\`Issues: \${result.issues.length}\`);
             console.log(\`Duration: \${result.duration}ms\`);
             
             if (result.status === 'unhealthy') {
               console.log(\`\n❌ Cerber Core health check failed!\`);
-              result.issues.forEach(i => console.log(\`  - \${i.message}\`));
               process.exit(1);
             }
             
             console.log(\`\n✅ Cerber Core is healthy!\`);
+            process.exit(0);
           "
 
   summary:
