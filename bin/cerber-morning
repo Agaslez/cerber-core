@@ -1,0 +1,19 @@
+#!/usr/bin/env node
+
+/**
+ * Cerber Morning - SOLO daily dashboard
+ * 
+ * @author Stefan Pitek
+ * @license MIT
+ */
+
+import { execSync } from 'child_process';
+
+try {
+  execSync('node solo/scripts/cerber-daily-check.js', { 
+    stdio: 'inherit',
+    cwd: process.cwd()
+  });
+} catch (err) {
+  process.exit(1);
+}

@@ -1,0 +1,113 @@
+#!/usr/bin/env node
+
+/**
+ * Cerber Health - Runtime health monitoring CLI
+ * 
+ * @author Stefan Pitek
+ * @license MIT
+ */
+
+import chalk from 'chalk';
+import { program } from 'commander';
+import * as path from 'path';
+
+program
+  .name('cerber-health')
+  .description('Cerber - Runtime health diagnostics')
+  .version('2.1.0')
+  .option('-c, --checks <file>', 'Health checks file path', './health-checks.ts')
+  .option('-u, --url <url>', 'Fetch health status from URL')
+  .option('-p, --parallel', 'Run checks in parallel', false)
+  .option('--json', 'Output as JSON', false)
+  .parse();
+
+const options = program.opts();
+
+async function main() {
+  try {
+    const { Cerber } = await import('../dist/cerber/index.js');
+    
+    // Fetch from URL if provided
+    if (options.url) {
+      const response = await fetch(options.url);
+      const result = await response.json();
+      
+      if (options.json) {
+        console.log(JSON.stringify(result, null, 2));
+      } else {
+        printResult(result);
+      }
+      
+      process.exit(result.status === 'healthy' ? 0 : 1);
+    }
+    
+    // Load health checks from file
+    const checksPath = path.resolve(process.cwd(), options.checks);
+    let checks = [];
+    
+    try {
+      const checksModule = await import(checksPath);
+      checks = Object.values(checksModule).filter(v => typeof v === 'function');
+      
+      if (checks.length === 0) {
+        console.warn(chalk.yellow(`⚠️  No health checks found in ${checksPath}`));
+      }
+    } catch (err) {
+      console.warn(chalk.yellow(`⚠️  Could not load health checks from ${checksPath}`));
+      console.warn(chalk.dim('Using empty checks array'));
+    }
+    
+    // Run checks
+    const cerber = new Cerber(checks);
+    const result = await cerber.runChecks({ parallel: options.parallel });
+    
+    if (options.json) {
+      console.log(JSON.stringify(result, null, 2));
+    }
+    
+    // Exit based on status
+    const exitCode = result.status === 'healthy' ? 0 : 
+                     result.status === 'degraded' ? 1 : 2;
+    
+    process.exit(exitCode);
+    
+  } catch (err) {
+    console.error(chalk.red('❌ Cerber error:'), err.message);
+    process.exit(2);
+  }
+}
+
+function printResult(result) {
+  console.log('\n' + chalk.cyan('═'.repeat(60)));
+  console.log(chalk.bold('🔍 Cerber Health Check Results'));
+  console.log(chalk.cyan('═'.repeat(60)));
+  
+  const statusColor = result.status === 'healthy' ? 'green' :
+                      result.status === 'degraded' ? 'yellow' : 'red';
+  
+  console.log(`\nStatus: ${chalk[statusColor](result.status.toUpperCase())}`);
+  console.log(`Duration: ${result.durationMs}ms`);
+  
+  console.log('\nSummary:');
+  console.log(`  Total Checks: ${result.summary.totalChecks}`);
+  console.log(`  Failed: ${result.summary.failedChecks}`);
+  console.log(`  Critical: ${chalk.red(result.summary.criticalIssues)}`);
+  console.log(`  Errors: ${chalk.yellow(result.summary.errorIssues)}`);
+  console.log(`  Warnings: ${chalk.dim(result.summary.warningIssues)}`);
+  
+  if (result.components && result.components.length > 0) {
+    console.log('\nComponents:');
+    result.components.forEach(c => {
+      const icon = c.severity === 'critical' ? '🔴' :
+                   c.severity === 'error' ? '❌' : '⚠️';
+      console.log(`  ${icon} ${c.name}: ${c.message}`);
+      if (c.fix) {
+        console.log(chalk.dim(`     💡 ${c.fix}`));
+      }
+    });
+  }
+  
+  console.log('\n' + chalk.cyan('═'.repeat(60)) + '\n');
+}
+
+main();

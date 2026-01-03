@@ -1,0 +1,90 @@
+#!/usr/bin/env node
+
+/**
+ * Cerber Guardian - Pre-commit validator CLI
+ * 
+ * @author Stefan Pitek
+ * @license MIT
+ */
+
+import chalk from 'chalk';
+import { program } from 'commander';
+import * as path from 'path';
+
+program
+  .name('cerber-guardian')
+  .description('Guardian - Pre-commit architecture validator')
+  .version('1.0.0')
+  .option('-s, --schema <file>', 'Schema file path', './SCHEMA.ts')
+  .option('-v, --verbose', 'Verbose output', false)
+  .option('--fail-on-warning', 'Exit with error on warnings', false)
+  .parse();
+
+const options = program.opts();
+
+async function main() {
+  try {
+    const { Guardian } = await import('../dist/guardian/index.js');
+    
+    // Load schema
+    const schemaPath = path.resolve(process.cwd(), options.schema);
+    let schema = {};
+    
+    try {
+      const schemaModule = await import(schemaPath);
+      schema = schemaModule.default || schemaModule.SCHEMA || schemaModule;
+    } catch (err) {
+      console.warn(chalk.yellow(`⚠️  Could not load schema from ${schemaPath}`));
+      console.warn(chalk.dim('Using empty schema'));
+    }
+    
+    // Run validation
+    const guardian = new Guardian(schema);
+    const result = await guardian.validate();
+    
+    if (options.verbose) {
+      console.log('\n📋 Guardian Validation Results:');
+      console.log(chalk.dim('─'.repeat(50)));
+      
+      if (result.approvals.length > 0) {
+        console.log(chalk.cyan(`\n✅ Architect Approvals: ${result.approvals.length}`));
+        result.approvals.forEach(a => {
+          console.log(chalk.dim(`   ${a.file}:${a.line} - ${a.reason}`));
+        });
+      }
+      
+      if (result.warnings.length > 0) {
+        console.log(chalk.yellow(`\n⚠️  Warnings: ${result.warnings.length}`));
+        result.warnings.forEach(w => console.log(chalk.yellow(`   ${w}`)));
+      }
+      
+      if (result.errors.length > 0) {
+        console.log(chalk.red(`\n❌ Errors: ${result.errors.length}`));
+        result.errors.forEach(e => console.log(chalk.red(`   ${e}`)));
+      }
+    }
+    
+    // Exit handling
+    if (!result.success) {
+      console.error(chalk.red('\n❌ Guardian validation failed\n'));
+      process.exit(1);
+    }
+    
+    if (options.failOnWarning && result.warnings.length > 0) {
+      console.error(chalk.yellow('\n⚠️  Guardian validation failed (warnings treated as errors)\n'));
+      process.exit(1);
+    }
+    
+    console.log(chalk.green('✅ Guardian validation passed\n'));
+    process.exit(0);
+    
+  } catch (err) {
+    console.error(chalk.red('❌ Guardian error:'), err.message);
+    if (options.verbose) {
+      console.error(err.stack);
+    }
+    process.exit(1);
+  }
+}
+
+main();

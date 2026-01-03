@@ -1,0 +1,29 @@
+# Test files
+__tests__/
+*.test.ts
+*.spec.ts
+
+# Examples
+examples/
+
+# Documentation
+docs/
+*.md
+!README.md
+
+# Source files (we ship compiled)
+src/
+
+# Config
+tsconfig.json
+jest.config.cjs
+.eslintrc.json
+.prettierrc
+
+# CI/CD
+.github/
+.husky/
+
+# Development
+.vscode/
+.idea/

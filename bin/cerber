@@ -1,0 +1,105 @@
+#!/usr/bin/env node
+
+/**
+ * Cerber Core - Unified CLI
+ * 
+ * Main entry point for all Cerber commands
+ * 
+ * @author Stefan Pitek
+ * @license MIT
+ */
+
+import chalk from 'chalk';
+import { program } from 'commander';
+
+program
+  .name('cerber')
+  .description('Cerber Core - Code quality & health monitoring')
+  .version('1.0.0');
+
+program
+  .command('guardian')
+  .description('Run Guardian pre-commit validation')
+  .option('-s, --schema <file>', 'Schema file path')
+  .option('-v, --verbose', 'Verbose output')
+  .option('--fail-on-warning', 'Exit with error on warnings')
+  .action(async (options) => {
+    const { Guardian } = await import('../dist/guardian/index.js');
+    const schema = options.schema ? await import(options.schema) : null;
+    
+    const guardian = new Guardian(schema?.default || {});
+    const result = await guardian.validate();
+    
+    if (!result.success) {
+      console.error(chalk.red('❌ Guardian validation failed'));
+      process.exit(1);
+    }
+    
+    console.log(chalk.green('✅ Guardian validation passed'));
+  });
+
+program
+  .command('health')
+  .description('Run Cerber health checks')
+  .option('-c, --checks <file>', 'Health checks file path')
+  .option('-u, --url <url>', 'Fetch health from URL')
+  .option('-p, --parallel', 'Run checks in parallel')
+  .action(async (options) => {
+    const { Cerber } = await import('../dist/cerber/index.js');
+    
+    if (options.url) {
+      const response = await fetch(options.url);
+      const result = await response.json();
+      console.log(JSON.stringify(result, null, 2));
+      process.exit(result.status === 'healthy' ? 0 : 1);
+    }
+    
+    const checksModule = options.checks ? await import(options.checks) : null;
+    const checks = checksModule ? Object.values(checksModule).filter(v => typeof v === 'function') : [];
+    
+    const cerber = new Cerber(checks);
+    const result = await cerber.runChecks({ parallel: options.parallel });
+    
+    process.exit(result.status === 'healthy' ? 0 : 1);
+  });
+
+program
+  .command('morning')
+  .description('Run morning dashboard (SOLO)')
+  .action(async () => {
+    const { execSync } = await import('child_process');
+    execSync('node solo/scripts/cerber-daily-check.js', { stdio: 'inherit' });
+  });
+
+program
+  .command('repair')
+  .description('Auto-repair common issues (SOLO)')
+  .option('--dry-run', 'Show what would be fixed without making changes')
+  .option('--approve', 'Require approval for each fix')
+  .action(async (options) => {
+    const { execSync } = await import('child_process');
+    const args = [
+      options.dryRun && '--dry-run',
+      options.approve && '--approve'
+    ].filter(Boolean).join(' ');
+    
+    execSync(`node solo/scripts/cerber-auto-repair.js ${args}`, { stdio: 'inherit' });
+  });
+
+program
+  .command('focus <module>')
+  .description('Generate focus context for module (TEAM)')
+  .action(async (module) => {
+    const { execSync } = await import('child_process');
+    execSync(`bash team/scripts/cerber-focus.sh ${module}`, { stdio: 'inherit' });
+  });
+
+program
+  .command('dashboard')
+  .description('Show system dashboard (SOLO)')
+  .action(async () => {
+    const { execSync } = await import('child_process');
+    execSync('node solo/scripts/cerber-dashboard.js', { stdio: 'inherit' });
+  });
+
+program.parse();

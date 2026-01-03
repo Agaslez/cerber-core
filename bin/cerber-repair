@@ -1,0 +1,21 @@
+#!/usr/bin/env node
+
+/**
+ * Cerber Repair - SOLO auto-repair system
+ * 
+ * @author Stefan Pitek
+ * @license MIT
+ */
+
+import { execSync } from 'child_process';
+
+const args = process.argv.slice(2).join(' ');
+
+try {
+  execSync(`node solo/scripts/cerber-auto-repair.js ${args}`, { 
+    stdio: 'inherit',
+    cwd: process.cwd()
+  });
+} catch (err) {
+  process.exit(1);
+}
