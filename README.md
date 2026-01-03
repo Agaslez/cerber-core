@@ -1068,7 +1068,84 @@ bash team/scripts/cerber-team-morning.sh
 
 ---
 
-## 🔧 Configuration
+## � Support This Project
+
+If Cerber Core saved you time, prevented bugs, or improved your codebase quality, consider supporting its development!
+
+### 🌟 GitHub Sponsors
+
+<a href="https://github.com/sponsors/Agaslez">
+  <img src="https://img.shields.io/badge/Sponsor-❤️_Sponsor-ea4aaa?style=for-the-badge&logo=github-sponsors&logoColor=white" alt="GitHub Sponsors">
+</a>
+
+**Why sponsor?**
+- ✅ Keeps the project actively maintained
+- ✅ Funds new features and improvements
+- ✅ Priority support for sponsors
+- ✅ Your logo in README (Silver+ tiers)
+- ✅ Influence development roadmap
+
+**Sponsorship Tiers:**
+- **☕ Coffee ($5/month):** Sponsor badge, access to sponsor discussions
+- **🥉 Bronze ($25/month):** Everything above + small logo in README + priority support (24h)
+- **🥈 Silver ($100/month):** Everything above + medium logo + priority support (12h) + monthly consultation call
+- **🥇 Gold ($500/month):** Everything above + large logo (top position) + priority support (4h) + custom feature requests
+- **💎 Platinum ($2,500/month):** Everything above + dedicated support + weekly calls + custom integrations
+
+### 💼 Professional Services
+
+Need help integrating Cerber Core into your organization?
+
+**Available Services:**
+- **🎓 Team Training** (5-10 developers): $2,500
+  - Half-day workshop on Guardian, Cerber, and Focus Mode
+  - Best practices for architecture enforcement
+  - Custom schema creation for your stack
+  
+- **💼 Enterprise Integration** (custom pricing)
+  - Full integration with your CI/CD pipeline
+  - Custom health checks for your infrastructure
+  - Team Focus Mode setup and training
+  - Ongoing support and consultation
+  
+- **🚀 1-on-1 Consultation**: $200/hour
+  - Schema design review
+  - Architecture strategy session
+  - Troubleshooting and optimization
+
+**Contact:** st.pitek@gmail.com
+
+### ☕ One-Time Donation
+
+Prefer a one-time contribution? Buy me a coffee!
+
+<a href="https://www.buymeacoffee.com/stefanpitek">
+  <img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" height="50" alt="Buy Me A Coffee">
+</a>
+
+---
+
+## 🏢 Sponsors
+
+### 💎 Platinum Sponsors
+
+**Become the first Platinum sponsor!** Your logo here + dedicated support.
+
+### 🥇 Gold Sponsors
+
+**Become the first Gold sponsor!** Your logo here + priority support + monthly calls.
+
+### 🥈 Silver Sponsors
+
+**Become the first Silver sponsor!** Your logo here + priority support.
+
+### 🥉 Bronze Sponsors
+
+*Your name here* - Support Cerber Core development!
+
+---
+
+## �🔧 Configuration
 
 ### Guardian Configuration
 
@@ -1126,11 +1203,60 @@ npm test
 
 ---
 
+## � Security
+
+Security is a top priority for Cerber Core. We take the security of our users seriously.
+
+### Reporting Security Issues
+
+**⚠️ DO NOT create public issues for security vulnerabilities.**
+
+If you discover a security issue, please email: **st.pitek@gmail.com**
+
+Include:
+- Description of the vulnerability
+- Steps to reproduce
+- Potential impact
+- Your contact information
+
+**Response time:** 24-48 hours acknowledgment, 7-14 days for fix.
+
+### Security Features
+
+✅ **No External Calls:** Guardian and Cerber run locally, no data sent externally  
+✅ **Open Source:** Full transparency - audit the code yourself  
+✅ **No Telemetry:** No tracking, no analytics, no data collection  
+✅ **MIT Licensed:** Safe for commercial use  
+
+### Best Practices
+
+- Never commit secrets to schemas (use `process.env`)
+- Keep `.env` files in `.gitignore`
+- Update regularly: `npm update cerber-core`
+- Enable Dependabot for automated security updates
+- Run `npm audit` regularly
+
+**Full security policy:** [SECURITY.md](SECURITY.md)
+
+---
+
 ## 📄 License
 
 MIT © 2026 Stefan Pitek
 
 See [LICENSE](LICENSE) for details.
+
+### Commercial Use
+
+Cerber Core is free for commercial use under MIT License. No attribution required (but appreciated!).
+
+**Need:**
+- Custom features or private fork support?
+- Dedicated SLA or priority bug fixes?
+- On-premises deployment assistance?
+- Enterprise training and integration?
+
+**Contact:** st.pitek@gmail.com
 
 ---
 

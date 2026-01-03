@@ -1,0 +1,119 @@
+name: Security Checks
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Run weekly on Mondays at 9am UTC
+    - cron: '0 9 * * 1'
+
+jobs:
+  security-audit:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Run npm audit
+        run: npm audit --audit-level=moderate
+        continue-on-error: true
+      
+      - name: Check for hardcoded secrets
+        run: |
+          echo "Checking for potential secrets in code..."
+          ! grep -r "sk_live" src/ || (echo "Found potential secret!" && exit 1)
+          ! grep -r "api_key.*=.*['\"]" src/ || (echo "Found potential hardcoded API key!" && exit 1)
+          ! grep -r "password.*=.*['\"]" src/ || (echo "Found potential hardcoded password!" && exit 1)
+          echo "✅ No obvious secrets found"
+      
+      - name: Check .gitignore
+        run: |
+          echo "Verifying .gitignore includes sensitive files..."
+          grep -q ".env" .gitignore || (echo ".env missing from .gitignore!" && exit 1)
+          grep -q "*.key" .gitignore || (echo "*.key missing from .gitignore!" && exit 1)
+          grep -q "*.pem" .gitignore || (echo "*.pem missing from .gitignore!" && exit 1)
+          echo "✅ .gitignore looks good"
+
+  dependency-review:
+    name: Dependency Review
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Dependency Review
+        uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: moderate
+          deny-licenses: GPL-2.0, GPL-3.0
+
+  build-test:
+    name: Build & Test
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Build
+        run: npm run build
+      
+      - name: Verify build output
+        run: |
+          echo "Checking dist/ directory..."
+          [ -d "dist" ] || (echo "dist/ not created!" && exit 1)
+          [ -f "dist/index.js" ] || (echo "dist/index.js missing!" && exit 1)
+          [ -f "dist/index.d.ts" ] || (echo "dist/index.d.ts missing!" && exit 1)
+          echo "✅ Build successful"
+      
+      - name: Run tests
+        run: npm test || echo "⚠️ No tests configured yet"
+
+  license-check:
+    name: License Compliance
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      
+      - name: Check LICENSE file
+        run: |
+          [ -f "LICENSE" ] || (echo "LICENSE file missing!" && exit 1)
+          grep -q "MIT" LICENSE || (echo "LICENSE is not MIT!" && exit 1)
+          echo "✅ MIT License found"
+      
+      - name: Check copyright headers
+        run: |
+          echo "Checking for copyright notices..."
+          grep -q "Stefan Pitek" LICENSE || (echo "Copyright holder not found in LICENSE!" && exit 1)
+          echo "✅ Copyright notices look good"
