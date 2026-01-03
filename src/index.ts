@@ -1,10 +1,10 @@
 /**
  * Guardian + Cerber - Main Entry Point
- * @package @your-org/guardian-cerber
+ * @package cerber-core
  * @version 1.0.0
  */
 
-export * from './cerber';
-export * from './guardian';
+export { Cerber, makeIssue, runHealthChecks } from './cerber';
+export { Guardian } from './guardian';
 export * from './types';
 

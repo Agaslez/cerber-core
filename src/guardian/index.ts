@@ -5,7 +5,7 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import type { ArchitectApproval, GuardianSchema, ValidationResult } from './types';
+import type { ArchitectApproval, GuardianSchema, ValidationResult } from '../types';
 
 export class Guardian {
   private schema: GuardianSchema;
@@ -196,7 +196,7 @@ export class Guardian {
       
       const content = fs.readFileSync(fullPath, 'utf-8');
       
-      for (const requiredImport of imports) {
+      for (const requiredImport of imports as string[]) {
         if (!content.includes(requiredImport)) {
           this.addError(`MISSING IMPORT in ${filePath}: ${requiredImport}`);
         }
@@ -233,7 +233,8 @@ export class Guardian {
       
       console.log('   ✅ package-lock.json in sync');
     } catch (err) {
-      this.addError(`Error checking package files: ${err.message}`);
+      const error = err as Error;
+      this.addError(`Error checking package files: ${error.message}`);
     }
   }
 

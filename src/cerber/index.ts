@@ -3,7 +3,7 @@
  * Validates system health and blocks deployments on critical issues
  */
 
-import type { CerberCheck, CerberCheckContext, CerberIssue, CerberResult } from './types';
+import type { CerberCheck, CerberCheckContext, CerberIssue, CerberResult } from '../types';
 
 export class Cerber {
   private checks: CerberCheck[];
@@ -43,7 +43,8 @@ export class Cerber {
           const issues = await check(this.context);
           allIssues.push(...issues);
         } catch (err) {
-          console.error(`Check failed: ${err.message}`);
+          const error = err as Error;
+          console.error(`Check failed: ${error.message}`);
         }
       }
     }
@@ -119,7 +120,7 @@ export class Cerber {
 
     if (result.components.length > 0) {
       console.log('\n🔍 Issues Found:');
-      result.components.forEach(c => {
+      result.components.forEach((c: any) => {
         const icon = c.severity === 'critical' ? '🔴' 
                    : c.severity === 'error' ? '❌' 
                    : '⚠️';
@@ -171,7 +172,7 @@ export async function runHealthChecks(options: {
   if (options.url) {
     // Fetch from URL
     const response = await fetch(options.url);
-    return response.json();
+    return response.json() as Promise<CerberResult>;
   }
 
   // Load checks from file
