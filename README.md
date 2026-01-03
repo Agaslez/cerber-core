@@ -936,10 +936,29 @@ nano .cerber/BIBLE.md
 
 ### Integration with Cerber
 
-- **Guardian** validates modules match BIBLE structure
+Cerber automatically reads BIBLE.md from `.cerber/BIBLE.md` when running health checks:
+
+```typescript
+// server.ts
+import { createHealthEndpoint } from 'cerber-core';
+
+const healthChecks = {
+  // Cerber automatically validates against .cerber/BIBLE.md
+  architecture: async () => {
+    // Checks if actual modules match BIBLE structure
+    return await validateArchitectureAgainstBible();
+  }
+};
+
+app.get('/api/health', createHealthEndpoint(healthChecks));
+```
+
+**What Cerber checks:**
+- **Guardian** validates modules match BIBLE structure (pre-commit)
 - **Focus Mode** uses BIBLE to isolate context (500 LOC vs 10K LOC)
 - **Module checks** ensure boundaries defined in BIBLE are respected
 - **Morning checks** verify BIBLE is up-to-date with codebase
+- **Runtime health** checks architecture drift from BIBLE
 
 **Result:** Your team stays aligned even when coding at AI speed! 🚀
 
@@ -1448,7 +1467,7 @@ Made with 🛡️ by developers, for developers
 ### 🎯 The Story
 
 **Stefan Pitek** - Career changer who started coding in May 2025
-- Former banking professional (10+ years)
+- 30 years professional experience: 12 years banking, 8 years hospitality, 8 years business, 2 years as chef
 - Co-owned restaurant with Agata
 - First line of code: May 2025
 - 8 months later: 3 production SaaS apps + this open-source tool
