@@ -76,7 +76,134 @@ Cerber Core is a comprehensive toolkit for maintaining code quality and architec
 npm install cerber-core --save-dev
 ```
 
+### Choose Your Path
+
+#### 🎨 **Frontend Developer (React/Vue/Angular)**
+
+```bash
+# 1. Copy frontend schema example
+cp node_modules/cerber-core/examples/frontend-schema.ts ./FRONTEND_SCHEMA.ts
+
+# 2. Copy validation script
+mkdir -p scripts
+cp node_modules/cerber-core/guardian/templates/validate-schema.mjs scripts/
+
+# 3. Install pre-commit hook
+npx husky-init
+npx husky add .husky/pre-commit "node scripts/validate-schema.mjs"
+
+# 4. Test it!
+git commit -m "test"
+# Guardian will validate automatically (<1s)
+```
+
+**What Guardian will check:**
+- ❌ No `console.log` in production code
+- ❌ No direct DOM manipulation in React components
+- ✅ Required imports (`react`, `react-dom`)
+- ✅ Required files (`tsconfig.json`, `vite.config.ts`)
+
+#### ⚙️ **Backend Developer (Node.js/Express/NestJS)**
+
+```bash
+# 1. Copy backend schema example
+cp node_modules/cerber-core/examples/backend-schema.ts ./BACKEND_SCHEMA.ts
+
+# 2. Copy validation script
+mkdir -p scripts
+cp node_modules/cerber-core/guardian/templates/validate-schema.mjs scripts/
+
+# 3. Install pre-commit hook
+npx husky-init
+npx husky add .husky/pre-commit "node scripts/validate-schema.mjs"
+
+# 4. Add health endpoint
+```
+
+```javascript
+// server.js (ESM)
+import express from 'express';
+import { Cerber } from 'cerber-core/cerber';
+
+const app = express();
+
+// Define health checks
+const databaseCheck = async () => {
+  const isHealthy = await db.ping();
+  return isHealthy ? [] : [{
+    code: 'DB_DOWN',
+    severity: 'critical',
+    message: 'Database connection failed'
+  }];
+};
+
+// Create Cerber instance
+const cerber = new Cerber([databaseCheck]);
+
+// Health endpoint
+app.get('/api/health', async (req, res) => {
+  const result = await cerber.runChecks();
+  const statusCode = result.status === 'healthy' ? 200 : 500;
+  res.status(statusCode).json(result);
+});
+
+app.listen(3000);
+```
+
+**What you get:**
+- 🔍 `/api/health` endpoint for monitoring
+- 🚨 Automatic rollback on critical issues
+- 📊 Detailed diagnostics with root cause analysis
+
+#### ⚡ **SOLO Developer (Automation Scripts)**
+
+```bash
+# Add to package.json
+{
+  "scripts": {
+    "cerber:morning": "node node_modules/cerber-core/solo/scripts/cerber-morning.js",
+    "cerber:repair": "node node_modules/cerber-core/solo/scripts/cerber-auto-repair.js"
+  }
+}
+
+# Run daily dashboard
+npm run cerber:morning
+
+# Auto-fix issues
+npm run cerber:repair --dry-run
+```
+
+**What you get:**
+- 🌅 Daily dashboard (vulnerabilities, outdated deps, TODOs)
+- 🔧 Auto-repair (format, sync package-lock, fix imports)
+- 📈 Performance budget checks
+
+#### 👥 **TEAM Lead (Focus Mode for Large Codebases)**
+
+```bash
+# 1. Setup .cerber structure
+mkdir -p .cerber/modules
+cp -r node_modules/cerber-core/.cerber-example/* .cerber/
+
+# 2. Create module
+bash node_modules/cerber-core/team/scripts/cerber-add-module.sh pricing-engine
+
+# 3. Generate focus context (500 LOC instead of 10K LOC)
+bash node_modules/cerber-core/team/scripts/cerber-focus.sh pricing-engine
+
+# 4. Use with AI
+cat .cerber/FOCUS_CONTEXT.md
+# Share with ChatGPT/Claude - 10x faster responses!
+```
+
+**What you get:**
+- 🎯 **500 LOC context** instead of 10,000 LOC (10x faster AI)
+- 🗺️ Module boundaries (clear what belongs where)
+- 🔗 Connection contracts (how modules communicate)
+
 ### Unified CLI
+
+All features available through unified CLI:
 
 ```bash
 # Guardian - Pre-commit validation
@@ -98,6 +225,7 @@ cerber focus pricing-engine
 cerber-guardian
 cerber-health
 cerber-morning
+
 cerber-repair
 cerber-focus
 ```
