@@ -12,7 +12,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { getDefaultContract, parseCerberContract } from './contract-parser.js';
 import { TemplateGenerator } from './template-generator.js';
-import { CerberContract, InitOptions } from './types.js';
+import { CerberContract, GeneratedFile, InitOptions } from './types.js';
 
 const CERBER_MD_TEMPLATE = `# CERBER.md - Architecture Roadmap
 
@@ -46,6 +46,14 @@ ci:
     waitSeconds: 90
     healthUrlVar: CERBER_HEALTH_URL
     authHeaderSecret: CERBER_HEALTH_AUTH_HEADER
+
+schema:
+  enabled: true
+  file: BACKEND_SCHEMA.ts
+  mode: template_only  # strict | template_only
+  description: "Project architecture contract (user-owned)"
+  # strict = Cerber never creates schema, you must create it
+  # template_only = Cerber creates minimal template if missing
 \`\`\`
 
 ---
@@ -190,7 +198,7 @@ export async function initCommand(options: InitOptions = {}): Promise<void> {
   console.log('');
   
   // Step 5: Show next steps
-  showNextSteps(contract, options);
+  await showNextSteps(contract, options, files, projectRoot);
 }
 
 async function updatePackageJson(projectRoot: string): Promise<void> {
@@ -215,7 +223,16 @@ async function updatePackageJson(projectRoot: string): Promise<void> {
   }
 }
 
-function showNextSteps(contract: CerberContract, options: InitOptions): void {
+async function fileExists(filePath: string): Promise<boolean> {
+  try {
+    await fs.access(filePath);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function showNextSteps(contract: CerberContract, options: InitOptions, generatedFiles: GeneratedFile[], projectRoot: string): Promise<void> {
   console.log(chalk.bold('📝 Next Steps:'));
   console.log('');
   
@@ -226,8 +243,39 @@ function showNextSteps(contract: CerberContract, options: InitOptions): void {
     console.log('');
   }
   
-  if (contract.guardian.enabled) {
-    console.log(chalk.cyan(`2. Create your schema file: ${contract.guardian.schemaFile}`));
+  // Schema section (based on schema config in CERBER.md)
+  if (contract.schema && contract.schema.enabled) {
+    const schemaFile = contract.schema.file;
+    const schemaGenerated = generatedFiles.some(f => f.path.endsWith(schemaFile));
+    const schemaExists = await fileExists(path.join(projectRoot, schemaFile));
+    
+    if (schemaGenerated) {
+      // Template was generated
+      console.log(chalk.cyan(`2. Customize your architecture schema:`));
+      console.log(chalk.yellow(`   ⚠️  ${schemaFile} is a TEMPLATE (not source of truth)`));
+      console.log(`   Edit it to match your architecture defined in CERBER.md`);
+      console.log('   See: https://github.com/Agaslez/cerber-core#guardian-configuration');
+    } else if (!schemaExists && contract.schema.mode === 'strict') {
+      // Strict mode: schema required but not generated
+      console.log(chalk.cyan(`2. Create your schema file:`));
+      console.log(chalk.yellow(`   Schema mode: strict (you must create ${schemaFile})`));
+      console.log(`   Template: npx cerber init --print-schema-template > ${schemaFile}`);
+      console.log('   See: https://github.com/Agaslez/cerber-core#guardian-configuration');
+    } else if (schemaExists) {
+      // Schema exists, don't mention creating it
+      console.log(chalk.green(`✅ Schema file exists: ${schemaFile}`));
+    }
+    console.log('');
+  } else if (contract.guardian.enabled) {
+    // Legacy: guardian enabled but no schema config (backward compat)
+    const schemaGenerated = generatedFiles.some(f => f.path.endsWith(contract.guardian.schemaFile));
+    if (schemaGenerated) {
+      console.log(chalk.cyan(`2. Customize your architecture schema:`));
+      console.log(`   Edit: ${contract.guardian.schemaFile}`);
+      console.log('   Add your project-specific rules and patterns');
+    } else {
+      console.log(chalk.cyan(`2. Create your schema file: ${contract.guardian.schemaFile}`));
+    }
     console.log('   See: https://github.com/Agaslez/cerber-core#guardian-configuration');
     console.log('');
   }

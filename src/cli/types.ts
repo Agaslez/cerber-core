@@ -13,6 +13,7 @@ export interface CerberContract {
   guardian: GuardianConfig;
   health: HealthConfig;
   ci: CIConfig;
+  schema: SchemaConfig;
   team?: TeamConfig;
 }
 
@@ -50,6 +51,14 @@ export interface TeamConfig {
   reviewRequired?: boolean;
 }
 
+export interface SchemaConfig {
+  enabled: boolean;
+  file: string;
+  mode: 'strict' | 'template_only';
+  owners?: string[];
+  description?: string;
+}
+
 export interface ContractParseResult {
   success: boolean;
   contract?: CerberContract;
@@ -65,6 +74,7 @@ export interface InitOptions {
   force?: boolean;
   dryRun?: boolean;
   printTemplate?: boolean;
+  printSchemaTemplate?: boolean;
   noHusky?: boolean;
   noWorkflow?: boolean;
   noHealth?: boolean;

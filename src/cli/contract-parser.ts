@@ -116,6 +116,7 @@ function parseSimpleYaml(yamlContent: string): CerberContract {
     guardian: {},
     health: {},
     ci: {},
+    schema: {},
     team: {}
   };
   
@@ -217,6 +218,24 @@ function validateContract(contract: any): { valid: boolean; errors: string[] } {
     }
   }
   
+  // Check schema section (optional but if present, validate)
+  if (contract.schema) {
+    if (typeof contract.schema.enabled !== 'boolean') {
+      errors.push('schema.enabled must be true or false');
+    }
+    if (contract.schema.enabled) {
+      if (!contract.schema.file) {
+        errors.push('schema.file is required when schema is enabled');
+      }
+      if (!contract.schema.mode) {
+        errors.push('schema.mode is required (strict or template_only)');
+      }
+      if (contract.schema.mode && !['strict', 'template_only'].includes(contract.schema.mode)) {
+        errors.push('schema.mode must be "strict" or "template_only"');
+      }
+    }
+  }
+  
   return {
     valid: errors.length === 0,
     errors
@@ -252,6 +271,12 @@ export function getDefaultContract(mode: 'solo' | 'dev' | 'team' = 'dev'): Cerbe
         healthUrlVar: 'CERBER_HEALTH_URL',
         authHeaderSecret: 'CERBER_HEALTH_AUTH_HEADER'
       }
+    },
+    schema: {
+      enabled: true,
+      file: 'BACKEND_SCHEMA.ts',
+      mode: 'template_only',
+      description: 'Project architecture contract (user-owned)'
     }
   };
 }

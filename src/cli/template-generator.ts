@@ -68,6 +68,24 @@ export class TemplateGenerator {
       generated: true
     });
     
+    // Generate schema file ONLY if schema.enabled AND mode is template_only AND file doesn't exist
+    if (this.contract.schema && this.contract.schema.enabled) {
+      const schemaPath = path.join(this.projectRoot, this.contract.schema.file);
+      const schemaExists = await this.fileExists(schemaPath);
+      
+      if (!schemaExists && this.contract.schema.mode === 'template_only') {
+        const projectName = path.basename(this.projectRoot);
+        const schemaContent = await this.renderTemplate('BACKEND_SCHEMA.ts.tpl', {
+          PROJECT_NAME: projectName
+        });
+        files.push({
+          path: schemaPath,
+          content: schemaContent,
+          generated: true
+        });
+      }
+    }
+    
     // .husky/pre-commit
     if (this.contract.guardian.hook === 'husky') {
       const preCommitHook = await this.renderTemplate('pre-commit.tpl', {
@@ -201,6 +219,15 @@ export class TemplateGenerator {
       result = result.replace(token, value);
     }
     return result;
+  }
+  
+  private async fileExists(filePath: string): Promise<boolean> {
+    try {
+      await fs.access(filePath);
+      return true;
+    } catch {
+      return false;
+    }
   }
   
   private getPostDeployBlock(): string {
