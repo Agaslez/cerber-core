@@ -212,7 +212,9 @@ jobs:
             const guardian = new Guardian(schema);
             const result = await guardian.validate(process.cwd());
             
-            if (!result.valid) {
+            console.log('DEBUG result:', JSON.stringify(result, null, 2));
+            
+            if (result.valid === false) {
               console.log('❌ Guardian found issues in Cerber Core code!');
               process.exit(1);
             }
