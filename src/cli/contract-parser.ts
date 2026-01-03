@@ -67,7 +67,8 @@ function parseSimpleYaml(yamlContent: string): CerberContract {
     mode: 'dev',
     guardian: {},
     health: {},
-    ci: {}
+    ci: {},
+    team: {}
   };
   
   let currentSection: string | null = null;
@@ -94,12 +95,26 @@ function parseSimpleYaml(yamlContent: string): CerberContract {
       const [key, ...valueParts] = trimmed.split(':');
       let value: any = valueParts.join(':').trim();
       
+      // Strip inline comments (# after value)
+      const commentIndex = value.indexOf('#');
+      if (commentIndex !== -1) {
+        value = value.substring(0, commentIndex).trim();
+      }
+      
       // Parse value type
       if (value === 'true') value = true;
       else if (value === 'false') value = false;
       else if (!isNaN(Number(value))) value = Number(value);
       else if (value.startsWith('[') && value.endsWith(']')) {
-        value = value.slice(1, -1).split(',').map((v: string) => v.trim());
+        value = value.slice(1, -1).split(',').map((v: string) => {
+          const trimmed = v.trim();
+          // Strip quotes from array values
+          if ((trimmed.startsWith("'") && trimmed.endsWith("'")) ||
+              (trimmed.startsWith('"') && trimmed.endsWith('"'))) {
+            return trimmed.slice(1, -1);
+          }
+          return trimmed;
+        });
       }
       
       if (currentSubsection && currentSection) {

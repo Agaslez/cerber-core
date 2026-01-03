@@ -137,6 +137,9 @@ export async function initCommand(options: InitOptions = {}): Promise<void> {
   console.log(`   Guardian: ${contract.guardian.enabled ? chalk.green('enabled') : chalk.gray('disabled')}`);
   console.log(`   Health: ${contract.health.enabled ? chalk.green('enabled') : chalk.gray('disabled')}`);
   console.log(`   CI: ${contract.ci.provider}`);
+  if (contract.ci.postDeploy.enabled) {
+    console.log(`   Post-deploy gate: ${chalk.green('enabled')} → ${contract.ci.postDeploy.healthUrlVar}`);
+  }
   console.log('');
   
   // Step 3: Generate files
@@ -204,6 +207,7 @@ function showNextSteps(contract: CerberContract, options: InitOptions): void {
     console.log(chalk.cyan('3. Customize health checks:'));
     console.log('   Edit: src/cerber/health-checks.ts');
     console.log('   Add route to your server: src/cerber/health-route.ts');
+    console.log(`   Endpoint: ${contract.health.endpoint}`);
     console.log('');
   }
   
@@ -215,9 +219,11 @@ function showNextSteps(contract: CerberContract, options: InitOptions): void {
       console.log('');
       console.log(chalk.yellow('   ⚠️  Post-deploy health check requires:'));
       console.log(`      - GitHub Variable: ${contract.ci.postDeploy.healthUrlVar}`);
+      console.log('      - Optional Secret: CERBER_HEALTH_AUTH_HEADER');
       console.log('      - Set in: Settings > Secrets and variables > Actions > Variables');
       console.log(`      - Example: https://your-api.com${contract.health.endpoint}`);
     }
+    console.log('   Required check name: Cerber CI / job: cerber-ci');
     console.log('');
   }
   
@@ -226,6 +232,7 @@ function showNextSteps(contract: CerberContract, options: InitOptions): void {
     console.log('   - Edit .github/CODEOWNERS (replace @OWNER_USERNAME)');
     console.log('   - Enable branch protection: Settings > Branches');
     console.log('   - Require review from Code Owners');
+    console.log('   - Set required checks to: Cerber CI');
     console.log('');
   }
   

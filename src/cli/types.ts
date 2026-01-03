@@ -13,6 +13,7 @@ export interface CerberContract {
   guardian: GuardianConfig;
   health: HealthConfig;
   ci: CIConfig;
+  team?: TeamConfig;
 }
 
 export interface GuardianConfig {
@@ -42,6 +43,11 @@ export interface CIConfig {
     healthUrlVar: string;
     authHeaderSecret?: string;
   };
+}
+
+export interface TeamConfig {
+  schemaOwners?: string[];
+  reviewRequired?: boolean;
 }
 
 export interface InitOptions {
