@@ -218,6 +218,7 @@ jobs:
             }
             
             console.log('✅ Guardian validation passed - Cerber Core code is clean!');
+            process.exit(0);
           "
 
   use-cerber-health:
