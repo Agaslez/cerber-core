@@ -6,7 +6,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![GitHub](https://img.shields.io/badge/GitHub-cerber--core-blue.svg)](https://github.com/Agaslez/cerber-core)
 
-**Author:** Stefan Pitek  
+**Created by:** Agata Ślęzak & Stefan Pitek  
 **Status:** Production-ready ✅  
 **License:** MIT
 
@@ -1375,5 +1375,15 @@ Deploy:
 **[⬆ Back to top](#-cerber-core)**
 
 Made with 🛡️ by developers, for developers
+
+---
+
+## 👥 About the Creators
+
+**Agata Ślęzak** (Owner) & **Stefan Pitek** (Lead Developer)
+
+Former restaurant owners who pivoted to software development after closing their restaurant business. Now building production-ready tools with a 90/10 partnership split.
+
+**From restaurants to SaaS** - bringing the same attention to quality and customer experience that we learned in hospitality.
 
 </div>
