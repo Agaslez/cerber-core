@@ -15,7 +15,22 @@ import { program } from 'commander';
 program
   .name('cerber')
   .description('Cerber Core - Code quality & health monitoring')
-  .version('1.0.0');
+  .version('1.1.0');
+
+program
+  .command('init')
+  .description('Initialize Cerber in your project')
+  .option('--mode <mode>', 'Override mode: solo | dev | team')
+  .option('--force', 'Overwrite existing files')
+  .option('--dry-run', 'Show what would be generated without creating files')
+  .option('--no-husky', 'Skip Husky hook generation')
+  .option('--no-workflow', 'Skip GitHub Actions workflow generation')
+  .option('--no-health', 'Skip health check template generation')
+  .option('--write-contract', 'Update CERBER.md contract with CLI options')
+  .action(async (options) => {
+    const { initCommand } = await import('../dist/cli/init.js');
+    await initCommand(options);
+  });
 
 program
   .command('guardian')

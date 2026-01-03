@@ -2,6 +2,12 @@
 __tests__/
 *.test.ts
 *.spec.ts
+test/
+
+# Template folders (not shipped, CLI generates on-demand)
+solo/templates/
+dev/templates/
+team/templates/
 
 # Examples
 examples/
@@ -10,6 +16,8 @@ examples/
 docs/
 *.md
 !README.md
+!CHANGELOG.md
+!USAGE_GUIDE.md
 
 # Source files (we ship compiled)
 src/
