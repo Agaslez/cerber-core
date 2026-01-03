@@ -1,7 +1,7 @@
 # 🛡️ Cerber TEAM - Team Collaboration Layer
 
 **Version:** 2.0-team  
-**Author:** Stefan Pitek  
+**Owner:** Agata Ślęzak | **Creator:** Stefan Pitek  
 **Extends:** Cerber Core (Guardian 1.0 + Cerber 2.1 + SOLO)  
 **Repository:** https://github.com/Agaslez/cerber-core
 

@@ -4,7 +4,7 @@
 
 Extends Cerber Core (Guardian 1.0 + Cerber 2.1) with intelligent automation specifically designed for solo developers.
 
-**Author:** Stefan Pitek  
+**Owner:** Agata Ślęzak | **Creator:** Stefan Pitek  
 **Version:** 2.0
 
 ---

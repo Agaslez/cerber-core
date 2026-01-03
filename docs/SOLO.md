@@ -1,7 +1,7 @@
 # 🛡️ Cerber SOLO - Automation for Solo Developers
 
 **Version:** 2.0  
-**Author:** Stefan Pitek  
+**Owner:** Agata Ślęzak | **Creator:** Stefan Pitek  
 **Extends:** Cerber Core (Guardian 1.0 + Cerber 2.1)
 
 ---
