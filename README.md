@@ -6,7 +6,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![GitHub](https://img.shields.io/badge/GitHub-cerber--core-blue.svg)](https://github.com/Agaslez/cerber-core)
 
-**Author:** Stefan Pitek  
+**Owner:** Agata Ślęzak | **Creator:** Stefan Pitek  
 **Status:** Production-ready ✅  
 **License:** MIT
 
@@ -882,6 +882,69 @@ git commit                      # Guardian validates
 
 ---
 
+## 📖 BIBLE.md - Your Project's Single Source of Truth
+
+**BIBLE.md** is your project's master map - the ONE place where everything is documented.
+
+### Why BIBLE.md?
+
+With AI coding, teams can diverge quickly. Everyone works fast, but in different directions. BIBLE.md keeps everyone aligned:
+
+- **All modules documented** - What exists, who owns it, what it does
+- **All connections mapped** - How modules talk to each other
+- **Team responsibilities clear** - Who works on what
+- **Architecture decisions recorded** - Why things are built this way
+
+### How It Works
+
+```bash
+# 1. Copy template
+cp node_modules/cerber-core/team/templates/BIBLE_TEMPLATE.md .cerber/BIBLE.md
+
+# 2. Describe your architecture
+nano .cerber/BIBLE.md
+
+# 3. Keep it updated when adding modules
+# 4. Reference in code reviews
+```
+
+### What's Inside BIBLE.md?
+
+```markdown
+# PROJECT BIBLE - Master Map
+
+## Architecture Overview
+[Visual diagram of your system]
+
+## Modules Index
+1. **auth-service** - Authentication & JWT
+   - Owner: Alice
+   - Files: `src/modules/auth/`
+   
+2. **payment-service** - Stripe integration
+   - Owner: Bob
+   - Files: `src/modules/payment/`
+
+## Connections Map
+- `auth-service` → `user-service`: validateToken()
+- `payment-service` → `notification-service`: sendReceipt()
+
+## Team Responsibilities
+- Alice: auth, user management
+- Bob: payments, billing
+```
+
+### Integration with Cerber
+
+- **Guardian** validates modules match BIBLE structure
+- **Focus Mode** uses BIBLE to isolate context (500 LOC vs 10K LOC)
+- **Module checks** ensure boundaries defined in BIBLE are respected
+- **Morning checks** verify BIBLE is up-to-date with codebase
+
+**Result:** Your team stays aligned even when coding at AI speed! 🚀
+
+---
+
 ## 🏆 Why Cerber Core?
 
 ### Unique Innovations
@@ -1375,5 +1438,33 @@ Deploy:
 **[⬆ Back to top](#-cerber-core)**
 
 Made with 🛡️ by developers, for developers
+
+---
+
+## 👥 About the Project
+
+**Founded by Agata Ślęzak**, created and developed by **Stefan Pitek**
+
+### 🎯 The Story
+
+**Stefan Pitek** - Career changer who started coding in May 2025
+- Former banking professional (10+ years)
+- Co-owned restaurant with Agata
+- First line of code: May 2025
+- 8 months later: 3 production SaaS apps + this open-source tool
+- Built entirely with AI assistance (Claude, ChatGPT, Copilot)
+
+**Agata Ślęzak** - Business owner and project sponsor
+- Former restaurant co-owner
+- Provides business direction and funding
+- Handles legal and financial aspects
+- **Most importantly:** Believed in Stefan's potential when he had zero coding experience
+- Continues to support and encourage through every challenge
+
+**Partnership:** 90/10 split reflecting business ownership and technical contribution.
+
+> *"None of this would exist without Agata's unwavering belief and support. When I wrote my first `console.log`, she saw a future developer. Eight months later, here we are."* — Stefan
+
+**From restaurants to SaaS** - bringing the same attention to quality and customer experience that we learned in hospitality.
 
 </div>

@@ -2,7 +2,7 @@
 
 **Team collaboration layer for large codebases**
 
-Author: Stefan Pitek  
+Owner: Agata Ślęzak | Creator: Stefan Pitek  
 Version: 2.0-team
 
 ---
