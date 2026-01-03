@@ -9,13 +9,13 @@
 
 import fs from 'fs/promises';
 import path from 'path';
-import { CerberContract } from './types.js';
+import { CerberContract, ContractParseResult } from './types.js';
 
 const YAML_START_MARKER = '## CERBER_CONTRACT';
 const YAML_CODE_BLOCK_START = '```yaml';
 const YAML_CODE_BLOCK_END = '```';
 
-export async function parseCerberContract(projectRoot: string): Promise<CerberContract | null> {
+export async function parseCerberContract(projectRoot: string): Promise<ContractParseResult> {
   const cerberPath = path.join(projectRoot, 'CERBER.md');
   
   try {
@@ -23,17 +23,23 @@ export async function parseCerberContract(projectRoot: string): Promise<CerberCo
     return extractContract(content);
   } catch (err) {
     // CERBER.md doesn't exist
-    return null;
+    return { success: false, error: { message: 'CERBER.md not found' } };
   }
 }
 
-export function extractContract(content: string): CerberContract | null {
+export function extractContract(content: string): ContractParseResult {
   const lines = content.split('\n');
   
   // Find CERBER_CONTRACT section
   const contractStartIndex = lines.findIndex(line => line.trim() === YAML_START_MARKER);
   if (contractStartIndex === -1) {
-    return null;
+    return {
+      success: false,
+      error: {
+        message: `Missing "${YAML_START_MARKER}" section header`,
+        context: 'Expected format:\n\n## CERBER_CONTRACT\n\`\`\`yaml\n...\n\`\`\`'
+      }
+    };
   }
   
   // Find yaml code block
@@ -49,14 +55,56 @@ export function extractContract(content: string): CerberContract | null {
     }
   }
   
-  if (yamlStartIndex === -1 || yamlEndIndex === -1) {
-    return null;
+  if (yamlStartIndex === -1) {
+    return {
+      success: false,
+      error: {
+        message: 'Missing YAML code block after CERBER_CONTRACT header',
+        line: contractStartIndex + 1,
+        context: `Expected \`\`\`yaml after line ${contractStartIndex + 1}`
+      }
+    };
+  }
+  
+  if (yamlEndIndex === -1) {
+    return {
+      success: false,
+      error: {
+        message: 'Unclosed YAML code block',
+        line: yamlStartIndex,
+        context: 'Missing closing \`\`\` for YAML block'
+      }
+    };
   }
   
   const yamlContent = lines.slice(yamlStartIndex, yamlEndIndex).join('\n');
   
   // Simple YAML parser (for our specific structure)
-  return parseSimpleYaml(yamlContent);
+  try {
+    const contract = parseSimpleYaml(yamlContent);
+    
+    // Validate required fields
+    const validation = validateContract(contract);
+    if (!validation.valid) {
+      return {
+        success: false,
+        error: {
+          message: 'Invalid contract structure',
+          context: validation.errors.join('\n')
+        }
+      };
+    }
+    
+    return { success: true, contract };
+  } catch (err: any) {
+    return {
+      success: false,
+      error: {
+        message: 'Failed to parse YAML contract',
+        context: err.message || 'Invalid YAML structure'
+      }
+    };
+  }
 }
 
 function parseSimpleYaml(yamlContent: string): CerberContract {
@@ -128,6 +176,51 @@ function parseSimpleYaml(yamlContent: string): CerberContract {
   }
   
   return contract as CerberContract;
+}
+
+function validateContract(contract: any): { valid: boolean; errors: string[] } {
+  const errors: string[] = [];
+  
+  // Check guardian section
+  if (!contract.guardian) {
+    errors.push('Missing "guardian" section');
+  } else {
+    if (typeof contract.guardian.enabled !== 'boolean') {
+      errors.push('guardian.enabled must be true or false');
+    }
+    if (contract.guardian.enabled && !contract.guardian.schemaFile) {
+      errors.push('guardian.schemaFile is required when guardian is enabled');
+    }
+  }
+  
+  // Check health section
+  if (!contract.health) {
+    errors.push('Missing "health" section');
+  } else {
+    if (typeof contract.health.enabled !== 'boolean') {
+      errors.push('health.enabled must be true or false');
+    }
+    if (contract.health.enabled && !contract.health.endpoint) {
+      errors.push('health.endpoint is required when health is enabled');
+    }
+  }
+  
+  // Check ci section
+  if (!contract.ci) {
+    errors.push('Missing "ci" section');
+  } else {
+    if (!contract.ci.provider) {
+      errors.push('ci.provider is required (e.g., "github")');
+    }
+    if (!contract.ci.postDeploy) {
+      contract.ci.postDeploy = { enabled: false };
+    }
+  }
+  
+  return {
+    valid: errors.length === 0,
+    errors
+  };
 }
 
 export function getDefaultContract(mode: 'solo' | 'dev' | 'team' = 'dev'): CerberContract {

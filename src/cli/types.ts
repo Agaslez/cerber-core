@@ -50,10 +50,21 @@ export interface TeamConfig {
   reviewRequired?: boolean;
 }
 
+export interface ContractParseResult {
+  success: boolean;
+  contract?: CerberContract;
+  error?: {
+    message: string;
+    line?: number;
+    context?: string;
+  };
+}
+
 export interface InitOptions {
   mode?: CerberMode;
   force?: boolean;
   dryRun?: boolean;
+  printTemplate?: boolean;
   noHusky?: boolean;
   noWorkflow?: boolean;
   noHealth?: boolean;

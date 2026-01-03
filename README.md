@@ -145,7 +145,59 @@ export const BACKEND_SCHEMA = {
 ```bash
 npm install cerber-core --save-dev
 npx cerber init
-# Answer a few questions - done!
+```
+
+**How it works:**
+
+**If CERBER.md is missing** → Cerber creates a template and exits.
+
+1. Fill the contract (`CERBER_CONTRACT`) with your project settings
+2. Choose mode: `solo` | `dev` | `team`
+3. Enable features: `guardian`, `health`, `ci`
+
+**Run `npx cerber init` again** to generate:
+
+- ✅ **Guardian hook + runner** - Pre-commit validation
+- ✅ **Health templates** - Production monitoring endpoints
+- ✅ **GitHub Actions workflow** - CI/CD with stable check names
+- ✅ **Team mode: CODEOWNERS** - Schema ownership enforcement
+
+**Example CERBER.md:**
+
+```yaml
+## CERBER_CONTRACT
+\`\`\`yaml
+version: 1
+mode: dev  # solo | dev | team
+
+guardian:
+  enabled: true
+  schemaFile: BACKEND_SCHEMA.ts
+
+health:
+  enabled: true
+  endpoint: /api/health
+
+ci:
+  provider: github
+  branches: [main]
+  requiredOnPR: true
+\`\`\`
+```
+
+**Error handling:**
+
+If CERBER.md exists but is invalid → you'll get a **clear error message** with:
+- Exact problem location
+- Expected format
+- Suggestion: `npx cerber init --print-template` to see valid example
+
+**Useful flags:**
+
+```bash
+npx cerber init --dry-run       # Preview without creating files
+npx cerber init --force          # Overwrite existing files
+npx cerber init --print-template # Print template to stdout
 ```
 
 **What happens:**

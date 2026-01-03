@@ -91,8 +91,12 @@ See \`${getDefaultContract().guardian.schemaFile}\` for complete architecture ru
 
 export async function initCommand(options: InitOptions = {}): Promise<void> {
   const projectRoot = process.cwd();
-  
-  console.log(chalk.bold.cyan('🛡️  Cerber Core - Project Initialization'));
+    // Handle --print-template flag
+  if (options.printTemplate) {
+    console.log(CERBER_MD_TEMPLATE);
+    return;
+  }
+    console.log(chalk.bold.cyan('🛡️  Cerber Core - Project Initialization'));
   console.log('');
   
   if (options.dryRun) {
@@ -102,29 +106,54 @@ export async function initCommand(options: InitOptions = {}): Promise<void> {
   
   // Step 1: Check for CERBER.md
   const cerberPath = path.join(projectRoot, 'CERBER.md');
-  let contract = await parseCerberContract(projectRoot);
+  const parseResult = await parseCerberContract(projectRoot);
   
-  if (!contract) {
-    console.log(chalk.yellow('📄 CERBER.md not found'));
-    console.log('Creating template...');
-    console.log('');
+  if (!parseResult.success) {
+    const error = parseResult.error!;
     
-    if (!options.dryRun) {
-      await fs.writeFile(cerberPath, CERBER_MD_TEMPLATE, 'utf-8');
-      console.log(chalk.green('✅ Created CERBER.md'));
-    } else {
-      console.log(chalk.gray('[DRY RUN] Would create CERBER.md'));
+    // File not found - create template
+    if (error.message === 'CERBER.md not found') {
+      console.log(chalk.yellow('📄 CERBER.md not found'));
+      console.log('Creating template...');
+      console.log('');
+      
+      if (!options.dryRun) {
+        await fs.writeFile(cerberPath, CERBER_MD_TEMPLATE, 'utf-8');
+        console.log(chalk.green('✅ Created CERBER.md'));
+      } else {
+        console.log(chalk.gray('[DRY RUN] Would create CERBER.md'));
+      }
+      
+      console.log('');
+      console.log(chalk.bold('📝 Next Steps:'));
+      console.log('1. Edit CERBER.md and customize the contract for your project');
+      console.log('2. Set your desired mode: solo | dev | team');
+      console.log('3. Run npx cerber init again to generate files');
+      console.log('');
+      
+      return;
     }
     
-    console.log('');
-    console.log(chalk.bold('📝 Next Steps:'));
-    console.log('1. Edit CERBER.md and customize the contract for your project');
-    console.log('2. Set your desired mode: solo | dev | team');
-    console.log('3. Run npx cerber init again to generate files');
-    console.log('');
+    // Invalid contract - show detailed error
+    console.error(chalk.red('❌ Failed to parse CERBER.md'));
+    console.error('');
+    console.error(chalk.yellow('Error:'), error.message);
+    if (error.line) {
+      console.error(chalk.gray(`Line ${error.line}`));
+    }
+    if (error.context) {
+      console.error('');
+      console.error(chalk.gray('Expected format:'));
+      console.error(chalk.gray(error.context));
+    }
+    console.error('');
+    console.error(chalk.blue('💡 Tip: Run'), chalk.cyan('npx cerber init'), chalk.blue('in an empty repo to see a valid template'));
+    console.error('');
     
-    return;
+    process.exit(1);
   }
+  
+  let contract = parseResult.contract!;
   
   // Step 2: Override mode if specified
   if (options.mode) {
