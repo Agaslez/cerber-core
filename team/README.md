@@ -15,7 +15,7 @@ Cerber TEAM adds module system and focus mode to help teams work on large codeba
 - **📦 Module System** - Clear boundaries between components
 - **🎯 Focus Mode** - AI gets 500 LOC instead of 10,000 LOC (10x faster)
 - **🔗 Connection Contracts** - Explicit interfaces between modules
-- **📖 BIBLE.md** - Master project map
+- **📖 CERBER.md** - Master project map
 - **✅ Validation** - Enforce module boundaries automatically
 
 ---
@@ -29,11 +29,11 @@ Cerber TEAM adds module system and focus mode to help teams work on large codeba
 mkdir -p .cerber/modules
 mkdir -p .cerber/connections/contracts
 
-# Create project BIBLE
-cp team/templates/BIBLE_TEMPLATE.md .cerber/BIBLE.md
+# Create project CERBER
+cp team/templates/CERBER_TEMPLATE.md .cerber/CERBER.md
 
-# Edit BIBLE.md to describe your project
-nano .cerber/BIBLE.md
+# Edit CERBER.md to describe your project
+nano .cerber/CERBER.md
 ```
 
 ### 2. Create Your First Module
@@ -47,7 +47,7 @@ bash team/scripts/cerber-add-module.sh my-first-module
 # ✅ MODULE.md created from template
 # ✅ contract.json initialized
 # ✅ dependencies.json created
-# ✅ BIBLE.md updated
+# ✅ CERBER.md updated
 
 # Edit module documentation
 nano .cerber/modules/my-first-module/MODULE.md
@@ -212,7 +212,7 @@ bash team/scripts/cerber-connections-check.sh
 
 ---
 
-## BIBLE.md
+## CERBER.md
 
 Master project map showing:
 - Architecture overview
@@ -221,10 +221,10 @@ Master project map showing:
 - Team responsibilities
 - Tech stack
 
-**Create BIBLE:**
+**Create CERBER:**
 ```bash
-cp team/templates/BIBLE_TEMPLATE.md .cerber/BIBLE.md
-nano .cerber/BIBLE.md
+cp team/templates/CERBER_TEMPLATE.md .cerber/CERBER.md
+nano .cerber/CERBER.md
 ```
 
 ---
@@ -269,7 +269,7 @@ Deploy:
 ## Example Project
 
 See `.cerber-example/` for complete working example:
-- BIBLE.md
+- CERBER.md
 - CERBER_LAW.md
 - Two complete modules (pricing-engine, booking-calendar)
 - Connection contracts

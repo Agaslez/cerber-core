@@ -61,7 +61,7 @@ Cerber TEAM provides:
 1. **📦 Module System**: Clear module boundaries with explicit public interfaces
 2. **🎯 Focus Mode**: Generate 500 LOC context files instead of sharing entire codebase (10x faster AI)
 3. **🔗 Connection Contracts**: Explicit, versioned contracts between modules
-4. **📖 BIBLE.md**: Master project map showing all modules and connections
+4. **📖 CERBER.md**: Master project map showing all modules and connections
 5. **✅ Validation Scripts**: Enforce module boundaries and connection contracts
 6. **👥 Team Dashboard**: Morning briefing showing module health and assignments
 
@@ -82,7 +82,7 @@ Cerber TEAM provides:
                   ▼
       ┌─────────────────────────┐
       │     Choose Module       │
-      │  (from BIBLE.md)        │
+      │  (from CERBER.md)        │
       └─────────┬───────────────┘
                 │
                 ▼
@@ -170,7 +170,7 @@ import { checkAvailability } from '@modules/booking-calendar';
 - Clear public interfaces in contract.json
 - Automated validation catches breaking changes
 - FOCUS_CONTEXT.md documents everything
-- BIBLE.md shows team ownership
+- CERBER.md shows team ownership
 
 ### ROI Comparison
 
@@ -266,9 +266,9 @@ This creates `.cerber/FOCUS_CONTEXT.md` with:
 - Documentation that can't drift (validated by scripts)
 - Clear contract between teams
 
-### 4. BIBLE.md
+### 4. CERBER.md
 
-The **BIBLE** is the master project map showing:
+The **CERBER** is the master project map showing:
 - All modules and their owners
 - Architecture diagram
 - Connections between modules
@@ -338,15 +338,15 @@ mkdir -p .cerber/modules
 mkdir -p .cerber/connections/contracts
 ```
 
-### Step 3: Create Project BIBLE
+### Step 3: Create Project CERBER
 
 Copy the template:
 
 ```bash
-cp team/templates/BIBLE_TEMPLATE.md .cerber/BIBLE.md
+cp team/templates/CERBER_TEMPLATE.md .cerber/CERBER.md
 ```
 
-Edit `.cerber/BIBLE.md` to describe your project architecture.
+Edit `.cerber/CERBER.md` to describe your project architecture.
 
 ### Step 4: Add Scripts to package.json
 
@@ -410,7 +410,7 @@ bash team/scripts/cerber-add-module.sh payment-gateway
 # ✅ MODULE.md created from template
 # ✅ contract.json initialized
 # ✅ dependencies.json created
-# ✅ BIBLE.md updated
+# ✅ CERBER.md updated
 
 # 3. Customize the module
 nano .cerber/modules/payment-gateway/MODULE.md
@@ -579,7 +579,7 @@ bash team/scripts/cerber-add-module.sh <module-name>
 2. Copies MODULE_TEMPLATE.md → MODULE.md
 3. Creates contract.json with version
 4. Creates dependencies.json
-5. Updates BIBLE.md with new module
+5. Updates CERBER.md with new module
 6. Shows next steps
 
 ### Module Validation
@@ -622,7 +622,7 @@ Module 'pricing-engine' is fully compliant!
 
 **1. Planning**
 ```bash
-# Add to BIBLE.md (design phase)
+# Add to CERBER.md (design phase)
 # Identify dependencies
 # Design public interface
 ```
@@ -654,7 +654,7 @@ bash team/scripts/cerber-connections-check.sh
 **6. Integration**
 ```bash
 # Create connection contracts
-# Update BIBLE.md
+# Update CERBER.md
 # Commit with Guardian validation
 ```
 
@@ -1254,8 +1254,8 @@ git commit  # Guardian validates
 **Sprint Planning:**
 
 ```bash
-# Review BIBLE.md
-cat .cerber/BIBLE.md
+# Review CERBER.md
+cat .cerber/CERBER.md
 
 # Assign modules to team members
 # Update owner in MODULE.md
@@ -1313,8 +1313,8 @@ bash team/scripts/cerber-connections-check.sh
 **Day 1:**
 
 ```bash
-# 1. Read BIBLE.md
-cat .cerber/BIBLE.md
+# 1. Read CERBER.md
+cat .cerber/CERBER.md
 # Understand architecture, modules, tech stack
 
 # 2. Morning dashboard
@@ -1373,7 +1373,7 @@ bash team/scripts/cerber-add-module.sh payment-gateway
 # ✅ MODULE.md created from template
 # ✅ contract.json initialized
 # ✅ dependencies.json created
-# ✅ BIBLE.md updated
+# ✅ CERBER.md updated
 #
 # Next steps:
 # 1. Edit .cerber/modules/payment-gateway/MODULE.md
@@ -1385,7 +1385,7 @@ bash team/scripts/cerber-add-module.sh payment-gateway
 - `.cerber/modules/<name>/MODULE.md` (from template)
 - `.cerber/modules/<name>/contract.json` (empty interface)
 - `.cerber/modules/<name>/dependencies.json` (empty array)
-- Updates `.cerber/BIBLE.md` (adds module entry)
+- Updates `.cerber/CERBER.md` (adds module entry)
 
 ---
 
@@ -1526,7 +1526,7 @@ Location: `team/config/team-contract.json`
     "enabled": true,
     "modulesPath": ".cerber/modules",
     "connectionsPath": ".cerber/connections/contracts",
-    "biblePath": ".cerber/BIBLE.md"
+    "biblePath": ".cerber/CERBER.md"
   },
   "moduleValidation": {
     "requireModuleMd": true,
@@ -1713,7 +1713,7 @@ Deploy:
 **DO:**
 - ✅ Start day with team dashboard
 - ✅ Assign clear module ownership
-- ✅ Update BIBLE.md with architecture changes
+- ✅ Update CERBER.md with architecture changes
 - ✅ Review FOCUS_CONTEXT.md in code reviews
 
 **DON'T:**
@@ -1774,7 +1774,7 @@ See `.cerber-example/` for full working example:
 
 ```
 .cerber-example/
-├── BIBLE.md                          # Master project map
+├── CERBER.md                          # Master project map
 ├── CERBER_LAW.md                     # Team rules
 ├── modules/
 │   ├── pricing-engine/               # Example module 1
@@ -1827,12 +1827,12 @@ A: The current system supports flat module structure. Nesting adds complexity.
 
 **Q: What if I disagree with module boundaries?**
 
-A: Discuss with team, update BIBLE.md, reorganize modules. Boundaries evolve.
+A: Discuss with team, update CERBER.md, reorganize modules. Boundaries evolve.
 
 **Q: How do I migrate existing code to TEAM?**
 
 A: Incrementally:
-1. Create BIBLE.md documenting current structure
+1. Create CERBER.md documenting current structure
 2. Create modules for main components
 3. Add connection contracts
 4. Refactor imports over time
@@ -1846,7 +1846,7 @@ Cerber TEAM gives you:
 ✅ **Module System** - Clear boundaries, explicit interfaces
 ✅ **Focus Mode** - 500 LOC contexts for 10x faster AI
 ✅ **Connection Contracts** - Versioned, validated dependencies
-✅ **BIBLE.md** - Master project map
+✅ **CERBER.md** - Master project map
 ✅ **Validation Scripts** - Enforce module system
 ✅ **Team Dashboard** - Morning briefing
 

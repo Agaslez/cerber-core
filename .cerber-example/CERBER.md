@@ -1,4 +1,4 @@
-# PROJECT BIBLE - Master Map
+# PROJECT CERBER - Master Map
 
 **Project:** Hotel Booking System Example  
 **Owner:** Stefan Pitek  

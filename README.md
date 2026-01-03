@@ -50,7 +50,7 @@ ROI: Break-even on Day 1
 **For CTOs & Engineering Managers:**
 - **Reduce production incidents** - 95% bugs caught pre-production (vs 60-70% manual reviews)
 - **Cut debugging costs** - 4.5 hours saved per developer per session
-- **Speed up onboarding** - BIBLE.md = instant project understanding for new hires
+- **Speed up onboarding** - CERBER.md = instant project understanding for new hires
 - **Enforce architecture** - Prevent technical debt before it enters codebase
 
 **Cost Comparison:**
@@ -91,7 +91,7 @@ Cerber guards → enforces your decisions
 
 **Cerber Core solution:**
 ```
-✅ Architect defines rules once (BIBLE.md + Guardian schema)
+✅ Architect defines rules once (CERBER.md contract)
 ✅ Cerber enforces automatically forever
 ✅ Every commit validates against your roadmap (<1 second)
 ✅ Architecture stays intact as team scales
@@ -141,7 +141,7 @@ export const BACKEND_SCHEMA = {
    - **Focus Mode** - Generate 500 LOC context (vs 10K LOC) ⭐
    - Module boundaries enforcement
    - Connection contracts between modules
-   - BIBLE.md project mapping
+   - CERBER.md project mapping
 
 ---
 
@@ -1140,88 +1140,6 @@ bash team/scripts/cerber-connections-check.sh
 # Commit
 git commit                      # Guardian validates
 ```
-
----
-
-## 📖 BIBLE.md - Your Project's Single Source of Truth
-
-**BIBLE.md** is your project's master map - the ONE place where everything is documented.
-
-### Why BIBLE.md?
-
-With AI coding, teams can diverge quickly. Everyone works fast, but in different directions. BIBLE.md keeps everyone aligned:
-
-- **All modules documented** - What exists, who owns it, what it does
-- **All connections mapped** - How modules talk to each other
-- **Team responsibilities clear** - Who works on what
-- **Architecture decisions recorded** - Why things are built this way
-
-### How It Works
-
-```bash
-# 1. Copy template
-cp node_modules/cerber-core/team/templates/BIBLE_TEMPLATE.md .cerber/BIBLE.md
-
-# 2. Describe your architecture
-nano .cerber/BIBLE.md
-
-# 3. Keep it updated when adding modules
-# 4. Reference in code reviews
-```
-
-### What's Inside BIBLE.md?
-
-```markdown
-# PROJECT BIBLE - Master Map
-
-## Architecture Overview
-[Visual diagram of your system]
-
-## Modules Index
-1. **auth-service** - Authentication & JWT
-   - Owner: Alice
-   - Files: `src/modules/auth/`
-   
-2. **payment-service** - Stripe integration
-   - Owner: Bob
-   - Files: `src/modules/payment/`
-
-## Connections Map
-- `auth-service` → `user-service`: validateToken()
-- `payment-service` → `notification-service`: sendReceipt()
-
-## Team Responsibilities
-- Alice: auth, user management
-- Bob: payments, billing
-```
-
-### Integration with Cerber
-
-Cerber automatically reads BIBLE.md from `.cerber/BIBLE.md` when running health checks:
-
-```typescript
-// server.ts
-import { createHealthEndpoint } from 'cerber-core';
-
-const healthChecks = {
-  // Cerber automatically validates against .cerber/BIBLE.md
-  architecture: async () => {
-    // Checks if actual modules match BIBLE structure
-    return await validateArchitectureAgainstBible();
-  }
-};
-
-app.get('/api/health', createHealthEndpoint(healthChecks));
-```
-
-**What Cerber checks:**
-- **Guardian** validates modules match BIBLE structure (pre-commit)
-- **Focus Mode** uses BIBLE to isolate context (500 LOC vs 10K LOC)
-- **Module checks** ensure boundaries defined in BIBLE are respected
-- **Morning checks** verify BIBLE is up-to-date with codebase
-- **Runtime health** checks architecture drift from BIBLE
-
-**Result:** Your team stays aligned even when coding at AI speed! 🚀
 
 ---
 
