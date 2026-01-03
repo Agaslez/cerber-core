@@ -1448,7 +1448,7 @@ Made with 🛡️ by developers, for developers
 ### 🎯 The Story
 
 **Stefan Pitek** - Career changer who started coding in May 2025
-- Former banking professional (10+ years)
+- 30 years professional experience: 12 years banking, 8 years hospitality, 8 years business, 2 years as chef
 - Co-owned restaurant with Agata
 - First line of code: May 2025
 - 8 months later: 3 production SaaS apps + this open-source tool
