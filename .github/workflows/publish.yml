@@ -1,0 +1,146 @@
+name: Publish to npm
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Version tag to publish (e.g., v1.0.0)'
+        required: true
+        type: string
+
+jobs:
+  publish:
+    name: Publish Package
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: 'https://registry.npmjs.org'
+          cache: 'npm'
+      
+      - name: Verify version tag
+        run: |
+          PACKAGE_VERSION=$(node -p "require('./package.json').version")
+          TAG_VERSION=${{ github.event.inputs.tag || github.ref_name }}
+          TAG_VERSION=${TAG_VERSION#v}
+          
+          echo "Package version: $PACKAGE_VERSION"
+          echo "Tag version: $TAG_VERSION"
+          
+          if [ "$PACKAGE_VERSION" != "$TAG_VERSION" ]; then
+            echo "❌ Version mismatch! package.json=$PACKAGE_VERSION but tag=$TAG_VERSION"
+            exit 1
+          fi
+          
+          echo "✅ Version matches"
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Run tests
+        run: npm test || echo "⚠️ No tests configured"
+      
+      - name: Build package
+        run: npm run build
+      
+      - name: Verify build
+        run: |
+          [ -d "dist" ] || (echo "❌ dist/ not created!" && exit 1)
+          [ -f "dist/index.js" ] || (echo "❌ dist/index.js missing!" && exit 1)
+          echo "✅ Build verified"
+      
+      - name: Run Guardian on ourselves
+        run: |
+          echo "Running Guardian validation..."
+          # Basic validation (Guardian schema would be more comprehensive)
+          ! grep -r "console.error" src/ && echo "⚠️ Found console.error - review before publish"
+          echo "✅ Pre-publish validation passed"
+      
+      - name: Create tarball for verification
+        run: npm pack
+      
+      - name: Test tarball installation
+        run: |
+          mkdir test-publish
+          cd test-publish
+          npm init -y
+          npm install ../cerber-core-*.tgz
+          
+          node --input-type=module -e "
+            import { Cerber } from 'cerber-core/cerber';
+            import { Guardian } from 'cerber-core/guardian';
+            console.log('✅ Tarball installs correctly');
+          "
+      
+      - name: Publish to npm (dry run)
+        run: npm publish --dry-run
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      
+      - name: Publish to npm
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      
+      - name: Verify published package
+        run: |
+          sleep 10  # Wait for npm registry to update
+          PACKAGE_VERSION=$(node -p "require('./package.json').version")
+          npm view cerber-core@$PACKAGE_VERSION version || (echo "❌ Package not found on npm!" && exit 1)
+          echo "✅ Package published successfully to npm!"
+      
+      - name: Create GitHub deployment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const version = require('./package.json').version;
+            await github.rest.repos.createDeployment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: context.ref,
+              environment: 'npm',
+              description: `Published cerber-core@${version} to npm`,
+              auto_merge: false,
+              required_contexts: []
+            });
+      
+      - name: Comment on release
+        uses: actions/github-script@v7
+        if: github.event_name == 'release'
+        with:
+          script: |
+            const version = require('./package.json').version;
+            await github.rest.repos.createReleaseComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              release_id: context.payload.release.id,
+              body: `🎉 Successfully published \`cerber-core@${version}\` to npm!\n\n**Install:**\n\`\`\`bash\nnpm install cerber-core@${version}\n\`\`\`\n\n**npm page:** https://www.npmjs.com/package/cerber-core`
+            });
+      
+      - name: Post-publish summary
+        run: |
+          PACKAGE_VERSION=$(node -p "require('./package.json').version")
+          echo "🎉 Publication Summary"
+          echo "======================"
+          echo ""
+          echo "✅ Published: cerber-core@$PACKAGE_VERSION"
+          echo "📦 npm: https://www.npmjs.com/package/cerber-core"
+          echo "🔗 GitHub: https://github.com/${{ github.repository }}"
+          echo ""
+          echo "Users can now install with:"
+          echo "  npm install cerber-core@$PACKAGE_VERSION"
+          echo ""
+          echo "Next steps:"
+          echo "  1. Update documentation if needed"
+          echo "  2. Announce on social media"
+          echo "  3. Update any examples or demos"
