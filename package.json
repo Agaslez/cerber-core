@@ -1,6 +1,6 @@
 {
   "name": "cerber-core",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Your architecture roadmap becomes executable law. Guardian blocks commits that violate your plan. Pay architect once, Cerber enforces forever. Save $6k/month/dev.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
