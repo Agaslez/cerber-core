@@ -6,7 +6,16 @@
 
 ---
 
-## 📋 Table of Contents
+## � See It In Action
+
+**Want to see real-world examples first?**
+
+- [**Real Workflows from Eliksir Project**](./REAL_WORKFLOWS.md) - Complete production session showing all features
+- [**Solo Developer Workflow**](./workflows/solo-developer.md) - 15 min setup, 1+ hour saved/day
+
+---
+
+## �📋 Table of Contents
 
 - [Overview](#overview)
 - [Installation](#installation)

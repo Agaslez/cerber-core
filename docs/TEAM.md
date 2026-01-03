@@ -7,7 +7,18 @@
 
 ---
 
-## 📋 Table of Contents
+## � See It In Action
+
+**Want to see real-world examples first?**
+
+- [**Real Workflows from Eliksir Project**](./REAL_WORKFLOWS.md) - Complete production session showing all features in action
+- [**Solo Developer Workflow**](./workflows/solo-developer.md) - 1 person, 15 min setup
+- [**Small Team Workflow**](./workflows/small-team.md) - 2-5 people, 1-2 hours setup
+- [**Growing Team Workflow**](./workflows/growing-team.md) - 5-20 people, 1-2 days setup
+
+---
+
+## �📋 Table of Contents
 
 - [Overview](#overview)
 - [Why Cerber TEAM?](#why-cerber-team)

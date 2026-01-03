@@ -2,6 +2,21 @@
 
 Common issues and solutions for Cerber Core users.
 
+---
+
+## 📖 Real-World Examples First
+
+Before diving into specific issues, check out these resources showing Cerber in action:
+
+- [**Real Workflows from Eliksir Project**](./REAL_WORKFLOWS.md) - See how to use each feature correctly
+- [**Solo Developer Workflow**](./workflows/solo-developer.md) - Complete setup walkthrough
+- [**Small Team Workflow**](./workflows/small-team.md) - Team setup examples
+- [**Growing Team Workflow**](./workflows/growing-team.md) - Enterprise patterns
+
+Many questions are answered by seeing real usage examples!
+
+---
+
 ## Installation Issues
 
 ### "Cannot find module 'cerber-core'"

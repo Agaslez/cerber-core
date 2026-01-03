@@ -938,7 +938,45 @@ cerber-focus pricing-engine
 
 ---
 
-## 📚 Documentation
+## � Real-World Examples
+
+**Want to see Cerber in action?**
+
+**[→ Real Workflows from Eliksir Project](docs/REAL_WORKFLOWS.md)** ⭐
+
+Real production session (January 2, 2026) showing:
+
+- ✅ **Morning routine** - 2 min → complete context (vs 8+ min manual)
+- ✅ **Auto-repair** - 30 sec → dependencies + format (vs 20 min manual)
+- ✅ **Focus Mode** - 8s AI response (vs 60s with full codebase)
+- ✅ **Guardian blocks** - 2 bugs prevented (debug code + missing import)
+- ✅ **Cerber gatekeeper** - 1 production incident prevented (DB config)
+- ✅ **Time saved** - 4.5 hours in one day
+- ✅ **ROI** - 230% on Day 1
+
+```
+💰 COST-BENEFIT ANALYSIS
+
+Setup: 4 hours (one-time)
+Saved: 1.2 hours + 12 hours (bugs prevented) = 13.2 hours
+
+ROI = (13.2 - 4) / 4 = 230%
+Break-even: Day 1 ✅
+```
+
+**Workflow Guides by Team Size:**
+
+- [**Solo Developer**](docs/workflows/solo-developer.md) - 1 person, 15 min setup, 1+ hour saved/day
+- [**Small Team (2-5)**](docs/workflows/small-team.md) - Module system, 1-2 hours setup, 2-3 hours saved/dev/day
+- [**Growing Team (5-20)**](docs/workflows/growing-team.md) - Architecture governance, 1-2 days setup, 3-5 hours saved/dev/day
+
+**Track Your Progress:**
+
+- [**Monthly Report Template**](docs/MONTHLY_REPORT_TEMPLATE.md) - Track metrics, ROI, wins & learnings
+
+---
+
+## �📚 Documentation
 
 - [**Guardian API Reference**](docs/GUARDIAN.md) - Complete Guardian documentation
 - [**Cerber API Reference**](docs/CERBER.md) - Runtime health checks guide
