@@ -158,7 +158,7 @@ jobs:
       
       - name: Create Guardian schema for Cerber Core
         run: |
-          cat > CERBER_SCHEMA.ts << 'EOF'
+          cat > CERBER_SCHEMA.js << 'EOF'
           export default {
             name: 'Cerber Core Architecture',
             version: '1.0.0',
@@ -207,7 +207,7 @@ jobs:
         run: |
           node --input-type=module -e "
             import { Guardian } from './dist/guardian/index.js';
-            import schema from './CERBER_SCHEMA.ts';
+            import schema from './CERBER_SCHEMA.js';
             
             const guardian = new Guardian(schema);
             const result = await guardian.validate(process.cwd());
