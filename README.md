@@ -140,6 +140,29 @@ export const BACKEND_SCHEMA = {
 
 ## 🚀 Quick Start
 
+### 30-Second Setup ⚡ (New in v1.1.0!)
+
+```bash
+npm install cerber-core --save-dev
+npx cerber init
+# Answer a few questions - done!
+```
+
+**What happens:**
+- ✅ Creates `CERBER.md` with your architecture contract
+- ✅ Generates Guardian pre-commit hooks
+- ✅ Sets up health check templates
+- ✅ Configures GitHub Actions workflow
+- ✅ Adapts to your mode: solo/dev/team
+
+**Next step:** Just commit! Guardian now protects your architecture.
+
+---
+
+### Manual Setup (Alternative)
+
+If you prefer manual configuration, follow the guides below.
+
 ### Installation
 
 ```bash
