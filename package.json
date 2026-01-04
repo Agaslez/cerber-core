@@ -1,7 +1,7 @@
 {
   "name": "cerber-core",
   "version": "1.1.8",
-  "description": "Contract-first project guardian for AI-assisted development (CERBER.md enforced in pre-commit, CI, and post-deploy).",
+  "description": "Contract-first project guardian for AI-assisted development. Enforces CERBER.md across pre-commit, CI, and optional post-deploy gates.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "type": "module",
@@ -34,24 +34,28 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Agaslez/cerber-core.git"
+    "url": "https://github.com/Agaslez/cerber-core.git"
   },
   "keywords": [
     "ai",
     "ai-agents",
     "copilot",
     "cursor",
+    "windsurf",
+    "claude",
     "llm",
     "pre-commit",
+    "git-hooks",
     "husky",
     "github-actions",
     "ci",
+    "ci-cd",
     "guardrails",
     "contract-first",
     "single-source-of-truth",
-    "architecture",
-    "validation",
-    "health-check"
+    "health-check",
+    "deployment-gate",
+    "doctor"
   ],
   "author": {
     "name": "Agata Sleziak",
@@ -68,7 +72,13 @@
   "bugs": {
     "url": "https://github.com/Agaslez/cerber-core/issues"
   },
-  "homepage": "https://github.com/Agaslez/cerber-core#readme",
+  "homepage": "https://github.com/Agaslez/cerber-core",
+  "funding": [
+    {
+      "type": "github",
+      "url": "https://github.com/sponsors/Agaslez"
+    }
+  ],
   "peerDependencies": {
     "typescript": ">=5.0.0"
   },

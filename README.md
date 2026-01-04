@@ -2,7 +2,8 @@
 
 > **AI doesn't break your project. Lack of a contract does.**
 
-Contract-driven project guardian for AI-assisted development. Enforces a single source of truth (`CERBER.md`) across pre-commit, CI, and post-deploy health gates.
+Contract-first project guardian for AI-assisted development.  
+Enforces `CERBER.md` across pre-commit, CI, and optional post-deploy gates.
 
 [![npm version](https://img.shields.io/npm/v/cerber-core.svg)](https://www.npmjs.com/package/cerber-core)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -13,43 +14,13 @@ Contract-driven project guardian for AI-assisted development. Enforces a single 
 ## 🚀 Quick Start
 
 ```bash
-npm install cerber-core --save-dev
-npx cerber init --mode=solo
-npx cerber init          # Generate files
-npx cerber doctor        # Validate setup
+npm i -D cerber-core
+npx cerber init
+# fill CERBER.md contract
+npx cerber init
 ```
 
-**Three enforcement layers:**
-1. **Pre-commit (Guardian)** - Blocks violating commits before they reach CI
-2. **CI (cerber-integrity)** - Validates contract + workflow self-protection
-3. **Post-deploy (Health)** - Runtime checks in production
-
----
-
-## 🤖 For AI Agents (MUST Rules)
-
-**Rule 1: CERBER.md is the only source of truth**
-- If missing → generate template and **STOP** (user must fill contract)
-- If exists → execute contract exactly as specified
-- **Never guess architecture.** Never invent rules.
-
-**Rule 2: Schema = Translation Only**
-- If `schema.mode: strict` → **NEVER** generate schema file (user creates it)
-- If `schema.mode: template_only` → generate minimal scaffold with "NOT SOURCE OF TRUTH" header
-- Schema rules MUST match explicit statements in CERBER.md
-
-**Rule 3: NO HEREDOC for TS/JS**
-- Never create TypeScript/JavaScript files with bash `cat <<EOF`
-- Reason: Corrupts `${}` template literals and UTF-8 encoding
-- Use proper file generation tools instead
-
-**Recommended: `schema.mode: strict`** (mature teams) for zero assumptions.
-
----
-
-## 🩺 npx cerber doctor
-
-Validates setup before commits/deploys:
+## 🩺 Verify
 
 ```bash
 npx cerber doctor
@@ -57,17 +28,31 @@ npx cerber doctor
 
 **Exit codes:**
 - `0` ✅ All checks pass
-- `2` ❌ Missing CERBER.md contract
-- `3` ❌ Missing schema file (strict mode only)
-- `4` ❌ Missing pre-commit hook or CI workflow
-- `5` ❌ Schema validation failed
+- `2` ❌ Missing CERBER.md
+- `3` ❌ Missing schema (strict mode)
+- `4` ❌ Missing hook/workflow
 
-**Checks:**
-- CERBER.md present + valid YAML
-- Schema file exists (if `schema.mode: strict`)
-- `.husky/pre-commit` hook installed
-- GitHub Actions workflow present
-- Emergency override state
+---
+
+## 🤖 For AI Agents (Copilot/Cursor/Windsurf/Claude)
+
+- **CERBER.md is the ONLY source of truth**
+- If CERBER.md is missing → generate template and **STOP**
+- Never guess architecture. Never invent rules.
+- **schema.mode:**
+  - `strict` → require schema file (never generate)
+  - `template_only` → generate minimal helper template
+- **NO HEREDOC:** Never use `cat <<EOF` for TS/JS (corrupts `${}`template literals)
+
+---
+
+## 🔗 Links
+
+- **Repository:** https://github.com/Agaslez/cerber-core
+- **Releases:** https://github.com/Agaslez/cerber-core/releases
+- **Security Policy:** https://github.com/Agaslez/cerber-core/blob/main/SECURITY.md
+- **Discussions:** https://github.com/Agaslez/cerber-core/discussions
+- **Full Documentation:** [docs/README_LONG.md](docs/README_LONG.md)
 
 ---
 
