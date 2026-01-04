@@ -169,7 +169,7 @@ jobs:
           set -euo pipefail
           cd /tmp/cerber-precommit
           
-          echo 'password="admin123"' > __cerber_bad_secret__.txt
+          echo 'pwd="admin123"' > __cerber_bad_secret__.txt
           git add __cerber_bad_secret__.txt
 
           set +e
