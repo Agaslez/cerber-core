@@ -20,7 +20,7 @@ mode: dev
 
 guardian:
   enabled: true
-  schemaFile: BACKEND_SCHEMA.ts
+  schemaFile: BACKEND_SCHEMA.mjs
   hook: husky
   approvalsTag: ARCHITECT_APPROVED
 
@@ -51,7 +51,7 @@ Rest of the document...
       expect(result?.version).toBe(1);
       expect(result?.mode).toBe('dev');
       expect(result?.guardian.enabled).toBe(true);
-      expect(result?.guardian.schemaFile).toBe('BACKEND_SCHEMA.ts');
+      expect(result?.guardian.schemaFile).toBe('BACKEND_SCHEMA.mjs');
       expect(result?.health.enabled).toBe(true);
       expect(result?.health.endpoint).toBe('/api/health');
       expect(result?.ci.provider).toBe('github');

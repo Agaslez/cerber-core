@@ -18,17 +18,56 @@ export const BACKEND_SCHEMA = {
   
   // Patterns that should never appear in your code
   forbiddenPatterns: [
-    // Uncomment and customize based on your tech stack:
+    // ──────────────────────────────────────────────────────────────────────
+    // 🔐 SECURITY BASELINE (Uncomment and adapt to your CERBER.md contract)
+    // ──────────────────────────────────────────────────────────────────────
+    
+    // Hardcoded secrets (common examples - adapt to your stack):
     // {
-    //   pattern: /password\s*=\s*['"][^'"]+['"]/i,
-    //   name: "Hardcoded passwords",
+    //   pattern: "password\\s*=\\s*['\"][^'\"]+['\"]",
+    //   flags: "i",
+    //   name: "Hardcoded passwords (e.g., password='admin123')",
     //   severity: "error"
     // },
     // {
-    //   pattern: /api[_-]?key\s*=\s*['"][^'"]+['"]/i,
-    //   name: "Hardcoded API keys",
+    //   pattern: "api[_-]?key\\s*=\\s*['\"][^'\"]+['\"]",
+    //   flags: "i",
+    //   name: "Hardcoded API keys (e.g., API_KEY='xyz')",
     //   severity: "error"
-    // }
+    // },
+    // {
+    //   pattern: "JWT_SECRET\\s*=\\s*['\"][^'\"]+['\"]",
+    //   flags: "i",
+    //   name: "Hardcoded JWT secrets",
+    //   severity: "error"
+    // },
+    
+    // Development artifacts (should not reach production):
+    // {
+    //   pattern: "console\\.log\\(",
+    //   flags: "g",
+    //   name: "console.log (use proper logging)",
+    //   severity: "warning"
+    // },
+    // {
+    //   pattern: "debugger;",
+    //   flags: "g",
+    //   name: "debugger statement",
+    //   severity: "warning"
+    // },
+    
+    // TODOs that should be resolved before commit:
+    // {
+    //   pattern: "TODO_REMOVE|FIXME_REMOVE",
+    //   flags: "i",
+    //   name: "Unresolved critical TODOs",
+    //   severity: "error"
+    // },
+    
+    // ──────────────────────────────────────────────────────────────────────
+    // ⚠️  IMPORTANT: Uncomment patterns that match rules in your CERBER.md
+    // Never invent rules. Only translate what's documented in your contract.
+    // ──────────────────────────────────────────────────────────────────────
   ]
 };
 

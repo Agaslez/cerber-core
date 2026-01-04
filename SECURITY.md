@@ -6,6 +6,7 @@ Currently supported versions of Cerber Core with security updates:
 
 | Version | Supported          |
 | ------- | ------------------ |
+| 1.1.x   | :white_check_mark: |
 | 1.0.x   | :white_check_mark: |
 | < 1.0   | :x:                |
 
@@ -282,6 +283,110 @@ Security researchers who have responsibly disclosed vulnerabilities:
 
 We appreciate responsible disclosure and will credit researchers (with permission) who help improve Cerber Core's security.
 
+---
+
+## 📦 Supply Chain Security
+
+Cerber Core implements strict supply chain security measures to protect users from software supply chain attacks.
+
+### 🔐 Package Security Policies
+
+#### 1. **npm 2FA Required**
+- All maintainers MUST enable two-factor authentication for npm accounts
+- Publishing requires authentication with 2FA verification
+- Protects against account compromise
+
+#### 2. **CI-Only Publishing (Strongly Recommended)**
+- Official releases published via GitHub Actions CI pipeline
+- Prevents local machine drift and unauthorized releases
+- Ensures reproducible builds from tagged commits
+- Audit trail: every release linked to GitHub commit
+
+#### 3. **No Risky Lifecycle Scripts**
+- ❌ No `postinstall`, `preinstall`, `prepare` hooks
+- ❌ Cerber never executes arbitrary code during `npm install`
+- ✅ Installation is **side-effect free** (except writing to `node_modules`)
+- ✅ Safe to install in any environment
+
+#### 4. **Dependency Management**
+- Dependencies updated only via reviewed pull requests
+- Security audits run on every PR: `npm audit`
+- Minimal dependency footprint (only essential packages)
+- Versions pinned in `package-lock.json`
+
+### 🛡️ Installation Safety
+
+Cerber Core is **safe to install**:
+
+```bash
+npm install cerber-core --save-dev
+```
+
+**What happens during install:**
+- ✅ Package downloaded from official npm registry
+- ✅ Files extracted to `node_modules/cerber-core`
+- ✅ Dependencies resolved and installed
+- ❌ **NO** post-install scripts executed
+- ❌ **NO** system modifications outside `node_modules`
+- ❌ **NO** network requests beyond npm registry
+- ❌ **NO** telemetry or tracking
+
+### 🔍 Verification Steps
+
+You can verify package integrity:
+
+```bash
+# 1. Check package contents before install
+npm pack cerber-core --dry-run
+
+# 2. Audit dependencies
+npm audit
+
+# 3. Install with script protection (npm 7+)
+npm install cerber-core --ignore-scripts
+
+# 4. Verify package metadata
+npm view cerber-core dist.integrity
+```
+
+### 📋 Release Integrity Checklist
+
+All official Cerber Core releases:
+- ✅ Tagged in GitHub with `v*` pattern (e.g., `v1.1.7`)
+- ✅ Have corresponding GitHub Release notes
+- ✅ Published from `main` branch only
+- ✅ Include `CHANGELOG.md` entry
+- ✅ Built via CI (GitHub Actions)
+- ✅ Signed commits (when possible)
+
+**Verify release authenticity:**
+
+```bash
+# Check npm version matches GitHub release
+npm view cerber-core version
+
+# Compare with GitHub releases
+# https://github.com/Agaslez/cerber-core/releases
+```
+
+### 🚨 What to Do If You Suspect Compromise
+
+If you suspect a compromised package or supply chain attack:
+
+1. **Stop using the package immediately**
+2. **Email security report:** st.pitek@gmail.com
+3. **Check GitHub releases** for official version verification
+4. **Run `npm audit`** to detect known vulnerabilities
+5. **Review `package-lock.json`** for unexpected changes
+
+### 📚 Further Reading
+
+- [npm Security Best Practices](https://docs.npmjs.com/about-security)
+- [OWASP Supply Chain Security](https://owasp.org/www-project-software-component-verification-standard/)
+- [SLSA Framework](https://slsa.dev/)
+
+---
+
 ## Contact
 
 **Security Issues:** st.pitek@gmail.com  
@@ -290,5 +395,5 @@ We appreciate responsible disclosure and will credit researchers (with permissio
 
 ---
 
-**Last Updated:** January 3, 2026  
-**Version:** 1.0.0
+**Last Updated:** January 4, 2026  
+**Version:** 1.1.7

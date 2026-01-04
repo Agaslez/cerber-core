@@ -248,7 +248,7 @@ export function getDefaultContract(mode: 'solo' | 'dev' | 'team' = 'dev'): Cerbe
     mode,
     guardian: {
       enabled: true,
-      schemaFile: 'BACKEND_SCHEMA.ts',
+      schemaFile: 'BACKEND_SCHEMA.mjs',
       hook: 'husky',
       approvalsTag: 'ARCHITECT_APPROVED'
     },
@@ -274,7 +274,7 @@ export function getDefaultContract(mode: 'solo' | 'dev' | 'team' = 'dev'): Cerbe
     },
     schema: {
       enabled: true,
-      file: 'BACKEND_SCHEMA.ts',
+      file: 'BACKEND_SCHEMA.mjs',
       mode: 'template_only',
       description: 'Project architecture contract (user-owned)'
     }

@@ -5,6 +5,39 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.4] - 2026-01-04
+
+### Fixed
+
+- **CLI Template Generator**: `--mode` flag now correctly sets mode in generated CERBER.md
+  - `npx cerber init --mode=team` now creates template with `mode: team` (not hardcoded `dev`)
+  - Applies to solo/dev/team modes
+  - Fixed E2E testing workflow
+
+## [1.1.3] - 2026-01-04
+
+### Fixed
+
+#### 🐛 CRITICAL: Guardian Validation Logic
+- **v1.1.2 shipped with non-functional Guardian** (MVP placeholder that always passed)
+- Implemented full forbiddenPatterns validation logic
+- Implemented requiredImports checking with architect approval override
+- Fixed RegExp serialization issue (using string patterns with flags field)
+- Guardian now **actually blocks commits** that violate architecture rules
+- Removed debug output from production template
+
+#### ✅ E2E Testing Results
+- **TEST 1 PASSED**: Guardian successfully blocks commits with violations
+  - Tested with: `const password = "admin123";` 
+  - Result: ❌ Commit blocked with clear error message
+  - Husky pre-commit hook working correctly
+  - Fresh install from npm verified
+
+### Breaking Fix
+This is technically a BREAKING FIX because v1.1.2 did not enforce any validations. Projects that relied on the previous behavior (no enforcement) will now have commits blocked if they violate patterns defined in BACKEND_SCHEMA.ts.
+
+**Migration**: If you have v1.1.2, upgrade to v1.1.3 immediately. Review and customize your `BACKEND_SCHEMA.ts` patterns before enabling in production.
+
 ## [1.1.0] - 2026-01-03
 
 ### Added

@@ -15,6 +15,14 @@ export interface CerberContract {
   ci: CIConfig;
   schema: SchemaConfig;
   team?: TeamConfig;
+  override?: OverrideConfig;
+}
+
+export interface OverrideConfig {
+  enabled: boolean;
+  reason?: string;
+  expires?: string;  // ISO 8601
+  approvedBy?: string;
 }
 
 export interface GuardianConfig {

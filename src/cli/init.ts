@@ -14,18 +14,19 @@ import { getDefaultContract, parseCerberContract } from './contract-parser.js';
 import { TemplateGenerator } from './template-generator.js';
 import { CerberContract, GeneratedFile, InitOptions } from './types.js';
 
-const CERBER_MD_TEMPLATE = `# CERBER.md - Architecture Roadmap
+function getCerberMdTemplate(mode: string = 'dev'): string {
+  return `# CERBER.md - Architecture Roadmap
 
 > **This is your single source of truth. AI agents and developers enforce this contract.**
 
 ## CERBER_CONTRACT
 \`\`\`yaml
 version: 1
-mode: dev  # solo | dev | team
+mode: ${mode}  # solo | dev | team
 
 guardian:
   enabled: true
-  schemaFile: BACKEND_SCHEMA.ts
+  schemaFile: BACKEND_SCHEMA.mjs
   hook: husky
   approvalsTag: ARCHITECT_APPROVED
 
@@ -49,7 +50,7 @@ ci:
 
 schema:
   enabled: true
-  file: BACKEND_SCHEMA.ts
+  file: BACKEND_SCHEMA.mjs
   mode: template_only  # strict | template_only
   description: "Project architecture contract (user-owned)"
   # strict = Cerber never creates schema, you must create it
@@ -94,14 +95,92 @@ See \`${getDefaultContract().guardian.schemaFile}\` for complete architecture ru
 
 ---
 
+## 🔒 CERBER_GUARDRAILS - Protected Assets
+
+> **Self-Protection:** These files enforce the contract. Deleting or disabling them breaks project integrity.
+
+### Protected Files (DO NOT DELETE / DISABLE)
+
+1. **CERBER.md** - Single source of truth (this file)
+2. **${getDefaultContract().guardian.schemaFile}** - Architecture schema (in strict mode)
+3. **.github/workflows/cerber.yml** - CI validation pipeline
+4. **scripts/cerber-guardian.mjs** - Pre-commit guardian
+5. **.husky/pre-commit** - Git hook trigger
+6. **.github/CODEOWNERS** - Ownership enforcement (team mode)
+
+### Change Policy
+
+- **Never:**
+  - Delete protected files
+  - Disable Guardian/CI checks
+  - Rename workflow job IDs (\`cerber-ci\`, \`cerber-integrity\`)
+  - Bypass pre-commit hooks
+
+- **Allowed (with justification in PR):**
+  - Update schema rules (must match CERBER.md contract)
+  - Adjust CI branches/triggers
+  - Modify health check thresholds
+  - Add new Guardian patterns
+
+**Emergency Override:** If you must temporarily disable Guardian (hotfix), use \`CERBER_OVERRIDE\` section below with TTL expiry.
+
+---
+
+## 🚨 CERBER_OVERRIDE - Emergency Safety Fuse (Use with Extreme Care)
+
+> **Purpose:** Allow temporary bypass for critical hotfixes. **This is NOT a power switch.**
+
+\`\`\`yaml
+CERBER_OVERRIDE:
+  enabled: false
+  reason: ""           # REQUIRED if enabled (e.g., "P0 production incident hotfix")
+  expires: ""          # REQUIRED if enabled (ISO 8601: 2026-01-05T10:00:00Z)
+  approvedBy: ""       # REQUIRED if enabled (GitHub username or email)
+\`\`\`
+
+### What Override DOES (when enabled and not expired):
+
+✅ **Pre-commit:** Allows commit to proceed **WITH WARNING** (prints full override metadata)  
+✅ **Post-deploy gate:** May skip health check validation (if flaky/blocking hotfix)
+
+### What Override NEVER DOES (hard limits):
+
+❌ **NEVER disables \`cerber-integrity\` job** (self-protection always active)  
+❌ **NEVER disables entire CI pipeline**  
+❌ **NEVER disables \`cerber-ci\` validation**  
+❌ **NEVER bypasses CODEOWNERS** (team mode)
+
+### Rules:
+
+1. **All fields required** when \`enabled: true\` (reason, expires, approvedBy)
+2. **If expired** → treated as \`enabled: false\` (no bypass)
+3. **TTL recommended:** 1-24 hours (force conscious re-approval)
+4. **Audit:** Override usage logged in pre-commit output (full metadata printed)
+
+### Example (P0 Hotfix):
+
+\`\`\`yaml
+CERBER_OVERRIDE:
+  enabled: true
+  reason: "P0: Payment processor down, bypassing schema check for emergency config change"
+  expires: "2026-01-04T18:00:00Z"  # 6 hours from now
+  approvedBy: "@stefan-pitek"
+\`\`\`
+
+**After hotfix:** Immediately create follow-up PR to fix properly + disable override.
+
+---
+
 *This file is protected by CODEOWNERS. Changes require architect approval.*
 `;
+}
 
 export async function initCommand(options: InitOptions = {}): Promise<void> {
   const projectRoot = process.cwd();
     // Handle --print-template flag
   if (options.printTemplate) {
-    console.log(CERBER_MD_TEMPLATE);
+    const templateMode = options.mode || 'dev';
+    console.log(getCerberMdTemplate(templateMode));
     return;
   }
     console.log(chalk.bold.cyan('🛡️  Cerber Core - Project Initialization'));
@@ -125,8 +204,11 @@ export async function initCommand(options: InitOptions = {}): Promise<void> {
       console.log('Creating template...');
       console.log('');
       
+      const templateMode = options.mode || 'dev';
+      const template = getCerberMdTemplate(templateMode);
+      
       if (!options.dryRun) {
-        await fs.writeFile(cerberPath, CERBER_MD_TEMPLATE, 'utf-8');
+        await fs.writeFile(cerberPath, template, 'utf-8');
         console.log(chalk.green('✅ Created CERBER.md'));
       } else {
         console.log(chalk.gray('[DRY RUN] Would create CERBER.md'));

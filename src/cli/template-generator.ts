@@ -11,10 +11,75 @@ import { exec } from 'child_process';
 import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { promisify } from 'util';
 import { CerberContract, GeneratedFile, InitOptions } from './types.js';
 
+const execAsync = promisify(exec);
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+/**
+ * Allowed files that Cerber can generate (whitelist)
+ */
+const ALLOWED_OUTPUTS = [
+  'CERBER.md',
+  'scripts/cerber-guardian.mjs',
+  'BACKEND_SCHEMA.mjs',
+  'FRONTEND_SCHEMA.mjs',
+  '.husky/pre-commit',
+  'src/cerber/health-checks.ts',
+  'src/cerber/health-route.ts',
+  '.github/workflows/cerber.yml',
+  '.github/CODEOWNERS'
+];
+
+/**
+ * Resolve repository root using git
+ * Returns null if not in a git repo or git not available
+ */
+async function resolveRepoRoot(cwd: string): Promise<string | null> {
+  try {
+    const { stdout } = await execAsync('git rev-parse --show-toplevel', { cwd });
+    return stdout.trim();
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Validate that targetPath is:
+ * 1. Inside repoRoot
+ * 2. Does not contain '..' traversal
+ * 3. Is in the whitelist
+ */
+function validateOutputPath(targetPath: string, repoRoot: string): { valid: boolean; reason?: string } {
+  const normalized = path.normalize(targetPath);
+  const relative = path.relative(repoRoot, normalized);
+  
+  // Check for '..' traversal (outside repo root)
+  if (relative.startsWith('..') || path.isAbsolute(relative)) {
+    return { valid: false, reason: `Path outside repository root: ${targetPath}` };
+  }
+  
+  // Check for '..' anywhere in path
+  if (normalized.includes('..')) {
+    return { valid: false, reason: `Path traversal not allowed: ${targetPath}` };
+  }
+  
+  // Check whitelist
+  const relativePath = relative.split(path.sep).join('/');  // normalize to forward slashes
+  const isWhitelisted = ALLOWED_OUTPUTS.some(allowed => {
+    // Normalize both sides to forward slashes for comparison
+    const allowedNormalized = allowed.split(path.sep).join('/');
+    return relativePath === allowedNormalized;
+  });
+  
+  if (!isWhitelisted) {
+    return { valid: false, reason: `Path not in whitelist: ${relativePath}` };
+  }
+  
+  return { valid: true };
+}
 
 export class TemplateGenerator {
   private projectRoot: string;
@@ -166,7 +231,24 @@ export class TemplateGenerator {
   }
   
   async writeFiles(files: GeneratedFile[]): Promise<void> {
+    // SECURITY: Resolve repo root first (fail-closed if not available)
+    const repoRoot = await resolveRepoRoot(this.projectRoot);
+    if (!repoRoot) {
+      console.error('[ERROR] Cannot determine repository root');
+      console.error('        Cerber requires a git repository for path safety');
+      console.error('        Initialize git first: git init');
+      throw new Error('Repository root not found - path safety cannot be guaranteed');
+    }
+    
     for (const file of files) {
+      // SECURITY: Validate path before any operation
+      const validation = validateOutputPath(file.path, repoRoot);
+      if (!validation.valid) {
+        console.error(`[SECURITY] Blocked unsafe path: ${file.path}`);
+        console.error(`           Reason: ${validation.reason}`);
+        throw new Error(`Path safety violation: ${validation.reason}`);
+      }
+      
       if (this.options.dryRun) {
         console.log(`[DRY RUN] Would create: ${file.path}`);
         continue;

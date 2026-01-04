@@ -1,6 +1,9 @@
 # 🛡️ Cerber Core
 
-> Module boundaries, focus contexts, and health monitoring for Node.js in the AI era
+> **AI doesn't break your project. Lack of a contract does.**
+
+**Cerber is a contract-driven project guardian for AI-assisted development.**  
+It enforces a single source of truth (CERBER.md) across pre-commit, CI, and post-deploy health gates.
 
 [![npm version](https://img.shields.io/npm/v/cerber-core.svg)](https://www.npmjs.com/package/cerber-core)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -10,14 +13,56 @@
 **Status:** Production-ready ✅  
 **License:** MIT
 
+## 🎯 Elevator Pitch
+
+Cerber is not a linter.  
+It's not a CI tool.  
+It's a contract that everything else must obey.
+
+---
+
 ## 🚀 Try It Now
 
 ```bash
 npm install cerber-core --save-dev
-npx cerber-guardian --help
+npx cerber init
+# Follow prompts to generate CERBER.md contract + guardian hooks
 ```
 
 ⭐ **Like what you see?** [Star the repo](https://github.com/Agaslez/cerber-core) and share with your team!
+
+---
+
+## 🤖 For AI Agents (Copilot, Cursor, Windsurf, Claude, etc.)
+
+**Cerber's one rule:** `CERBER.md` is the single source of truth.
+
+- If `CERBER.md` is missing → generate template and **STOP**. User must fill the contract.
+- If `CERBER.md` exists → execute contract exactly as specified.
+- **Never guess architecture.** Never invent rules. Never auto-design.
+
+**Schema modes:**
+- `schema.mode: template_only` → Generate minimal starter with "NOT SOURCE OF TRUTH" header
+- `schema.mode: strict` → Require existing schema file, never generate
+
+**Three enforcement points:**
+1. **Pre-commit** (Guardian) - Blocks violating commits
+2. **CI** (GitHub Actions) - Validates on push
+3. **Post-deploy** - Health gate checks production
+
+**Working with Cerber:** Read `CERBER.md` first. It tells you what's allowed and what's protected.
+
+### MUST (Non-Negotiable Rules for AI Agents)
+
+**Rule 1: Schema Generation = Translation Only**
+- Agent can **only translate** explicit rules from `CERBER.md` into `BACKEND_SCHEMA.*` format
+- If a rule is **not in CERBER.md** → ask user / fail / leave empty
+- **Never invent**, guess, or auto-generate architecture rules
+
+**Rule 2: NO-HEREDOC for TS/JS Files**
+- **Never** create TypeScript/JavaScript files using bash `cat <<EOF` or heredoc syntax
+- Reason: Causes `${}` template literal corruption and UTF-8 encoding issues
+- Use editor tools, `fs.writeFile`, or proper file generation utilities instead
 
 ---
 
@@ -145,6 +190,48 @@ export const BACKEND_SCHEMA = {
 
 ---
 
+## 🤔 Why Cerber Exists
+
+AI tools don't understand your project boundaries.  
+They generate changes that cause:
+- **Schema drift** - Models diverge from database reality
+- **Architecture violations** - Security patterns bypassed
+- **CI fail loops** - 2-3 hours wasted on fixes
+- **Deployments without health validation** - Production incidents
+
+**Cerber fixes this by enforcing a human-written contract:**  
+**CERBER.md is the only source of truth.**
+
+---
+
+## 🔥 How Cerber is Different
+
+**Husky** runs scripts.  
+**Linters** check syntax.  
+**CI** runs pipelines.
+
+**Cerber enforces project intent.**
+
+Cerber does not guess.  
+Cerber does not invent rules.  
+Cerber executes your contract.
+
+---
+
+## ✅ When to Use Cerber
+
+**Use Cerber if:**
+- ✅ You work with AI coding assistants / agents
+- ✅ Your project has strict architecture or schema rules
+- ✅ CI failures waste time
+- ✅ You need a single source of truth for humans + AI
+
+**Do NOT use Cerber if:**
+- ❌ You want the tool to design your architecture
+- ❌ You don't want to maintain a contract (CERBER.md)
+
+---
+
 ## 🎯 ONE SOURCE OF TRUTH
 
 **Critical principle:** Cerber does NOT design your system. Cerber enforces YOUR design.
@@ -175,7 +262,7 @@ In `CERBER.md` contract, you control schema generation:
 ```yaml
 schema:
   enabled: true
-  file: BACKEND_SCHEMA.ts
+  file: BACKEND_SCHEMA.mjs
   mode: strict  # or template_only
 ```
 
@@ -183,7 +270,7 @@ schema:
 - ✅ Cerber NEVER creates schema file
 - ✅ You create schema based on YOUR architecture
 - ✅ Full control, no helpers, no assumptions
-- ✅ `npx cerber init` shows: "You must create BACKEND_SCHEMA.ts"
+- ✅ `npx cerber init` shows: "You must create BACKEND_SCHEMA.mjs"
 
 **For beginners → `mode: template_only`**
 - ✅ Cerber creates minimal template if file missing
@@ -254,11 +341,11 @@ mode: dev  # solo | dev | team
 
 guardian:
   enabled: true
-  schemaFile: BACKEND_SCHEMA.ts
+  schemaFile: BACKEND_SCHEMA.mjs
 
 schema:
   enabled: true
-  file: BACKEND_SCHEMA.ts
+  file: BACKEND_SCHEMA.mjs
   mode: template_only  # strict (mature teams) | template_only (beginners)
   # strict = You create schema, Cerber never generates
   # template_only = Cerber creates minimal helper if missing
@@ -317,18 +404,13 @@ npm install cerber-core --save-dev
 #### 🎨 **Frontend Developer (React/Vue/Angular)**
 
 ```bash
-# 1. Copy frontend schema example (then customize!)
-cp node_modules/cerber-core/examples/frontend-schema.ts ./FRONTEND_SCHEMA.ts
+# 1. Initialize Cerber (generates CERBER.md + templates)
+npx cerber init --mode=solo
 
-# 2. Copy validation script
-mkdir -p scripts
-cp node_modules/cerber-core/guardian/templates/validate-schema.mjs scripts/
+# 2. Customize your schema for frontend
+# Edit BACKEND_SCHEMA.mjs (rename to FRONTEND_SCHEMA.mjs if you prefer)
 
-# 3. Install pre-commit hook
-npx husky-init
-npx husky add .husky/pre-commit "node scripts/validate-schema.mjs"
-
-# 4. Test it!
+# 3. Test it!
 git commit -m "test"
 # Guardian will validate automatically (<1s)
 ```
@@ -339,26 +421,21 @@ git commit -m "test"
 - ✅ Required imports (`react`, `react-dom`)
 - ✅ Required files (`tsconfig.json`, `vite.config.ts`)
 
-**Then customize:** Edit FRONTEND_SCHEMA.ts to match YOUR folder structure, YOUR rules, YOUR tech stack.
+**Then customize:** Edit BACKEND_SCHEMA.mjs (rename to FRONTEND_SCHEMA.mjs if you prefer) to match YOUR folder structure, YOUR rules, YOUR tech stack.
 
 #### ⚙️ **Backend Developer (Node.js/Express/NestJS)**
 
 ```bash
-# 1. Copy backend schema example (then customize!)
-cp node_modules/cerber-core/examples/backend-schema.ts ./BACKEND_SCHEMA.ts
+# 1. Initialize Cerber (generates CERBER.md + guardian + health templates)
+npx cerber init --mode=dev
 
-# 2. Copy validation script
-mkdir -p scripts
-cp node_modules/cerber-core/guardian/templates/validate-schema.mjs scripts/
+# 2. Customize BACKEND_SCHEMA.mjs
+# Edit to match YOUR routes, YOUR layers, YOUR security rules
 
-# 3. Install pre-commit hook
-npx husky-init
-npx husky add .husky/pre-commit "node scripts/validate-schema.mjs"
-
-# 4. Add health endpoint
+# 3. Add health endpoint (see example below)
 ```
 
-**Then customize:** Edit BACKEND_SCHEMA.ts to match YOUR routes, YOUR layers, YOUR security rules.
+**Then customize:** Edit BACKEND_SCHEMA.mjs to match YOUR routes, YOUR layers, YOUR security rules.
 
 ```javascript
 // server.js (ESM)
@@ -476,7 +553,7 @@ cerber-focus
 
 Before diving into examples below, understand this:
 
-**📋 Schema files (BACKEND_SCHEMA.ts, FRONTEND_SCHEMA.ts):**
+**📋 Schema files (BACKEND_SCHEMA.mjs, FRONTEND_SCHEMA.mjs):**
 - Are **examples** and **optional templates**
 - Mirror YOUR architecture decisions from CERBER.md
 - Are user-owned and user-created (in strict mode)
@@ -495,8 +572,8 @@ Before diving into examples below, understand this:
 
 **1. Create architecture schema:**
 
-```typescript
-// BACKEND_SCHEMA.ts
+```javascript
+// BACKEND_SCHEMA.mjs
 export const BACKEND_SCHEMA = {
   version: '1.0.0',
   rules: [
@@ -520,7 +597,9 @@ export const BACKEND_SCHEMA = {
 **2. Add pre-commit hook:**
 
 ```bash
-npx husky add .husky/pre-commit "node scripts/validate-schema.mjs"
+# Pre-commit hook is automatically installed by npx cerber init
+# Or manually:
+npx husky add .husky/pre-commit "npm run cerber:guardian"
 ```
 
 **3. Done!** Guardian now blocks commits that violate architecture rules.
@@ -654,8 +733,8 @@ curl https://your-api.com/api/health
 
 ### Example 1: Enforce Express Router in routes
 
-```typescript
-// BACKEND_SCHEMA.ts
+```javascript
+// BACKEND_SCHEMA.mjs
 {
   name: 'Route files must import Router',
   pattern: /routes\/.*\.ts$/,
@@ -787,8 +866,8 @@ export const cloudinaryCheck = async () => {
 
 ### Guardian Configuration
 
-```typescript
-// BACKEND_SCHEMA.ts
+```javascript
+// BACKEND_SCHEMA.mjs
 export const BACKEND_SCHEMA = {
   version: '1.0.0',
   

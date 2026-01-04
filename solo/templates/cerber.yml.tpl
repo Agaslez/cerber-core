@@ -9,9 +9,52 @@ on:
   workflow_dispatch:
 
 jobs:
+  cerber-integrity:
+    name: Cerber Self-Protection
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Verify protected files exist
+        run: |
+          echo "🛡️ Cerber Integrity Check"
+          MISSING=0
+          
+          # Check core files
+          [ ! -f "CERBER.md" ] && echo "❌ CERBER.md missing" && MISSING=1
+          [ ! -f ".github/workflows/cerber.yml" ] && echo "❌ cerber.yml missing" && MISSING=1
+          [ ! -f "scripts/cerber-guardian.mjs" ] && echo "❌ cerber-guardian.mjs missing" && MISSING=1
+          [ ! -f ".husky/pre-commit" ] && echo "❌ pre-commit hook missing" && MISSING=1
+          
+          # Check schema file (strict mode only)
+          SCHEMA_MODE=$(grep -A 10 "^schema:" CERBER.md | grep "mode:" | awk '{print $2}' | head -1)
+          if [ "$SCHEMA_MODE" = "strict" ]; then
+            SCHEMA_FILE=$(grep -A 10 "^schema:" CERBER.md | grep "file:" | awk '{print $2}' | head -1)
+            [ ! -f "$SCHEMA_FILE" ] && echo "❌ Schema file $SCHEMA_FILE missing (strict mode)" && MISSING=1
+          fi
+          
+          if [ $MISSING -eq 1 ]; then
+            echo "🚨 Protected files missing. Cerber self-protection compromised."
+            exit 1
+          fi
+          
+          echo "✅ All protected files present"
+
+      - name: Verify cerber-ci job exists
+        run: |
+          if ! grep -q "cerber-ci:" .github/workflows/cerber.yml; then
+            echo "🚨 Job 'cerber-ci' not found in cerber.yml"
+            echo "Never rename or remove the cerber-ci job ID"
+            exit 1
+          fi
+          echo "✅ cerber-ci job ID intact"
+
   cerber-ci:
     name: Cerber CI
     runs-on: ubuntu-latest
+    needs: [cerber-integrity]
 
     steps:
       - name: Checkout code
