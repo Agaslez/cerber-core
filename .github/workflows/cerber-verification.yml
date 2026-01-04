@@ -161,23 +161,6 @@ jobs:
           timeout "${INIT_TIMEOUT_SECONDS}s" npx --yes cerber init --mode=solo
           ls -la CERBER.md || echo "CERBER.md NOT CREATED"
           timeout "${INIT_TIMEOUT_SECONDS}s" npx --yes cerber init
-          
-          # Enable password detection in schema (replace commented pattern)
-          cat > BACKEND_SCHEMA.mjs << 'EOF'
-export const BACKEND_SCHEMA = {
-  version: "1.0.0",
-  rules: [],
-  forbiddenPatterns: [
-    {
-      pattern: "password\\s*=\\s*['\"][^'\"]+['\"]",
-      flags: "i",
-      name: "Hardcoded passwords (e.g., password='admin123')",
-      severity: "error"
-    }
-  ]
-};
-EOF
-          
           git add . && git commit -m "Initial commit" --no-verify
 
       - name: Guardian should FAIL on obvious secret
@@ -185,7 +168,8 @@ EOF
         run: |
           set -euo pipefail
           cd /tmp/cerber-precommit
-          echo "password=\"admin123\"" > __cerber_bad_secret__.txt
+          
+          echo 'password="admin123"' > __cerber_bad_secret__.txt
           git add __cerber_bad_secret__.txt
 
           set +e

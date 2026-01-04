@@ -6,7 +6,6 @@ import { execSync } from 'child_process';
 import fs from 'fs';
 import { join } from 'path';
 
-const SCHEMA_FILE = '{{SCHEMA_FILE}}';
 const APPROVALS_TAG = '{{APPROVALS_TAG}}';
 
 function readYamlValue(text, key) {
@@ -83,23 +82,59 @@ async function main() {
     }
   }
 
-  if (!fs.existsSync(SCHEMA_FILE)) {
-    console.error(`❌ Schema file not found: ${SCHEMA_FILE}`);
-    console.error('Create your schema file to enable validation.');
-    console.error(`Example: npx cerber init --print-schema-template > ${SCHEMA_FILE}`);
-    process.exit(1);
+  // Load schema from CERBER.md
+  if (!fs.existsSync(cerberMdPath)) {
+    console.error('❌ CERBER.md not found');
+    console.error('Run: npx cerber init');
+    process.exit(5);
   }
 
-  // Import schema
-  let schema;
-  try {
-    const schemaPath = join(process.cwd(), SCHEMA_FILE);
-    const schemaModule = await import(`file://${schemaPath}`);
-    schema = schemaModule.BACKEND_SCHEMA || schemaModule.default || schemaModule;
-  } catch (err) {
-    console.error(`❌ Failed to load schema from ${SCHEMA_FILE}:`, err.message);
-    process.exit(1);
+  const cerberContent = fs.readFileSync(cerberMdPath, 'utf-8');
+  
+  // Parse SCHEMA section
+  const schemaMatch = cerberContent.match(/SCHEMA:\s*\n\s*mode:\s*(\w+)/);
+  if (!schemaMatch) {
+    console.error('❌ SCHEMA section not found in CERBER.md');
+    console.error('Add SCHEMA section with mode: required or mode: disabled');
+    process.exit(5);
   }
+
+  const schemaMode = schemaMatch[1];
+  if (schemaMode === 'disabled') {
+    console.log('⚠️  Schema validation disabled (SCHEMA.mode: disabled)');
+    console.log('✅ Bypassing validation');
+    return;
+  }
+
+  // Extract forbidden patterns
+  const forbiddenPatterns = [];
+  const patternsMatch = cerberContent.match(/forbiddenPatterns:\s*\n((?:\s*-\s*"[^"]+"\s*\n)+)/);
+  if (patternsMatch) {
+    const patternLines = patternsMatch[1].match(/- "([^"]+)"/g);
+    if (patternLines) {
+      patternLines.forEach(line => {
+        const pattern = line.match(/- "([^"]+)"/)?.[1];
+        if (pattern) {
+          forbiddenPatterns.push({
+            pattern: pattern,
+            name: `Forbidden: ${pattern}`,
+            severity: 'error'
+          });
+        }
+      });
+    }
+  }
+
+  if (schemaMode === 'required' && forbiddenPatterns.length === 0) {
+    console.error('❌ SCHEMA.mode: required but no rules defined');
+    console.error('Add forbiddenPatterns to SCHEMA section in CERBER.md');
+    process.exit(5);
+  }
+
+  const schema = {
+    forbiddenPatterns: forbiddenPatterns,
+    rules: []
+  };
 
   // Get staged files
   let stagedFiles;
