@@ -13,9 +13,10 @@ function readYamlValue(text, key) {
   const m = text.match(re);
   if (!m) return "";
   let v = (m[1] ?? "").trim();
+
   // Remove quotes
-  v = v.replace(/^["']/, "").replace(/["']$/, "");
-  return v;
+  v = v.replace(/^["']/,"").replace(/["']$/,"");
+  return v.trim();
 }
 
 function parseOverride(cerberContent) {

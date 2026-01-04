@@ -142,10 +142,15 @@ See \`${getDefaultContract().guardian.schemaFile}\` for complete architecture ru
 \`\`\`yaml
 CERBER_OVERRIDE:
   enabled: false
-  reason: ""           # REQUIRED if enabled (e.g., "P0 production incident hotfix")
-  expires: ""          # REQUIRED if enabled (ISO 8601: 2026-01-05T10:00:00Z)
-  approvedBy: ""       # REQUIRED if enabled (GitHub username or email)
+  reason: ""
+  expires: ""
+  approvedBy: ""
 \`\`\`
+
+**Field Requirements (when enabled: true):**
+- \`reason\`: Short description (e.g., "P0 production incident hotfix")
+- \`expires\`: ISO 8601 timestamp (e.g., 2026-01-05T10:00:00Z)
+- \`approvedBy\`: GitHub username or email
 
 ### What Override DOES (when enabled and not expired):
 
