@@ -118,4 +118,17 @@ program
     execSync('node solo/scripts/cerber-dashboard.js', { stdio: 'inherit' });
   });
 
+
+program
+  .command('doctor')
+  .description('Validate Cerber setup (checks for missing files)')
+  .action(async () => {
+    const { runDoctor, printDoctorReport } = await import('../dist/cli/doctor.js');
+    const result = await runDoctor(process.cwd());
+    printDoctorReport(result);
+    process.exit(result.exitCode);
+  });
+
+program.parse();
+
 program.parse();
