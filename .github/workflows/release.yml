@@ -1,9 +1,14 @@
 name: Create Release
 
+# Disabled - releases created manually via gh CLI
+# Re-enable by uncommenting the 'on:' section below
+# on:
+#   push:
+#     tags:
+#       - 'v*.*.*'
+
 on:
-  push:
-    tags:
-      - 'v*.*.*'
+  workflow_dispatch:  # Manual trigger only
 
 jobs:
   release:
