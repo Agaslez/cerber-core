@@ -1,6 +1,6 @@
 {
   "name": "cerber-core",
-  "version": "1.1.7",
+  "version": "1.1.8",
   "description": "AI doesn't break your project. Lack of a contract does. Cerber is a contract-driven project guardian for AI-assisted development. It enforces a single source of truth (CERBER.md) across pre-commit, CI, and post-deploy health gates.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
