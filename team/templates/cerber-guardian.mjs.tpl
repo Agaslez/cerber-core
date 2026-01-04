@@ -108,7 +108,7 @@ async function main() {
 
   // Extract forbidden patterns
   const forbiddenPatterns = [];
-  const patternsMatch = cerberContent.match(/forbiddenPatterns:\s*\n((?:\s*-\s*"[^"]+"\s*\n)+)/);
+  const patternsMatch = cerberContent.match(/forbiddenPatterns:\s*\n([\s\S]*?)(?=\n\w|\nSCHEMA:|$)/);
   if (patternsMatch) {
     const patternLines = patternsMatch[1].match(/- "([^"]+)"/g);
     if (patternLines) {
