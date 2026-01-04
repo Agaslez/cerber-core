@@ -105,6 +105,7 @@ jobs:
         run: |
           set -euo pipefail
           cd /tmp/cerber-doctor
+          git init && git config user.name "CI Test" && git config user.email "ci@test.com"
           timeout "${INIT_TIMEOUT_SECONDS}s" npx --yes cerber init --mode=solo
           timeout "${INIT_TIMEOUT_SECONDS}s" npx --yes cerber init
           npx --yes cerber doctor
@@ -132,6 +133,7 @@ jobs:
           mkdir -p /tmp/cerber-precommit && cd /tmp/cerber-precommit
           npm init -y >/dev/null
           npm i --silent "$GITHUB_WORKSPACE/$TARBALL"
+          git init && git config user.name "CI Test" && git config user.email "ci@test.com"
           timeout "${INIT_TIMEOUT_SECONDS}s" npx --yes cerber init --mode=solo
           timeout "${INIT_TIMEOUT_SECONDS}s" npx --yes cerber init
 
@@ -200,6 +202,7 @@ jobs:
           mkdir -p /tmp/cerber-ci && cd /tmp/cerber-ci
           npm init -y >/dev/null
           npm i --silent "$GITHUB_WORKSPACE/$TARBALL"
+          git init && git config user.name "CI Test" && git config user.email "ci@test.com"
           timeout "${INIT_TIMEOUT_SECONDS}s" npx --yes cerber init --mode=team
           timeout "${INIT_TIMEOUT_SECONDS}s" npx --yes cerber init
 
@@ -257,6 +260,7 @@ jobs:
 
             npm init -y >/dev/null
             npm i --silent "$GITHUB_WORKSPACE/$TARBALL"
+            git init && git config user.name "CI Test" && git config user.email "ci@test.com"
 
             timeout "${INIT_TIMEOUT_SECONDS}s" npx --yes cerber init --mode="$MODE"
             npx --yes cerber doctor
