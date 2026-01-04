@@ -106,6 +106,7 @@ jobs:
           set -euo pipefail
           cd /tmp/cerber-doctor
           timeout "${INIT_TIMEOUT_SECONDS}s" npx --yes cerber init --mode=solo
+          timeout "${INIT_TIMEOUT_SECONDS}s" npx --yes cerber init
           npx --yes cerber doctor
 
   guardian_precommit_sim:
@@ -132,6 +133,7 @@ jobs:
           npm init -y >/dev/null
           npm i --silent "$GITHUB_WORKSPACE/$TARBALL"
           timeout "${INIT_TIMEOUT_SECONDS}s" npx --yes cerber init --mode=solo
+          timeout "${INIT_TIMEOUT_SECONDS}s" npx --yes cerber init
 
       - name: Guardian should FAIL on obvious secret
         shell: bash
@@ -199,6 +201,7 @@ jobs:
           npm init -y >/dev/null
           npm i --silent "$GITHUB_WORKSPACE/$TARBALL"
           timeout "${INIT_TIMEOUT_SECONDS}s" npx --yes cerber init --mode=team
+          timeout "${INIT_TIMEOUT_SECONDS}s" npx --yes cerber init
 
           # "post" gate: guardian run
           if [ -f "scripts/cerber-guardian.mjs" ]; then
