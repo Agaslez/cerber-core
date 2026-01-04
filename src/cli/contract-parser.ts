@@ -83,6 +83,52 @@ export function extractContract(content: string): ContractParseResult {
   try {
     const contract = parseSimpleYaml(yamlContent);
     
+    // Parse CERBER_OVERRIDE section (if present)
+    const overrideStartIndex = lines.findIndex((line, idx) => 
+      idx > yamlEndIndex && line.includes('CERBER_OVERRIDE:')
+    );
+    
+    if (overrideStartIndex !== -1) {
+      // Find the yaml block containing CERBER_OVERRIDE
+      let overrideYamlStart = -1;
+      let overrideYamlEnd = -1;
+      
+      // Search backwards for opening ```yaml
+      for (let i = overrideStartIndex; i >= 0; i--) {
+        if (lines[i].trim().startsWith('```yaml')) {
+          overrideYamlStart = i + 1;
+          break;
+        }
+      }
+      
+      // Search forwards for closing ```
+      if (overrideYamlStart !== -1) {
+        for (let i = overrideStartIndex; i < lines.length; i++) {
+          if (lines[i].trim() === '```') {
+            overrideYamlEnd = i;
+            break;
+          }
+        }
+      }
+      
+      if (overrideYamlStart !== -1 && overrideYamlEnd !== -1) {
+        const overrideYamlContent = lines.slice(overrideYamlStart, overrideYamlEnd).join('\n');
+        const overrideData: any = parseSimpleYaml(overrideYamlContent);
+        
+        // CERBER_OVERRIDE is parsed as top-level key, extract its value
+        const overrideConfig = overrideData.CERBER_OVERRIDE || overrideData;
+        
+        if (overrideConfig && overrideConfig.enabled !== undefined) {
+          contract.override = {
+            enabled: overrideConfig.enabled === true,
+            reason: overrideConfig.reason || undefined,
+            expires: overrideConfig.expires || undefined,
+            approvedBy: overrideConfig.approvedBy || undefined
+          };
+        }
+      }
+    }
+    
     // Validate required fields
     const validation = validateContract(contract);
     if (!validation.valid) {
@@ -132,6 +178,10 @@ function parseSimpleYaml(yamlContent: string): CerberContract {
       const key = trimmed.slice(0, -1);
       currentSection = key;
       currentSubsection = null;
+      // Initialize section if it doesn't exist
+      if (!contract[key]) {
+        contract[key] = {};
+      }
     } else if (indent === 2 && trimmed.endsWith(':')) {
       // Second-level key
       const key = trimmed.slice(0, -1);
@@ -164,6 +214,11 @@ function parseSimpleYaml(yamlContent: string): CerberContract {
           }
           return trimmed;
         });
+      }
+      // Strip quotes from string values
+      else if ((value.startsWith("'") && value.endsWith("'")) ||
+               (value.startsWith('"') && value.endsWith('"'))) {
+        value = value.slice(1, -1);
       }
       
       if (currentSubsection && currentSection) {
