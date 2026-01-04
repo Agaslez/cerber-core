@@ -4,6 +4,7 @@
 
 import { execSync } from 'child_process';
 import fs from 'fs';
+import { join } from 'path';
 
 const SCHEMA_FILE = '{{SCHEMA_FILE}}';
 const APPROVALS_TAG = '{{APPROVALS_TAG}}';
@@ -13,10 +14,23 @@ async function main() {
 
   if (!fs.existsSync(SCHEMA_FILE)) {
     console.error(`❌ Schema file not found: ${SCHEMA_FILE}`);
-    console.error('Guardian MVP: schema missing. Add your rules to proceed.');
+    console.error('Create your schema file to enable validation.');
+    console.error(`Example: npx cerber init --print-schema-template > ${SCHEMA_FILE}`);
     process.exit(1);
   }
 
+  // Import schema
+  let schema;
+  try {
+    const schemaPath = join(process.cwd(), SCHEMA_FILE);
+    const schemaModule = await import(`file://${schemaPath}`);
+    schema = schemaModule.BACKEND_SCHEMA || schemaModule.default || schemaModule;
+  } catch (err) {
+    console.error(`❌ Failed to load schema from ${SCHEMA_FILE}:`, err.message);
+    process.exit(1);
+  }
+
+  // Get staged files
   let stagedFiles;
   try {
     stagedFiles = execSync('git diff --cached --name-only', { encoding: 'utf-8' })
@@ -34,7 +48,97 @@ async function main() {
   }
 
   console.log(`Checking ${stagedFiles.length} file(s)...`);
-  console.log('Guardian MVP: schema detected. Add validation rules to enforce imports/forbidden patterns.');
+
+  const violations = [];
+
+  // Validate each staged file
+  for (const file of stagedFiles) {
+    if (!fs.existsSync(file)) continue;
+
+    const content = fs.readFileSync(file, 'utf-8');
+
+    // Check forbidden patterns
+    if (schema.forbiddenPatterns && Array.isArray(schema.forbiddenPatterns)) {
+      for (const rule of schema.forbiddenPatterns) {
+        if (!rule.pattern) continue;
+
+        const pattern = typeof rule.pattern === 'string' 
+          ? new RegExp(rule.pattern, rule.flags || 'i') 
+          : rule.pattern;
+        
+        // Check if file is in exceptions
+        if (rule.exceptions && rule.exceptions.some(ex => file.includes(ex))) {
+          continue;
+        }
+
+        if (pattern.test(content)) {
+          // Check for architect approval
+          const hasApproval = content.includes(APPROVALS_TAG);
+          
+          if (!hasApproval) {
+            violations.push({
+              file,
+              rule: rule.name || 'Unnamed rule',
+              severity: rule.severity || 'error'
+            });
+          }
+        }
+      }
+    }
+
+    // Check required imports (rules)
+    if (schema.rules && Array.isArray(schema.rules)) {
+      for (const rule of schema.rules) {
+        if (!rule.pattern || !rule.requiredImports) continue;
+
+        const filePattern = typeof rule.pattern === 'string' ? new RegExp(rule.pattern) : rule.pattern;
+        
+        if (!filePattern.test(file)) continue;
+
+        // Check if file is in exceptions
+        if (rule.exceptions && rule.exceptions.some(ex => file.includes(ex))) {
+          continue;
+        }
+
+        // Check each required import
+        for (const requiredImport of rule.requiredImports) {
+          const importPattern = new RegExp(`import.*${requiredImport}`, 'i');
+          
+          if (!importPattern.test(content)) {
+            // Check for architect approval
+            const hasApproval = content.includes(APPROVALS_TAG);
+            
+            if (!hasApproval) {
+              violations.push({
+                file,
+                rule: `${rule.name || 'Unnamed rule'}: missing import '${requiredImport}'`,
+                severity: rule.severity || 'error'
+              });
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // Report violations
+  if (violations.length > 0) {
+    console.error('\n❌ Architecture violations detected:\n');
+    
+    for (const v of violations) {
+      const icon = v.severity === 'error' ? '🔴' : '⚠️';
+      console.error(`${icon} [${v.severity.toUpperCase()}] ${v.file}`);
+      console.error(`   ${v.rule}`);
+      console.error(`   Add ${APPROVALS_TAG} comment to override\n`);
+    }
+    
+    const errorCount = violations.filter(v => v.severity === 'error').length;
+    if (errorCount > 0) {
+      console.error(`\n❌ Commit blocked: ${errorCount} error(s) found`);
+      process.exit(1);
+    }
+  }
+
   console.log('✅ All checks passed');
 }
 

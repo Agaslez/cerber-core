@@ -20,12 +20,14 @@ export const BACKEND_SCHEMA = {
   forbiddenPatterns: [
     // Uncomment and customize based on your tech stack:
     // {
-    //   pattern: /password\s*=\s*['"][^'"]+['"]/i,
+    //   pattern: "password\\s*=\\s*['\"][^'\"]+['\"]",
+    //   flags: "i",
     //   name: "Hardcoded passwords",
     //   severity: "error"
     // },
     // {
-    //   pattern: /api[_-]?key\s*=\s*['"][^'"]+['"]/i,
+    //   pattern: "api[_-]?key\\s*=\\s*['\"][^'\"]+['\"]",
+    //   flags: "i",
     //   name: "Hardcoded API keys",
     //   severity: "error"
     // }
