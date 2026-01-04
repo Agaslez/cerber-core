@@ -13,8 +13,7 @@ function readYamlValue(text, key) {
   const m = text.match(re);
   if (!m) return "";
   let v = (m[1] ?? "").trim();
-  // Strip inline comments (but not # inside quotes)
-  v = v.replace(/\s*#.*$/,"");
+
   // Remove quotes
   v = v.replace(/^["']/,"").replace(/["']$/,"");
   return v.trim();
