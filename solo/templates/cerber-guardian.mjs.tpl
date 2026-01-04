@@ -12,6 +12,61 @@ const APPROVALS_TAG = '{{APPROVALS_TAG}}';
 async function main() {
   console.log('🛡️  Cerber Guardian: Validating staged files...');
 
+  // Check for emergency override
+  const cerberMdPath = join(process.cwd(), 'CERBER.md');
+  if (fs.existsSync(cerberMdPath)) {
+    const cerberContent = fs.readFileSync(cerberMdPath, 'utf-8');
+    const overrideMatch = cerberContent.match(/CERBER_OVERRIDE:\s*\n\s*enabled:\s*(true|false)/);
+    
+    if (overrideMatch && overrideMatch[1] === 'true') {
+      // Extract override details
+      const reasonMatch = cerberContent.match(/reason:\s*"([^"]*)"/);
+      const expiresMatch = cerberContent.match(/expires:\s*"([^"]*)"/);
+      const approvedByMatch = cerberContent.match(/approvedBy:\s*"([^"]*)"/);
+      
+      const reason = reasonMatch ? reasonMatch[1] : '';
+      const expires = expiresMatch ? expiresMatch[1] : '';
+      const approvedBy = approvedByMatch ? approvedByMatch[1] : '';
+      
+      // Check TTL
+      let isExpired = false;
+      if (expires) {
+        try {
+          const expiryDate = new Date(expires);
+          const now = new Date();
+          isExpired = expiryDate <= now;
+        } catch {
+          isExpired = true;
+        }
+      }
+      
+      if (!isExpired && reason && expires && approvedBy) {
+        // Override ACTIVE - allow commit with warning
+        console.log('');
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        console.log('⚠️  CERBER EMERGENCY OVERRIDE ACTIVE');
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        console.log('');
+        console.log(`Status:      ACTIVE`);
+        console.log(`Reason:      ${reason}`);
+        console.log(`Expires:     ${expires}`);
+        console.log(`Approved By: ${approvedBy}`);
+        console.log('');
+        console.log('Guardian checks: BYPASSED WITH WARNING');
+        console.log('Self-protection: STILL ACTIVE (cerber-integrity runs)');
+        console.log('');
+        console.log('⚠️  Create follow-up PR to fix properly + disable override');
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        console.log('');
+        process.exit(0);  // Allow commit
+      } else if (isExpired) {
+        console.log('⚠️  Override expired - proceeding with normal validation');
+      } else {
+        console.log('⚠️  Override invalid (missing required fields) - proceeding with normal validation');
+      }
+    }
+  }
+
   if (!fs.existsSync(SCHEMA_FILE)) {
     console.error(`❌ Schema file not found: ${SCHEMA_FILE}`);
     console.error('Create your schema file to enable validation.');
