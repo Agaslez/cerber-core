@@ -1,6 +1,6 @@
 {
   "name": "cerber-core",
-  "version": "1.1.8",
+  "version": "1.1.9",
   "description": "Contract-first project guardian for AI-assisted development. Enforces CERBER.md across pre-commit, CI, and optional post-deploy gates.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
