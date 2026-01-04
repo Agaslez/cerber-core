@@ -95,6 +95,37 @@ See \`${getDefaultContract().guardian.schemaFile}\` for complete architecture ru
 
 ---
 
+## 🔒 CERBER_GUARDRAILS - Protected Assets
+
+> **Self-Protection:** These files enforce the contract. Deleting or disabling them breaks project integrity.
+
+### Protected Files (DO NOT DELETE / DISABLE)
+
+1. **CERBER.md** - Single source of truth (this file)
+2. **${getDefaultContract().guardian.schemaFile}** - Architecture schema (in strict mode)
+3. **.github/workflows/cerber.yml** - CI validation pipeline
+4. **scripts/cerber-guardian.mjs** - Pre-commit guardian
+5. **.husky/pre-commit** - Git hook trigger
+6. **.github/CODEOWNERS** - Ownership enforcement (team mode)
+
+### Change Policy
+
+- **Never:**
+  - Delete protected files
+  - Disable Guardian/CI checks
+  - Rename workflow job IDs (\`cerber-ci\`, \`cerber-integrity\`)
+  - Bypass pre-commit hooks
+
+- **Allowed (with justification in PR):**
+  - Update schema rules (must match CERBER.md contract)
+  - Adjust CI branches/triggers
+  - Modify health check thresholds
+  - Add new Guardian patterns
+
+**Emergency Override:** If you must temporarily disable Guardian (hotfix), use \`CERBER_OVERRIDE\` section below with TTL expiry.
+
+---
+
 *This file is protected by CODEOWNERS. Changes require architect approval.*
 `;
 }
