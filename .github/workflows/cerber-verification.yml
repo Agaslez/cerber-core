@@ -143,6 +143,7 @@ jobs:
           set -euo pipefail
           cd /tmp/cerber-precommit
           echo "password=admin123" > __cerber_bad_secret__.txt
+          git add __cerber_bad_secret__.txt
 
           set +e
           if [ -f "scripts/cerber-guardian.mjs" ]; then
@@ -169,6 +170,7 @@ jobs:
           set -euo pipefail
           cd /tmp/cerber-precommit
           rm -f __cerber_bad_secret__.txt
+          git add -u
 
           if [ -f "scripts/cerber-guardian.mjs" ]; then
             node scripts/cerber-guardian.mjs
