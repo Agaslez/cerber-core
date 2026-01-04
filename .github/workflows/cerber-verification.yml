@@ -161,6 +161,10 @@ jobs:
           timeout "${INIT_TIMEOUT_SECONDS}s" npx --yes cerber init --mode=solo
           ls -la CERBER.md || echo "CERBER.md NOT CREATED"
           timeout "${INIT_TIMEOUT_SECONDS}s" npx --yes cerber init
+          
+          # Enable password detection in schema (uncomment the pattern)
+          sed -i 's|// {|{|g; s|//   pattern:|  pattern:|g; s|//   flags:|  flags:|g; s|//   name:|  name:|g; s|//   severity:|  severity:|g; s|// },|},|g' BACKEND_SCHEMA.mjs
+          
           git add . && git commit -m "Initial commit" --no-verify
 
       - name: Guardian should FAIL on obvious secret
