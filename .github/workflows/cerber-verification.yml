@@ -1,0 +1,335 @@
+name: Cerber Verification (Doctor + Guardian + E2E)
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# PR ma być szybki, ale kompletny w sensie "czy Cerber działa".
+# Jeśli będzie za wolno, pełny zestaw przerobimy na nightly, a PR zostanie "smoke".
+
+env:
+  NODE_VERSION: 20
+  INIT_TIMEOUT_SECONDS: 90
+
+jobs:
+  build_and_unit:
+    name: Build & Unit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+  pack_tarball:
+    name: Pack (npm pack)
+    runs-on: ubuntu-latest
+    needs: build_and_unit
+    outputs:
+      tarball: ${{ steps.pack.outputs.tarball }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: npm pack
+        id: pack
+        shell: bash
+        run: |
+          TARBALL="$(npm pack)"
+          echo "tarball=$TARBALL" >> "$GITHUB_OUTPUT"
+          ls -la
+
+      - name: Upload tarball artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: cerber-tarball
+          path: ${{ steps.pack.outputs.tarball }}
+          retention-days: 7
+
+  cerber_doctor:
+    name: Cerber Doctor (install + doctor)
+    runs-on: ubuntu-latest
+    needs: pack_tarball
+    steps:
+      - name: Download tarball
+        uses: actions/download-artifact@v4
+        with:
+          name: cerber-tarball
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Create sandbox + install from tarball
+        shell: bash
+        run: |
+          set -euo pipefail
+          TARBALL="$(ls -1 *.tgz | head -n1)"
+          mkdir -p /tmp/cerber-doctor && cd /tmp/cerber-doctor
+          npm init -y >/dev/null
+          npm i --silent "$GITHUB_WORKSPACE/$TARBALL"
+          echo "Installed from: $TARBALL"
+          npx --yes cerber --version || true
+
+      - name: Init (solo) + Doctor
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/cerber-doctor
+          timeout "${INIT_TIMEOUT_SECONDS}s" npx --yes cerber init --mode=solo
+          npx --yes cerber doctor
+
+  guardian_precommit_sim:
+    name: Guardian PRE (pre-commit simulation)
+    runs-on: ubuntu-latest
+    needs: pack_tarball
+    steps:
+      - name: Download tarball
+        uses: actions/download-artifact@v4
+        with:
+          name: cerber-tarball
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Create sandbox + install from tarball
+        shell: bash
+        run: |
+          set -euo pipefail
+          TARBALL="$(ls -1 *.tgz | head -n1)"
+          mkdir -p /tmp/cerber-precommit && cd /tmp/cerber-precommit
+          npm init -y >/dev/null
+          npm i --silent "$GITHUB_WORKSPACE/$TARBALL"
+          timeout "${INIT_TIMEOUT_SECONDS}s" npx --yes cerber init --mode=solo
+
+      - name: Guardian should FAIL on obvious secret
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/cerber-precommit
+          echo "password=admin123" > __cerber_bad_secret__.txt
+
+          set +e
+          if [ -f "scripts/cerber-guardian.mjs" ]; then
+            node scripts/cerber-guardian.mjs
+            CODE=$?
+          elif [ -f "scripts/cerber-guardian.js" ]; then
+            node scripts/cerber-guardian.js
+            CODE=$?
+          else
+            npx --yes cerber-guardian
+            CODE=$?
+          fi
+          set -e
+
+          if [ "$CODE" -eq 0 ]; then
+            echo "❌ Guardian DID NOT block obvious secret!"
+            exit 1
+          fi
+          echo "✅ Guardian blocked secret (expected)"
+
+      - name: Guardian should PASS after cleanup
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/cerber-precommit
+          rm -f __cerber_bad_secret__.txt
+
+          if [ -f "scripts/cerber-guardian.mjs" ]; then
+            node scripts/cerber-guardian.mjs
+          elif [ -f "scripts/cerber-guardian.js" ]; then
+            node scripts/cerber-guardian.js
+          else
+            npx --yes cerber-guardian
+          fi
+          echo "✅ Guardian passes clean repo (expected)"
+
+  guardian_ci:
+    name: Guardian CI (post gate)
+    runs-on: ubuntu-latest
+    needs: pack_tarball
+    steps:
+      - name: Download tarball
+        uses: actions/download-artifact@v4
+        with:
+          name: cerber-tarball
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Create sandbox + install + run guardian
+        shell: bash
+        run: |
+          set -euo pipefail
+          TARBALL="$(ls -1 *.tgz | head -n1)"
+          mkdir -p /tmp/cerber-ci && cd /tmp/cerber-ci
+          npm init -y >/dev/null
+          npm i --silent "$GITHUB_WORKSPACE/$TARBALL"
+          timeout "${INIT_TIMEOUT_SECONDS}s" npx --yes cerber init --mode=team
+
+          # "post" gate: guardian run
+          if [ -f "scripts/cerber-guardian.mjs" ]; then
+            node scripts/cerber-guardian.mjs
+          elif [ -f "scripts/cerber-guardian.js" ]; then
+            node scripts/cerber-guardian.js
+          else
+            npx --yes cerber-guardian
+          fi
+
+      - name: Verify generated workflow has cerber-integrity + cerber-ci
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/cerber-ci
+          test -f ".github/workflows/cerber.yml"
+          grep -q "cerber-integrity" ".github/workflows/cerber.yml"
+          grep -q "cerber-ci" ".github/workflows/cerber.yml"
+          echo "✅ Generated workflow contains cerber-integrity + cerber-ci"
+
+  cerber_e2e_all_modes:
+    name: E2E (solo/dev/team) + artifacts
+    runs-on: ubuntu-latest
+    needs: pack_tarball
+    steps:
+      - name: Download tarball
+        uses: actions/download-artifact@v4
+        with:
+          name: cerber-tarball
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Run E2E for modes
+        shell: bash
+        run: |
+          set -euo pipefail
+          TARBALL="$(ls -1 *.tgz | head -n1)"
+          MODES=("solo" "dev" "team")
+
+          for MODE in "${MODES[@]}"; do
+            echo ""
+            echo "=============================="
+            echo "E2E MODE: $MODE"
+            echo "=============================="
+
+            WORKDIR="/tmp/cerber-e2e-$MODE"
+            rm -rf "$WORKDIR"
+            mkdir -p "$WORKDIR"
+            cd "$WORKDIR"
+
+            npm init -y >/dev/null
+            npm i --silent "$GITHUB_WORKSPACE/$TARBALL"
+
+            timeout "${INIT_TIMEOUT_SECONDS}s" npx --yes cerber init --mode="$MODE"
+            npx --yes cerber doctor
+
+            if [ -f "scripts/cerber-guardian.mjs" ]; then
+              node scripts/cerber-guardian.mjs
+            elif [ -f "scripts/cerber-guardian.js" ]; then
+              node scripts/cerber-guardian.js
+            else
+              npx --yes cerber-guardian
+            fi
+
+            # Assertions by mode
+            if [ "$MODE" = "team" ]; then
+              test -f ".github/CODEOWNERS"
+              grep -q "/CERBER.md" ".github/CODEOWNERS"
+              grep -q "/.github/workflows/cerber.yml" ".github/CODEOWNERS"
+              grep -q "/scripts/cerber-guardian" ".github/CODEOWNERS" || true
+              echo "✅ TEAM: CODEOWNERS protects Cerber assets"
+
+              test -f ".github/workflows/cerber.yml"
+              grep -q "cerber-integrity" ".github/workflows/cerber.yml"
+              grep -q "cerber-ci" ".github/workflows/cerber.yml"
+              echo "✅ TEAM: cerber.yml contains cerber-integrity + cerber-ci"
+            fi
+          done
+
+      - name: Collect artifacts (team output)
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/cerber-artifacts
+          cp -R /tmp/cerber-e2e-team/. /tmp/cerber-artifacts/
+          ls -la /tmp/cerber-artifacts | head -200
+
+      - name: Upload E2E artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: cerber-e2e-output
+          path: /tmp/cerber-artifacts
+          retention-days: 7
+
+  ci_summary:
+    name: CI Summary (hard fail if any gate fails)
+    runs-on: ubuntu-latest
+    needs:
+      - build_and_unit
+      - pack_tarball
+      - cerber_doctor
+      - guardian_precommit_sim
+      - guardian_ci
+      - cerber_e2e_all_modes
+    if: always()
+    steps:
+      - name: Summary
+        shell: bash
+        run: |
+          echo "build_and_unit: ${{ needs.build_and_unit.result }}"
+          echo "pack_tarball: ${{ needs.pack_tarball.result }}"
+          echo "cerber_doctor: ${{ needs.cerber_doctor.result }}"
+          echo "guardian_precommit_sim: ${{ needs.guardian_precommit_sim.result }}"
+          echo "guardian_ci: ${{ needs.guardian_ci.result }}"
+          echo "cerber_e2e_all_modes: ${{ needs.cerber_e2e_all_modes.result }}"
+
+          if [[ "${{ needs.build_and_unit.result }}" != "success" ]] || \
+             [[ "${{ needs.pack_tarball.result }}" != "success" ]] || \
+             [[ "${{ needs.cerber_doctor.result }}" != "success" ]] || \
+             [[ "${{ needs.guardian_precommit_sim.result }}" != "success" ]] || \
+             [[ "${{ needs.guardian_ci.result }}" != "success" ]] || \
+             [[ "${{ needs.cerber_e2e_all_modes.result }}" != "success" ]]; then
+            echo "❌ One or more Cerber gates failed"
+            exit 1
+          fi
+
+          echo "✅ All Cerber gates passed"
