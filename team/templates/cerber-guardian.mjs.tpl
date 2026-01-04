@@ -6,8 +6,41 @@ import { execSync } from 'child_process';
 import fs from 'fs';
 import { join } from 'path';
 
-const SCHEMA_FILE = '{{SCHEMA_FILE}}';
 const APPROVALS_TAG = '{{APPROVALS_TAG}}';
+
+function readYamlValue(text, key) {
+  const re = new RegExp(`^\\s*${key}\\s*:\\s*(.*)\\s*$`, "m");
+  const m = text.match(re);
+  if (!m) return "";
+  let v = (m[1] ?? "").trim();
+  // Remove quotes
+  v = v.replace(/^["']/, "").replace(/["']$/, "");
+  return v;
+}
+
+function parseOverride(cerberContent) {
+  const enabledRaw = readYamlValue(cerberContent, "enabled");
+  const enabled = enabledRaw.toLowerCase() === "true";
+
+  const reason = readYamlValue(cerberContent, "reason");
+  const expiresRaw = readYamlValue(cerberContent, "expires");
+  const approvedBy = readYamlValue(cerberContent, "approvedBy");
+
+  if (!enabled) return { state: "DISABLED", reason, expires: expiresRaw, approvedBy };
+
+  if (!expiresRaw) return { state: "ACTIVE", reason, expires: "", approvedBy };
+
+  const expiresDate = new Date(expiresRaw);
+  if (Number.isNaN(expiresDate.getTime())) {
+    return { state: "INVALID", reason, expires: expiresRaw, approvedBy };
+  }
+
+  if (expiresDate.getTime() < Date.now()) {
+    return { state: "EXPIRED", reason, expires: expiresRaw, approvedBy };
+  }
+
+  return { state: "ACTIVE", reason, expires: expiresRaw, approvedBy };
+}
 
 async function main() {
   console.log('🛡️  Cerber Guardian: Validating staged files...');
@@ -19,28 +52,10 @@ async function main() {
     const overrideMatch = cerberContent.match(/CERBER_OVERRIDE:\s*\n\s*enabled:\s*(true|false)/);
     
     if (overrideMatch && overrideMatch[1] === 'true') {
-      // Extract override details
-      const reasonMatch = cerberContent.match(/reason:\s*"([^"]*)");
-      const expiresMatch = cerberContent.match(/expires:\s*"([^"]*)");
-      const approvedByMatch = cerberContent.match(/approvedBy:\s*"([^"]*)");
+      const override = parseOverride(cerberContent);
+      const { state, reason, expires, approvedBy } = override;
       
-      const reason = reasonMatch ? reasonMatch[1] : '';
-      const expires = expiresMatch ? expiresMatch[1] : '';
-      const approvedBy = approvedByMatch ? approvedByMatch[1] : '';
-      
-      // Check TTL
-      let isExpired = false;
-      if (expires) {
-        try {
-          const expiryDate = new Date(expires);
-          const now = new Date();
-          isExpired = expiryDate <= now;
-        } catch {
-          isExpired = true;
-        }
-      }
-      
-      if (!isExpired && reason && expires && approvedBy) {
+      if (state === 'ACTIVE') {
         // Override ACTIVE - allow commit with warning
         console.log('');
         console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
@@ -59,7 +74,7 @@ async function main() {
         console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
         console.log('');
         process.exit(0);  // Allow commit
-      } else if (isExpired) {
+      } else if (state === 'EXPIRED') {
         console.log('⚠️  Override expired - proceeding with normal validation');
       } else {
         console.log('⚠️  Override invalid (missing required fields) - proceeding with normal validation');
@@ -67,23 +82,59 @@ async function main() {
     }
   }
 
-  if (!fs.existsSync(SCHEMA_FILE)) {
-    console.error(`❌ Schema file not found: ${SCHEMA_FILE}`);
-    console.error('Create your schema file to enable validation.');
-    console.error(`Example: npx cerber init --print-schema-template > ${SCHEMA_FILE}`);
-    process.exit(1);
+  // Load schema from CERBER.md
+  if (!fs.existsSync(cerberMdPath)) {
+    console.error('❌ CERBER.md not found');
+    console.error('Run: npx cerber init');
+    process.exit(5);
   }
 
-  // Import schema
-  let schema;
-  try {
-    const schemaPath = join(process.cwd(), SCHEMA_FILE);
-    const schemaModule = await import(`file://${schemaPath}`);
-    schema = schemaModule.BACKEND_SCHEMA || schemaModule.default || schemaModule;
-  } catch (err) {
-    console.error(`❌ Failed to load schema from ${SCHEMA_FILE}:`, err.message);
-    process.exit(1);
+  const cerberContent = fs.readFileSync(cerberMdPath, 'utf-8');
+  
+  // Parse SCHEMA section
+  const schemaMatch = cerberContent.match(/SCHEMA:\s*\n\s*mode:\s*(\w+)/);
+  if (!schemaMatch) {
+    console.error('❌ SCHEMA section not found in CERBER.md');
+    console.error('Add SCHEMA section with mode: required or mode: disabled');
+    process.exit(5);
   }
+
+  const schemaMode = schemaMatch[1];
+  if (schemaMode === 'disabled') {
+    console.log('⚠️  Schema validation disabled (SCHEMA.mode: disabled)');
+    console.log('✅ Bypassing validation');
+    return;
+  }
+
+  // Extract forbidden patterns
+  const forbiddenPatterns = [];
+  const patternsMatch = cerberContent.match(/forbiddenPatterns:\s*\n((?:\s*-\s*"[^"]+"\s*\n)+)/);
+  if (patternsMatch) {
+    const patternLines = patternsMatch[1].match(/- "([^"]+)"/g);
+    if (patternLines) {
+      patternLines.forEach(line => {
+        const pattern = line.match(/- "([^"]+)"/)?.[1];
+        if (pattern) {
+          forbiddenPatterns.push({
+            pattern: pattern,
+            name: `Forbidden: ${pattern}`,
+            severity: 'error'
+          });
+        }
+      });
+    }
+  }
+
+  if (schemaMode === 'required' && forbiddenPatterns.length === 0) {
+    console.error('❌ SCHEMA.mode: required but no rules defined');
+    console.error('Add forbiddenPatterns to SCHEMA section in CERBER.md');
+    process.exit(5);
+  }
+
+  const schema = {
+    forbiddenPatterns: forbiddenPatterns,
+    rules: []
+  };
 
   // Get staged files
   let stagedFiles;
