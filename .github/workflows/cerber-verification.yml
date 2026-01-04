@@ -108,6 +108,7 @@ jobs:
           git init && git config user.name "CI Test" && git config user.email "ci@test.com"
           timeout "${INIT_TIMEOUT_SECONDS}s" npx --yes cerber init --mode=solo
           timeout "${INIT_TIMEOUT_SECONDS}s" npx --yes cerber init
+          git add . && git commit -m "Initial commit" --no-verify
           npx --yes cerber doctor
 
   guardian_precommit_sim:
@@ -136,6 +137,7 @@ jobs:
           git init && git config user.name "CI Test" && git config user.email "ci@test.com"
           timeout "${INIT_TIMEOUT_SECONDS}s" npx --yes cerber init --mode=solo
           timeout "${INIT_TIMEOUT_SECONDS}s" npx --yes cerber init
+          git add . && git commit -m "Initial commit" --no-verify
 
       - name: Guardian should FAIL on obvious secret
         shell: bash
@@ -207,6 +209,7 @@ jobs:
           git init && git config user.name "CI Test" && git config user.email "ci@test.com"
           timeout "${INIT_TIMEOUT_SECONDS}s" npx --yes cerber init --mode=team
           timeout "${INIT_TIMEOUT_SECONDS}s" npx --yes cerber init
+          git add . && git commit -m "Initial commit" --no-verify
 
           # "post" gate: guardian run
           if [ -f "scripts/cerber-guardian.mjs" ]; then
@@ -265,6 +268,7 @@ jobs:
             git init && git config user.name "CI Test" && git config user.email "ci@test.com"
 
             timeout "${INIT_TIMEOUT_SECONDS}s" npx --yes cerber init --mode="$MODE"
+            git add . && git commit -m "Initial commit" --no-verify
             npx --yes cerber doctor
 
             if [ -f "scripts/cerber-guardian.mjs" ]; then
