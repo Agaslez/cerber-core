@@ -107,7 +107,6 @@ jobs:
           cd /tmp/cerber-doctor
           git init && git config user.name "CI Test" && git config user.email "ci@test.com"
           timeout "${INIT_TIMEOUT_SECONDS}s" npx --yes cerber init --mode=solo
-          timeout "${INIT_TIMEOUT_SECONDS}s" npx --yes cerber init
           git add . && git commit -m "Initial commit" --no-verify
           npx --yes cerber doctor
 
@@ -136,7 +135,6 @@ jobs:
           npm i --silent "$GITHUB_WORKSPACE/$TARBALL"
           git init && git config user.name "CI Test" && git config user.email "ci@test.com"
           timeout "${INIT_TIMEOUT_SECONDS}s" npx --yes cerber init --mode=solo
-          timeout "${INIT_TIMEOUT_SECONDS}s" npx --yes cerber init
           git add . && git commit -m "Initial commit" --no-verify
 
       - name: Guardian should FAIL on obvious secret
@@ -208,7 +206,6 @@ jobs:
           npm i --silent "$GITHUB_WORKSPACE/$TARBALL"
           git init && git config user.name "CI Test" && git config user.email "ci@test.com"
           timeout "${INIT_TIMEOUT_SECONDS}s" npx --yes cerber init --mode=team
-          timeout "${INIT_TIMEOUT_SECONDS}s" npx --yes cerber init
           git add . && git commit -m "Initial commit" --no-verify
 
           # "post" gate: guardian run
