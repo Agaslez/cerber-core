@@ -4,7 +4,7 @@
  * @version 1.0.0
  */
 
-export { Cerber, makeIssue, runHealthChecks } from './cerber';
-export { Guardian } from './guardian';
-export * from './types';
+export { Cerber, makeIssue, runHealthChecks } from './cerber/index.js';
+export { Guardian } from './guardian/index.js';
+export * from './types.js';
 
