@@ -126,6 +126,51 @@ See \`${getDefaultContract().guardian.schemaFile}\` for complete architecture ru
 
 ---
 
+## 🚨 CERBER_OVERRIDE - Emergency Safety Fuse (Use with Extreme Care)
+
+> **Purpose:** Allow temporary bypass for critical hotfixes. **This is NOT a power switch.**
+
+\`\`\`yaml
+CERBER_OVERRIDE:
+  enabled: false
+  reason: ""           # REQUIRED if enabled (e.g., "P0 production incident hotfix")
+  expires: ""          # REQUIRED if enabled (ISO 8601: 2026-01-05T10:00:00Z)
+  approvedBy: ""       # REQUIRED if enabled (GitHub username or email)
+\`\`\`
+
+### What Override DOES (when enabled and not expired):
+
+✅ **Pre-commit:** Allows commit to proceed **WITH WARNING** (prints full override metadata)  
+✅ **Post-deploy gate:** May skip health check validation (if flaky/blocking hotfix)
+
+### What Override NEVER DOES (hard limits):
+
+❌ **NEVER disables \`cerber-integrity\` job** (self-protection always active)  
+❌ **NEVER disables entire CI pipeline**  
+❌ **NEVER disables \`cerber-ci\` validation**  
+❌ **NEVER bypasses CODEOWNERS** (team mode)
+
+### Rules:
+
+1. **All fields required** when \`enabled: true\` (reason, expires, approvedBy)
+2. **If expired** → treated as \`enabled: false\` (no bypass)
+3. **TTL recommended:** 1-24 hours (force conscious re-approval)
+4. **Audit:** Override usage logged in pre-commit output (full metadata printed)
+
+### Example (P0 Hotfix):
+
+\`\`\`yaml
+CERBER_OVERRIDE:
+  enabled: true
+  reason: "P0: Payment processor down, bypassing schema check for emergency config change"
+  expires: "2026-01-04T18:00:00Z"  # 6 hours from now
+  approvedBy: "@stefan-pitek"
+\`\`\`
+
+**After hotfix:** Immediately create follow-up PR to fix properly + disable override.
+
+---
+
 *This file is protected by CODEOWNERS. Changes require architect approval.*
 `;
 }

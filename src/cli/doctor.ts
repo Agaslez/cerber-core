@@ -1,6 +1,7 @@
 import { existsSync } from 'fs';
 import { resolve } from 'path';
 import { parseCerberContract } from './contract-parser.js';
+import { validateOverride } from './override-validator.js';
 import type { CerberContract } from './types.js';
 
 export interface DoctorResult {
@@ -111,7 +112,28 @@ export function printDoctorReport(result: DoctorResult): void {
       console.log('  Mode: ' + result.contract.mode);
       console.log('  Guardian: ' + (result.contract.guardian.enabled ? 'enabled' : 'disabled'));
       console.log('  Health: ' + (result.contract.health.enabled ? 'enabled' : 'disabled'));
-      console.log('  CI: ' + result.contract.ci.provider + '\n');
+      console.log('  CI: ' + result.contract.ci.provider);
+      
+      // Check override state
+      const overrideValidation = validateOverride(result.contract.override);
+      console.log('  Override: ' + overrideValidation.state);
+      
+      if (overrideValidation.state === 'ACTIVE') {
+        console.log('\n[WARN] Emergency override is ACTIVE');
+        console.log('       Expires: ' + result.contract.override?.expires);
+        console.log('       Reason: ' + result.contract.override?.reason);
+      } else if (overrideValidation.state === 'EXPIRED') {
+        console.log('         (Expired - treated as disabled)');
+      } else if (overrideValidation.state === 'INVALID') {
+        console.log('         (Invalid configuration)');
+        if (overrideValidation.errors) {
+          overrideValidation.errors.forEach((err: string) => {
+            console.log('         - ' + err);
+          });
+        }
+      }
+      
+      console.log('');
     }
     
     console.log('[READY] Ready to commit!');
