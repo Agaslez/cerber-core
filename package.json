@@ -1,7 +1,7 @@
 {
   "name": "cerber-core",
-  "version": "1.1.7",
-  "description": "AI doesn't break your project. Lack of a contract does. Cerber is a contract-driven project guardian for AI-assisted development. It enforces a single source of truth (CERBER.md) across pre-commit, CI, and post-deploy health gates.",
+  "version": "1.1.8",
+  "description": "Contract-first project guardian for AI-assisted development. Enforces CERBER.md across pre-commit, CI, and optional post-deploy gates.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "type": "module",
@@ -34,35 +34,28 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Agaslez/cerber-core.git"
+    "url": "https://github.com/Agaslez/cerber-core.git"
   },
   "keywords": [
     "ai",
     "ai-agents",
-    "ai-coding",
     "copilot",
     "cursor",
     "windsurf",
+    "claude",
     "llm",
-    "contract",
-    "contract-first",
-    "project-guard",
-    "single-source-of-truth",
     "pre-commit",
+    "git-hooks",
     "husky",
-    "guardrails",
-    "workflow-generator",
-    "ci-cd",
     "github-actions",
-    "schema-enforcement",
+    "ci",
+    "ci-cd",
+    "guardrails",
+    "contract-first",
+    "single-source-of-truth",
     "health-check",
     "deployment-gate",
-    "dev-workflow",
-    "automation",
-    "architecture",
-    "validation",
-    "cerber",
-    "guardian"
+    "doctor"
   ],
   "author": {
     "name": "Agata Sleziak",
@@ -79,7 +72,13 @@
   "bugs": {
     "url": "https://github.com/Agaslez/cerber-core/issues"
   },
-  "homepage": "https://github.com/Agaslez/cerber-core#readme",
+  "homepage": "https://github.com/Agaslez/cerber-core",
+  "funding": [
+    {
+      "type": "github",
+      "url": "https://github.com/sponsors/Agaslez"
+    }
+  ],
   "peerDependencies": {
     "typescript": ">=5.0.0"
   },
