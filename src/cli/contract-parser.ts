@@ -244,9 +244,6 @@ function validateContract(contract: any): { valid: boolean; errors: string[] } {
     if (typeof contract.guardian.enabled !== 'boolean') {
       errors.push('guardian.enabled must be true or false');
     }
-    if (contract.guardian.enabled && !contract.guardian.schemaFile) {
-      errors.push('guardian.schemaFile is required when guardian is enabled');
-    }
   }
   
   // Check health section
@@ -273,23 +270,7 @@ function validateContract(contract: any): { valid: boolean; errors: string[] } {
     }
   }
   
-  // Check schema section (optional but if present, validate)
-  if (contract.schema) {
-    if (typeof contract.schema.enabled !== 'boolean') {
-      errors.push('schema.enabled must be true or false');
-    }
-    if (contract.schema.enabled) {
-      if (!contract.schema.file) {
-        errors.push('schema.file is required when schema is enabled');
-      }
-      if (!contract.schema.mode) {
-        errors.push('schema.mode is required (strict or template_only)');
-      }
-      if (contract.schema.mode && !['strict', 'template_only'].includes(contract.schema.mode)) {
-        errors.push('schema.mode must be "strict" or "template_only"');
-      }
-    }
-  }
+  // Schema section removed - schema lives only in CERBER.md now
   
   return {
     valid: errors.length === 0,

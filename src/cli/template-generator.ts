@@ -24,8 +24,6 @@ const __dirname = path.dirname(__filename);
 const ALLOWED_OUTPUTS = [
   'CERBER.md',
   'scripts/cerber-guardian.mjs',
-  'BACKEND_SCHEMA.mjs',
-  'FRONTEND_SCHEMA.mjs',
   '.husky/pre-commit',
   'src/cerber/health-checks.ts',
   'src/cerber/health-route.ts',
@@ -132,24 +130,6 @@ export class TemplateGenerator {
       content: guardianScript,
       generated: true
     });
-    
-    // Generate schema file ONLY if schema.enabled AND mode is template_only AND file doesn't exist
-    if (this.contract.schema && this.contract.schema.enabled) {
-      const schemaPath = path.join(this.projectRoot, this.contract.schema.file);
-      const schemaExists = await this.fileExists(schemaPath);
-      
-      if (!schemaExists && this.contract.schema.mode === 'template_only') {
-        const projectName = path.basename(this.projectRoot);
-        const schemaContent = await this.renderTemplate('BACKEND_SCHEMA.ts.tpl', {
-          PROJECT_NAME: projectName
-        });
-        files.push({
-          path: schemaPath,
-          content: schemaContent,
-          generated: true
-        });
-      }
-    }
     
     // .husky/pre-commit
     if (this.contract.guardian.hook === 'husky') {

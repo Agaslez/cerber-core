@@ -26,7 +26,6 @@ mode: ${mode}  # solo | dev | team
 
 guardian:
   enabled: true
-  schemaFile: BACKEND_SCHEMA.mjs
   hook: husky
   approvalsTag: ARCHITECT_APPROVED
 
@@ -47,14 +46,24 @@ ci:
     waitSeconds: 90
     healthUrlVar: CERBER_HEALTH_URL
     authHeaderSecret: CERBER_HEALTH_AUTH_HEADER
+\`\`\`
 
-schema:
-  enabled: true
-  file: BACKEND_SCHEMA.mjs
-  mode: template_only  # strict | template_only
-  description: "Project architecture contract (user-owned)"
-  # strict = Cerber never creates schema, you must create it
-  # template_only = Cerber creates minimal template if missing
+---
+
+## SCHEMA
+
+> **Schema rules enforce security and architecture. Customize for your project.**
+
+\`\`\`yaml
+SCHEMA:
+  mode: required   # required | disabled
+  rules:
+    forbiddenPatterns:
+      - "pwd="              # Example: detect password patterns
+      - "secret="           # Example: detect secret patterns  
+      - "apikey="           # Example: detect API key patterns
+    forbidConsole: true
+    forbidDebugger: true
 \`\`\`
 
 ---
