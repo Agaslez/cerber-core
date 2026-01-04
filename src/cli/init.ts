@@ -59,9 +59,9 @@ SCHEMA:
   mode: required   # required | disabled
   rules:
     forbiddenPatterns:
-      - "password="
-      - "JWT_SECRET="
-      - "API_KEY="
+      - "pwd="              # Example: detect password patterns
+      - "secret="           # Example: detect secret patterns  
+      - "apikey="           # Example: detect API key patterns
     forbidConsole: true
     forbidDebugger: true
 \`\`\`
