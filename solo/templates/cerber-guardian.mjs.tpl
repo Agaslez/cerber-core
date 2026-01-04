@@ -9,6 +9,39 @@ import { join } from 'path';
 const SCHEMA_FILE = '{{SCHEMA_FILE}}';
 const APPROVALS_TAG = '{{APPROVALS_TAG}}';
 
+function readYamlValue(text, key) {
+  const re = new RegExp(`^\\s*${key}\\s*:\\s*(.*)\\s*$`, "m");
+  const m = text.match(re);
+  if (!m) return "";
+  let v = (m[1] ?? "").trim();
+  v = v.replace(/^["']/, "").replace(/["']$/, "");
+  return v;
+}
+
+function parseOverride(cerberContent) {
+  const enabledRaw = readYamlValue(cerberContent, "enabled");
+  const enabled = enabledRaw.toLowerCase() === "true";
+
+  const reason = readYamlValue(cerberContent, "reason");
+  const expiresRaw = readYamlValue(cerberContent, "expires");
+  const approvedBy = readYamlValue(cerberContent, "approvedBy");
+
+  if (!enabled) return { state: "DISABLED", reason, expires: expiresRaw, approvedBy };
+
+  if (!expiresRaw) return { state: "ACTIVE", reason, expires: "", approvedBy };
+
+  const expiresDate = new Date(expiresRaw);
+  if (Number.isNaN(expiresDate.getTime())) {
+    return { state: "INVALID", reason, expires: expiresRaw, approvedBy };
+  }
+
+  if (expiresDate.getTime() < Date.now()) {
+    return { state: "EXPIRED", reason, expires: expiresRaw, approvedBy };
+  }
+
+  return { state: "ACTIVE", reason, expires: expiresRaw, approvedBy };
+}
+
 async function main() {
   console.log('🛡️  Cerber Guardian: Validating staged files...');
 
@@ -19,28 +52,10 @@ async function main() {
     const overrideMatch = cerberContent.match(/CERBER_OVERRIDE:\s*\n\s*enabled:\s*(true|false)/);
     
     if (overrideMatch && overrideMatch[1] === 'true') {
-      // Extract override details
-      const reasonMatch = cerberContent.match(/reason:\s*"([^"]*)"/);
-      const expiresMatch = cerberContent.match(/expires:\s*"([^"]*)"/);
-      const approvedByMatch = cerberContent.match(/approvedBy:\s*"([^"]*)"/);
+      const override = parseOverride(cerberContent);
+      const { state, reason, expires, approvedBy } = override;
       
-      const reason = reasonMatch ? reasonMatch[1] : '';
-      const expires = expiresMatch ? expiresMatch[1] : '';
-      const approvedBy = approvedByMatch ? approvedByMatch[1] : '';
-      
-      // Check TTL
-      let isExpired = false;
-      if (expires) {
-        try {
-          const expiryDate = new Date(expires);
-          const now = new Date();
-          isExpired = expiryDate <= now;
-        } catch {
-          isExpired = true;
-        }
-      }
-      
-      if (!isExpired && reason && expires && approvedBy) {
+      if (state === 'ACTIVE') {
         // Override ACTIVE - allow commit with warning
         console.log('');
         console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
@@ -59,7 +74,7 @@ async function main() {
         console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
         console.log('');
         process.exit(0);  // Allow commit
-      } else if (isExpired) {
+      } else if (state === 'EXPIRED') {
         console.log('⚠️  Override expired - proceeding with normal validation');
       } else {
         console.log('⚠️  Override invalid (missing required fields) - proceeding with normal validation');
