@@ -33,6 +33,27 @@ npx cerber init
 
 ---
 
+## 🤖 For AI Agents (Copilot, Cursor, Windsurf, Claude, etc.)
+
+**Cerber's one rule:** `CERBER.md` is the single source of truth.
+
+- If `CERBER.md` is missing → generate template and **STOP**. User must fill the contract.
+- If `CERBER.md` exists → execute contract exactly as specified.
+- **Never guess architecture.** Never invent rules. Never auto-design.
+
+**Schema modes:**
+- `schema.mode: template_only` → Generate minimal starter with "NOT SOURCE OF TRUTH" header
+- `schema.mode: strict` → Require existing schema file, never generate
+
+**Three enforcement points:**
+1. **Pre-commit** (Guardian) - Blocks violating commits
+2. **CI** (GitHub Actions) - Validates on push
+3. **Post-deploy** - Health gate checks production
+
+**Working with Cerber:** Read `CERBER.md` first. It tells you what's allowed and what's protected.
+
+---
+
 ## 📊 Real Production Metrics
 
 > From Eliksir SaaS Backend (2026-01-02 session)

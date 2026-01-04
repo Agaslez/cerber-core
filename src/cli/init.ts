@@ -14,18 +14,19 @@ import { getDefaultContract, parseCerberContract } from './contract-parser.js';
 import { TemplateGenerator } from './template-generator.js';
 import { CerberContract, GeneratedFile, InitOptions } from './types.js';
 
-const CERBER_MD_TEMPLATE = `# CERBER.md - Architecture Roadmap
+function getCerberMdTemplate(mode: string = 'dev'): string {
+  return `# CERBER.md - Architecture Roadmap
 
 > **This is your single source of truth. AI agents and developers enforce this contract.**
 
 ## CERBER_CONTRACT
 \`\`\`yaml
 version: 1
-mode: dev  # solo | dev | team
+mode: ${mode}  # solo | dev | team
 
 guardian:
   enabled: true
-  schemaFile: BACKEND_SCHEMA.ts
+  schemaFile: BACKEND_SCHEMA.mjs
   hook: husky
   approvalsTag: ARCHITECT_APPROVED
 
@@ -49,7 +50,7 @@ ci:
 
 schema:
   enabled: true
-  file: BACKEND_SCHEMA.ts
+  file: BACKEND_SCHEMA.mjs
   mode: template_only  # strict | template_only
   description: "Project architecture contract (user-owned)"
   # strict = Cerber never creates schema, you must create it
@@ -96,12 +97,14 @@ See \`${getDefaultContract().guardian.schemaFile}\` for complete architecture ru
 
 *This file is protected by CODEOWNERS. Changes require architect approval.*
 `;
+}
 
 export async function initCommand(options: InitOptions = {}): Promise<void> {
   const projectRoot = process.cwd();
     // Handle --print-template flag
   if (options.printTemplate) {
-    console.log(CERBER_MD_TEMPLATE);
+    const templateMode = options.mode || 'dev';
+    console.log(getCerberMdTemplate(templateMode));
     return;
   }
     console.log(chalk.bold.cyan('🛡️  Cerber Core - Project Initialization'));
@@ -125,8 +128,11 @@ export async function initCommand(options: InitOptions = {}): Promise<void> {
       console.log('Creating template...');
       console.log('');
       
+      const templateMode = options.mode || 'dev';
+      const template = getCerberMdTemplate(templateMode);
+      
       if (!options.dryRun) {
-        await fs.writeFile(cerberPath, CERBER_MD_TEMPLATE, 'utf-8');
+        await fs.writeFile(cerberPath, template, 'utf-8');
         console.log(chalk.green('✅ Created CERBER.md'));
       } else {
         console.log(chalk.gray('[DRY RUN] Would create CERBER.md'));
