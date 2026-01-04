@@ -52,6 +52,18 @@ npx cerber init
 
 **Working with Cerber:** Read `CERBER.md` first. It tells you what's allowed and what's protected.
 
+### MUST (Non-Negotiable Rules for AI Agents)
+
+**Rule 1: Schema Generation = Translation Only**
+- Agent can **only translate** explicit rules from `CERBER.md` into `BACKEND_SCHEMA.*` format
+- If a rule is **not in CERBER.md** → ask user / fail / leave empty
+- **Never invent**, guess, or auto-generate architecture rules
+
+**Rule 2: NO-HEREDOC for TS/JS Files**
+- **Never** create TypeScript/JavaScript files using bash `cat <<EOF` or heredoc syntax
+- Reason: Causes `${}` template literal corruption and UTF-8 encoding issues
+- Use editor tools, `fs.writeFile`, or proper file generation utilities instead
+
 ---
 
 ## 📊 Real Production Metrics
