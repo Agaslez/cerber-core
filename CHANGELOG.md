@@ -5,6 +5,117 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.7] - 2026-01-04
+
+### Added
+
+#### 🩺 `npx cerber doctor` - Setup Validation Command
+- New diagnostic command validates Cerber installation
+- Checks: `CERBER.md`, schema file (strict mode), hooks, workflow
+- Returns stable exit codes: 0=OK, 2=missing contract, 3=missing schema, 4=missing hooks/workflow
+- Shows override state: DISABLED/ACTIVE/EXPIRED/INVALID
+- Prints actionable "Next Steps" for each failure scenario
+- MVP implementation (ASCII-only output for stability)
+
+#### 🛡️ `CERBER_GUARDRAILS` - Protected Assets Declaration
+- Added to `CERBER.md` template
+- Documents protected files: contract, schema, workflow, guardian, hooks, CODEOWNERS
+- Change policy: never delete/disable, never rename job IDs
+- Allowed changes: schema rules (must match contract), CI config with PR justification
+- Emergency override placeholder for TTL mechanism
+
+#### 🔐 Self-Protection Mechanisms
+
+**cerber-integrity Workflow Job:**
+- New first job (runs before `cerber-ci`)
+- Validates protected files exist
+- In strict mode: checks schema file presence
+- Verifies `cerber-ci` job ID intact (prevents sabotage)
+- **Cannot be skipped or disabled** (fail-safe)
+
+**CODEOWNERS Protection (Team Mode):**
+- Now includes all Cerber files: contract, schema, workflow, guardian, hooks
+- Self-protection: `/.github/CODEOWNERS` requires owner approval
+- Prevents unauthorized changes to enforcement infrastructure
+
+#### 🚨 Emergency Override (TTL-based, Controlled)
+
+**`CERBER_OVERRIDE` Contract Section:**
+- Time-to-live based safety fuse (NOT a power switch)
+- Required fields when enabled: `reason`, `expires` (ISO 8601), `approvedBy`
+- If expired → treated as disabled
+- If invalid (missing fields) → treated as disabled
+
+**What Override DOES:**
+- ✅ Pre-commit: Allows commit WITH WARNING (prints full metadata)
+- ✅ Post-deploy: May skip health gate (if flaky/blocking hotfix)
+
+**What Override NEVER DOES (Hard Limits):**
+- ❌ NEVER disables `cerber-integrity` job
+- ❌ NEVER disables entire CI pipeline
+- ❌ NEVER disables `cerber-ci` validation
+- ❌ NEVER bypasses CODEOWNERS (team mode)
+
+**Implementation:**
+- Guardian checks override at startup
+- Doctor shows override state
+- Override metadata printed for audit trail
+- Applied to all modes: solo, dev, team
+
+#### 🔒 Guided Schema Templates (Security Baseline)
+- Added commented security patterns to `BACKEND_SCHEMA.mjs` template
+- Categories: hardcoded secrets, dev artifacts, critical TODOs
+- Examples: `password=`, `API_KEY=`, `JWT_SECRET=`, `console.log`, `debugger`
+- Clear instruction: "Uncomment patterns that match rules in your CERBER.md"
+- Enforces "never invent rules" principle (translation only)
+
+#### 📦 Supply-Chain Security Policy
+- Updated `SECURITY.md` with comprehensive supply-chain guidance
+- npm 2FA required for all maintainers
+- CI-only publishing strongly recommended
+- No risky lifecycle scripts (`postinstall`, `preinstall`)
+- Dependencies updated only via reviewed PRs
+- Installation safety guarantees documented
+- Package verification steps provided
+- Compromise response procedures added
+
+#### 🛡️ Generator Path Safety
+- Resolves repository root via `git rev-parse --show-toplevel`
+- Writes ONLY inside repository root (fail-closed if root unknown)
+- Blocks `..` path traversal attempts
+- Whitelists allowed outputs (contract, schema, workflow, guardian, hooks, CODEOWNERS)
+- Validates every file path before write operation
+- Path traversal protection prevents security issues with malicious contracts
+
+### Changed
+
+#### 📝 Hardened "For AI Agents" Section (README)
+
+**New MUST Rules:**
+1. **Schema Generation = Translation Only**
+   - Agent can ONLY translate explicit rules from `CERBER.md`
+   - If rule not in `CERBER.md` → ask user / fail / leave empty
+   - Never invent, guess, or auto-generate architecture rules
+
+2. **NO-HEREDOC for TS/JS Files**
+   - Never create TypeScript/JavaScript files using bash `cat <<EOF`
+   - Reason: Causes `${}` template literal corruption and UTF-8 encoding issues
+   - Use editor tools, `fs.writeFile`, or proper file generation utilities
+
+### Fixed
+- Added final newline to `CODEOWNERS.tpl` (prevented last line truncation)
+
+### Security
+- **Supply-chain hardening**: No postinstall scripts, 2FA required, CI-only publish
+- **Path safety**: Generator validates all file writes (repo-root + whitelist)
+- **Self-protection**: cerber-integrity job prevents sabotage/deletion
+- **Emergency override**: Controlled bypass with TTL and audit trail (never disables integrity)
+
+### Breaking Changes
+None. All changes are backward compatible with existing Cerber installations.
+
+---
+
 ## [1.1.4] - 2026-01-04
 
 ### Fixed

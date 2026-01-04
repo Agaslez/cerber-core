@@ -523,6 +523,9 @@ cat .cerber/FOCUS_CONTEXT.md
 All features available through unified CLI:
 
 ```bash
+# Doctor - Setup validation (new in v1.1.7)
+npx cerber doctor              # Validate CERBER.md, schema, hooks, CI
+
 # Guardian - Pre-commit validation
 cerber guardian --schema ./SCHEMA.ts
 
@@ -546,6 +549,54 @@ cerber-morning
 cerber-repair
 cerber-focus
 ```
+
+---
+
+## 🩺 npx cerber doctor (New in v1.1.7)
+
+Validate your Cerber setup before commits or deploys:
+
+```bash
+npx cerber doctor
+```
+
+**Exit codes:**
+- `0` ✅ All checks pass
+- `2` ❌ Missing CERBER.md
+- `3` ❌ Missing schema (strict mode only)
+- `4` ❌ Missing pre-commit hook or CI workflow
+
+**What it checks:**
+- CERBER.md present + valid YAML
+- Schema file exists (if `schema.mode: strict`)
+- `.husky/pre-commit` hook installed (if `guardian.enabled: true`)
+- GitHub Actions workflow present (if `ci.provider: github`)
+- Emergency override state (DISABLED | ACTIVE | EXPIRED | INVALID)
+
+**Example output:**
+
+```
+🩺 Cerber Doctor - Setup Validation
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✓ CERBER.md: Found and valid
+✓ Schema: BACKEND_SCHEMA.mjs exists
+✓ Pre-commit hook: Installed (.husky/pre-commit)
+✓ CI workflow: Found (.github/workflows/cerber.yml)
+  Override: DISABLED
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+✅ All checks passed (exit 0)
+```
+
+**Use in CI:**
+
+```yaml
+- name: Validate Cerber setup
+  run: npx cerber doctor
+```
+
+If doctor fails → build fails → prevents incomplete Cerber deployments.
 
 ---
 
@@ -1601,12 +1652,103 @@ Include:
 
 **Response time:** 24-48 hours acknowledgment, 7-14 days for fix.
 
+---
+
+## 🚨 Emergency Override (New in v1.1.7)
+
+For **critical production hotfixes only** (P0 incidents), Cerber provides a **controlled safety fuse** with strict time limits.
+
+### What Override DOES ✅
+
+- Allows pre-commit to pass **WITH WARNING** (audit trail logged)
+- Can skip `postDeploy` gate if configured
+- Requires: reason, expiry timestamp (TTL), approver name
+- Automatically expires (guardian validates TTL)
+
+### What Override NEVER DOES ❌
+
+Override is a **safety fuse**, NOT a power switch. It **NEVER** disables:
+
+- ❌ `cerber-integrity` job (self-protection always runs)
+- ❌ Entire CI pipeline (build, test, lint must pass)
+- ❌ `cerber-ci` workflow job (contract validation always runs)
+- ❌ CODEOWNERS enforcement (team mode protection)
+
+### Example: P0 Hotfix
+
+```yaml
+## CERBER_OVERRIDE
+enabled: true
+reason: "P0 - Payment API down, emergency rollback required"
+expires: "2026-01-04T18:00:00Z"  # 6-hour TTL
+approvedBy: "CTO Stefan"
+```
+
+**Guardian behavior:**
+
+```bash
+git commit -m "fix: rollback payment API to v1.2.3"
+
+⚠️  CERBER EMERGENCY OVERRIDE ACTIVE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Reason:     P0 - Payment API down, emergency rollback required
+Expires:    2026-01-04T18:00:00Z (5h 23m remaining)
+Approved:   CTO Stefan
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Guardian checks: BYPASSED WITH WARNING
+Self-protection: STILL ACTIVE (cerber-integrity runs)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[main 3a7f2e9] fix: rollback payment API to v1.2.3
+```
+
+**CI behavior:**
+
+- ✅ `cerber-integrity` job **runs** (validates CERBER.md, override metadata)
+- ✅ Build, test, lint jobs **run**
+- ✅ `cerber-ci` job **runs** (contract validation)
+- ⚠️ Override warning shown in CI logs (audit trail)
+
+**After expiry:**
+
+```bash
+git commit -m "feat: add new feature"
+
+❌ CERBER EMERGENCY OVERRIDE EXPIRED
+Override expired at: 2026-01-04T18:00:00Z
+Proceeding with normal validation...
+
+❌ Schema validation failed: Missing type annotation for handlePayment()
+```
+
+### Verification
+
+```bash
+npx cerber doctor
+# Shows: Override: ACTIVE (expires 2026-01-04T18:00:00Z)
+# Or: Override: EXPIRED (expired 2h ago)
+# Or: Override: DISABLED
+```
+
+### Rules
+
+1. **All fields required:** enabled, reason, expires, approvedBy (missing = invalid = disabled)
+2. **TTL enforced:** Guardian checks expiry timestamp (expired = proceeds with normal validation)
+3. **Audit trail:** All commits with active override logged with full metadata
+4. **No carte blanche:** Hard limits enforced (integrity, CI, CODEOWNERS never bypassed)
+
+**Use sparingly.** Override is for emergencies, not convenience.
+
+---
+
 ### Security Features
 
 ✅ **No External Calls:** Guardian and Cerber run locally, no data sent externally  
 ✅ **Open Source:** Full transparency - audit the code yourself  
 ✅ **No Telemetry:** No tracking, no analytics, no data collection  
 ✅ **MIT Licensed:** Safe for commercial use  
+✅ **Supply-Chain Hardened:** 2FA, CI-only publishing, no risky lifecycle scripts (v1.1.7)  
+✅ **Path Safety:** Generator writes only to repo root, whitelist-validated paths (v1.1.7)  
 
 ### Best Practices
 
@@ -1615,8 +1757,10 @@ Include:
 - Update regularly: `npm update cerber-core`
 - Enable Dependabot for automated security updates
 - Run `npm audit` regularly
+- Review CERBER.md changes in PRs (protected by CODEOWNERS in team mode)
+- Use emergency override sparingly (P0 incidents only)
 
-**Full security policy:** [SECURITY.md](SECURITY.md)
+**Full security policy:** [SECURITY.md](SECURITY.md) (includes supply-chain security, vulnerability reporting, supported versions)
 
 ---
 
