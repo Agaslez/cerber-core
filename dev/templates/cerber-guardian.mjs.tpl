@@ -20,9 +20,9 @@ async function main() {
     
     if (overrideMatch && overrideMatch[1] === 'true') {
       // Extract override details
-      const reasonMatch = cerberContent.match(/reason:\s*"([^"]*)");
-      const expiresMatch = cerberContent.match(/expires:\s*"([^"]*)");
-      const approvedByMatch = cerberContent.match(/approvedBy:\s*"([^"]*)");
+      const reasonMatch = cerberContent.match(/reason:\s*"([^"]*)"/);
+      const expiresMatch = cerberContent.match(/expires:\s*"([^"]*)"/);
+      const approvedByMatch = cerberContent.match(/approvedBy:\s*"([^"]*)"/);
       
       const reason = reasonMatch ? reasonMatch[1] : '';
       const expires = expiresMatch ? expiresMatch[1] : '';
