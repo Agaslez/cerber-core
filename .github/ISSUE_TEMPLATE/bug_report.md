@@ -55,3 +55,7 @@ npx cerber doctor  # Reproduces the bug
 - [ ] I have included steps to reproduce
 - [ ] I have included logs/output
 - [ ] I have tested with the latest version
+
+---
+
+**Need quick help?** Join our Discord: https://discord.gg/V8G5qw5D
