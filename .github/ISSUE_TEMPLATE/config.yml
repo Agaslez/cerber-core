@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Cerber Core Discord
+    url: https://discord.gg/V8G5qw5D
+    about: Ask questions, share CI/doctor output, and get fast help.

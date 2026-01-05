@@ -26,6 +26,17 @@ These aren't demo projects - **live production systems** serving real users, pro
 
 ---
 
+## 💬 Community (Discord)
+
+Join the Cerber Core Discord for support, feedback, and CI/Doctor showcases:
+👉 https://discord.gg/V8G5qw5D
+
+- **Questions:** ask in `#general`
+- **Feedback / bugs:** `#feedback` (bugs can also go to GitHub Issues)
+- **Proofs:** post your CI runs / doctor output in `#showcase`
+
+---
+
 ## How to use Cerber (the intended workflow)
 
 Cerber is simple: **you write the rules once in `CERBER.md`**, Cerber enforces them forever (pre-commit + CI + optional post-deploy).
