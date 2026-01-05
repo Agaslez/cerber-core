@@ -8,6 +8,21 @@ Enforces `CERBER.md` across pre-commit, CI, and optional post-deploy gates.
 [![npm version](https://img.shields.io/npm/v/cerber-core.svg)](https://www.npmjs.com/package/cerber-core)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![GitHub](https://img.shields.io/badge/GitHub-cerber--core-blue.svg)](https://github.com/Agaslez/cerber-core)
+[![Discord](https://img.shields.io/badge/Discord-Join%20Community-5865F2?logo=discord&logoColor=white)](https://discord.gg/XzGUgxrRnn)
+
+---
+
+## 🏆 Proof: Used in Production
+
+Cerber protects real SaaS applications. See it in action:
+
+**Eliksir Platform CI Pipelines:**
+- 🎨 **Frontend:** [Guardian Schema Check + tests](https://github.com/Agaslez/Eiksir-front-dashboard/actions/runs/20668597387) ✅
+- ⚙️ **Backend:** [Quality Gate + deploy checks](https://github.com/Agaslez/Eliksir-Backend-front-dashboard/actions/runs/20664365046) ✅
+
+These aren't demo projects - **live production systems** serving real users, protected by Cerber since day one.
+
+📖 **Full case study:** [How Cerber prevented 47 production bugs](docs/case-studies/eliksir.md)
 
 ---
 
@@ -266,13 +281,16 @@ npm test
 
 ---
 
-## 📞 Support
+## 📞 Support & Links
 
+- 💬 **Discord:** [Join community](https://discord.gg/XzGUgxrRnn)
 - 🐛 **Issues:** [GitHub Issues](https://github.com/Agaslez/cerber-core/issues)
 - 💡 **Discussions:** [GitHub Discussions](https://github.com/Agaslez/cerber-core/discussions)
-- 📖 **Docs:** [Full Documentation](docs/README_LONG.md)
+- 📖 **Full Docs:** [docs/README_LONG.md](docs/README_LONG.md)
+- 📚 **Case Study:** [How Cerber prevented 47 bugs](docs/case-studies/eliksir.md)
+- 🎭 **Story:** [The team behind Cerber](docs/STORY.md)
 - 🔐 **Security:** Report vulnerabilities to st.pitek@gmail.com
-- ⭐ **Repository:** [cerber-core](https://github.com/Agaslez/cerber-core)
+- ⭐ **Repository:** [github.com/Agaslez/cerber-core](https://github.com/Agaslez/cerber-core)
 
 ---
 
@@ -286,7 +304,9 @@ Free for commercial use. See [LICENSE](LICENSE) for details.
 
 ## 🌟 About
 
-Founded by **Agata Ślęzak**, created by **Stefan Pitek**
+**Founded by Agata Ślęzak**, created and maintained by **Stefan Pitek**
+
+- 📖 Read the full story: [docs/STORY.md](docs/STORY.md)
 
 Read the full story: [docs/STORY.md](docs/STORY.md)
 
