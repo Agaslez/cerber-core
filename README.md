@@ -11,17 +11,37 @@ Enforces `CERBER.md` across pre-commit, CI, and optional post-deploy gates.
 
 ---
 
-## 🚀 Quick Start
+## How to use Cerber (the intended workflow)
 
+Cerber is simple: **you write the rules once in `CERBER.md`**, Cerber enforces them forever (pre-commit + CI + optional post-deploy).
+
+**Roadmap → translated into CERBER.md contract → enforced automatically on every commit/push.**
+
+### 1) Install
 ```bash
 npm i -D cerber-core
-npx cerber init
-# fill CERBER.md contract
+```
+
+### 2) Generate CERBER.md
+```bash
 npx cerber init
 ```
 
-## 🩺 Verify
+If CERBER.md did not exist, Cerber creates a template and stops.  
+Now **YOU fill the contract** (ideally with an AI assistant).
 
+### 3) Teach Cerber using your roadmap (fastest way)
+
+Take your project roadmap + repo structure and paste it into ChatGPT/Claude/Cursor with the **Cerber Contract Translator prompt** (see below).
+
+Then:
+- Paste the generated contract into `CERBER.md`
+- Run init again to generate hooks/workflows/templates:
+  ```bash
+  npx cerber init
+  ```
+
+### 4) Verify everything (Doctor)
 ```bash
 npx cerber doctor
 ```
@@ -32,17 +52,81 @@ npx cerber doctor
 - `3` ❌ Missing schema (strict mode)
 - `4` ❌ Missing hook/workflow
 
+### 5) Commit and push (Guardian + CI)
+
+- `git commit` → Guardian validates staged changes (blocks violations)
+- `git push` → GitHub Actions validates again in CI
+
 ---
 
-## 🤖 For AI Agents (Copilot/Cursor/Windsurf/Claude)
+## What Cerber enforces (in practice)
 
-- **CERBER.md is the ONLY source of truth**
-- If CERBER.md is missing → generate template and **STOP**
-- Never guess architecture. Never invent rules.
-- **schema.mode:**
-  - `strict` → require schema file (never generate)
-  - `template_only` → generate minimal helper template
-- **NO HEREDOC:** Never use `cat <<EOF` for TS/JS (corrupts `${}`template literals)
+- **Pre-commit (Guardian):** Blocks committing obvious violations (secrets, forbidden patterns, missing required imports, etc.)
+- **CI (GitHub Actions):** Re-validates on push/PR and protects the workflow itself (`cerber-integrity` job)
+- **Optional post-deploy:** Can validate production health if enabled in contract
+
+---
+
+## Cerber Contract Translator (Copy/Paste Prompt)
+
+> Use this to generate a production-ready `CERBER.md` from your roadmap.  
+> Cerber does NOT design your architecture. It enforces what you write.
+
+**PROMPT:**
+
+```
+You are a "Cerber Contract Translator". Convert my roadmap + repo structure into a `CERBER.md` contract.
+
+RULES:
+- Do NOT invent architecture or rules.
+- Only translate what I explicitly provide.
+- If something is missing, ask up to 10 questions in a `QUESTIONS` section and leave placeholders.
+- Output must be a complete `CERBER.md` with:
+  1) CERBER_CONTRACT (YAML)
+  2) ROADMAP_AS_LAW (milestones)
+  3) AI_AGENT_RULES (no guessing)
+  4) PROTECTED_ASSETS
+  5) CERBER_OVERRIDE (TTL safety fuse)
+  6) QUESTIONS
+
+INPUT I PROVIDE:
+- Roadmap (what we are building, milestones, priorities)
+- Repo structure (`tree -L 3` or folder list)
+- Tech stack + commands for smoke/e2e/build
+- Integrations (Stripe/Ghost/Cloudinary/etc.)
+- What files/paths are "protected" from deletion
+
+Now generate `CERBER.md`.
+```
+
+---
+
+## For AI Agents (Copilot / Cursor / Windsurf / Claude / etc.)
+
+**Single rule:** `CERBER.md` is the ONLY source of truth.
+
+### Agent must follow this protocol
+
+1) **If `CERBER.md` is missing:**
+   - Run `npx cerber init` to generate template
+   - STOP (user must provide contract content)
+
+2) **If `CERBER.md` exists:**
+   - Read it first
+   - Execute exactly what it says
+   - Do NOT invent rules, do NOT infer architecture
+
+3) **Schema policy (important):**
+   - If `schema.mode: strict` → DO NOT generate schema files
+   - If `schema.mode: template_only` → you may generate only the minimal template (NOT decisions)
+
+4) **Safety rules:**
+   - Never disable or rename CI job id: `cerber-ci`
+   - Never remove: `CERBER.md`, `.github/workflows/cerber.yml`, `scripts/cerber-guardian.mjs`, `.husky/pre-commit`, `.github/CODEOWNERS`
+   - Never bypass checks using `continue-on-error`
+   - Never use `cat <<EOF` for TS/JS (corrupts `${}` template literals)
+
+**If a required rule is not present in `CERBER.md` → ASK USER or FAIL FAST.**
 
 ---
 
