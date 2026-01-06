@@ -15,6 +15,18 @@ Detects workflow/config drift across repos and enforces a single source of truth
 
 Cerber enforces your project roadmap as executable contract (`CERBER.md`). Write rules once, get automatic validation on every commit + CI run.
 
+### What Cerber Is (and Isn't)
+
+✅ **Contract guard** — Validates your CERBER.md rules are enforced  
+✅ **Drift detector** — Catches when CI config/workflow changes break protection  
+✅ **Works WITH existing tools** — Doesn't replace ESLint/Prettier/tests. Ensures they stay required.
+
+❌ **Not a linter** — Use ESLint for code style  
+❌ **Not a test runner** — Use Jest/Vitest for unit tests  
+❌ **Not a deployment tool** — Use your existing CD pipeline
+
+**Think of it as:** Policy-as-code layer that prevents your other tools from being bypassed.
+
 ## Why? (The CI Drift Problem)
 
 - ✅ **AI agents follow your roadmap** → Agent pastes code matching `CERBER.md`
@@ -92,7 +104,9 @@ git push
 - ❌ Missing required checks
 - ❌ Contract violations
 - ✅ Re-runs Guardian validation
-- ✅ Optional post-deploy health check
+
+**📍 TODAY:** CI contract guard + workflow drift detection  
+**🚀 ROADMAP:** Post-deploy health gates (experimental in v1.1, production-ready in v2.0)
 
 ### Doctor Command
 - ❌ Missing CERBER.md
@@ -100,6 +114,18 @@ git push
 - ❌ Missing pre-commit hook
 - ❌ Missing CI workflow
 - ✅ Override state validation
+
+---
+
+## ⚖️ Stability Policy
+
+Cerber is a devtool — we don't break pipelines:
+
+- **CLI flags + exit codes:** Follow [SemVer](https://semver.org/). Breaking changes = major version bump.
+- **JSON output:** Versioned schema (e.g., `{"version": "1.0", ...}`). New fields = minor, changed fields = major.
+- **CI workflow templates:** Generated files are yours to customize. Updates = opt-in via `cerber init --force`.
+
+**Current stability:** v1.1.11 is production-ready for CI contract guard use case. See [production proof](docs/case-studies/eliksir.md).
 
 ---
 
@@ -148,7 +174,10 @@ Help: https://github.com/Agaslez/cerber-core/discussions
 
 ## How to Use Cerber (Full Workflow)
 
-Cerber is simple: **write rules once in `CERBER.md`**, enforce forever (pre-commit + CI + optional post-deploy).
+Cerber is simple: **write rules once in `CERBER.md`**, enforce on every commit + CI run.
+
+**TODAY:** Pre-commit Guardian + CI workflow drift detection  
+**ROADMAP:** Post-deploy health gates (experimental)
 
 **Roadmap → CERBER.md contract → enforced automatically on every commit/push.**
 
