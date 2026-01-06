@@ -1,9 +1,8 @@
-# 🛡️ Cerber Core
+# 🛡️ Cerber Core — CI Contract Guard for GitHub Actions
+
+Detects workflow/config drift across repos and enforces a single source of truth via CERBER.md.
 
 > **AI doesn't break your project. Lack of a contract does.**
-
-**Contract-first project guardian for AI-assisted development.**  
-Stop CI drift before it breaks production.
 
 [![npm version](https://img.shields.io/npm/v/cerber-core.svg)](https://www.npmjs.com/package/cerber-core)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
