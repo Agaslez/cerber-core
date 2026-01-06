@@ -1,6 +1,7 @@
 import { existsSync } from 'fs';
 import { resolve } from 'path';
 import { parseCerberContract } from './contract-parser.js';
+import { tryShowCta } from './cta.js';
 import { validateOverride } from './override-validator.js';
 import type { CerberContract } from './types.js';
 
@@ -137,6 +138,10 @@ export function printDoctorReport(result: DoctorResult): void {
     }
     
     console.log('[READY] Ready to commit!');
+    
+    // Show CTA after success
+    tryShowCta(true);
+    
     return;
   }
 
@@ -165,4 +170,7 @@ export function printDoctorReport(result: DoctorResult): void {
   }
 
   console.log('Help: https://github.com/Agaslez/cerber-core/discussions');
+  
+  // Don't show CTA on failure
+  tryShowCta(false);
 }
