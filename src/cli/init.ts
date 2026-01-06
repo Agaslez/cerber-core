@@ -11,6 +11,7 @@ import chalk from 'chalk';
 import fs from 'fs/promises';
 import path from 'path';
 import { getDefaultContract, parseCerberContract } from './contract-parser.js';
+import { tryShowCta } from './cta.js';
 import { TemplateGenerator } from './template-generator.js';
 import { CerberContract, GeneratedFile, InitOptions } from './types.js';
 
@@ -414,4 +415,7 @@ async function showNextSteps(contract: CerberContract, options: InitOptions, gen
   console.log('   git commit -m "feat: add Cerber protection"');
   console.log('');
   console.log(chalk.gray('Need help? https://github.com/Agaslez/cerber-core/discussions'));
+  
+  // Show CTA after successful init
+  tryShowCta(true);
 }

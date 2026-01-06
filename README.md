@@ -2,13 +2,27 @@
 
 > **AI doesn't break your project. Lack of a contract does.**
 
-Contract-first project guardian for AI-assisted development.  
-Enforces `CERBER.md` across pre-commit, CI, and optional post-deploy gates.
+**Contract-first project guardian for AI-assisted development.**  
+Stop CI drift before it breaks production.
 
 [![npm version](https://img.shields.io/npm/v/cerber-core.svg)](https://www.npmjs.com/package/cerber-core)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![GitHub](https://img.shields.io/badge/GitHub-cerber--core-blue.svg)](https://github.com/Agaslez/cerber-core)
 [![Discord](https://img.shields.io/discord/1457747175017545928?color=7289da&label=Discord&logo=discord&logoColor=white)](https://discord.gg/XzGUgxrRnn)
+
+---
+
+## What is Cerber Core?
+
+Cerber enforces your project roadmap as executable contract (`CERBER.md`). Write rules once, get automatic validation on every commit + CI run.
+
+## Why? (The CI Drift Problem)
+
+- ✅ **AI agents follow your roadmap** → Agent pastes code matching `CERBER.md`
+- ❌ **Human bypasses rules** → Commit sneaks through, CI green but wrong
+- ❌ **CI config drifts** → Workflow changes, gates disappear, protection gone
+
+**Solution:** Guardian blocks bad commits **before** they reach CI. CI re-validates and protects itself from tampering.
 
 ---
 
@@ -37,11 +51,107 @@ Join the Cerber Core Discord for support, feedback, and CI/Doctor showcases:
 
 ---
 
-## How to use Cerber (the intended workflow)
+## 🚀 Quick Start (60 seconds)
 
-Cerber is simple: **you write the rules once in `CERBER.md`**, Cerber enforces them forever (pre-commit + CI + optional post-deploy).
+```bash
+# 1. Install
+npm i -D cerber-core
 
-**Roadmap → translated into CERBER.md contract → enforced automatically on every commit/push.**
+# 2. Generate contract template
+npx cerber init
+
+# 3. Edit CERBER.md (use AI assistant or manual)
+# → Define your roadmap, tech stack, protected assets
+
+# 4. Generate hooks + CI workflow
+npx cerber init
+
+# 5. Verify setup
+npx cerber doctor
+
+# 6. Commit and push
+git add .
+git commit -m "feat: add Cerber protection"
+git push
+```
+
+**That's it.** Guardian now blocks bad commits. CI re-validates and protects itself.
+
+---
+
+## What Cerber Checks
+
+### Pre-commit (Guardian)
+- ❌ Secrets in code (API keys, tokens)
+- ❌ Forbidden patterns (eval, console.log in prod)
+- ❌ Missing required imports
+- ❌ Protected file deletions
+- ✅ Schema validation (if enabled)
+
+### CI (GitHub Actions)
+- ❌ Workflow tampering (job ID changes)
+- ❌ Missing required checks
+- ❌ Contract violations
+- ✅ Re-runs Guardian validation
+- ✅ Optional post-deploy health check
+
+### Doctor Command
+- ❌ Missing CERBER.md
+- ❌ Missing schema (strict mode)
+- ❌ Missing pre-commit hook
+- ❌ Missing CI workflow
+- ✅ Override state validation
+
+---
+
+## Example: CI Drift Detected
+
+```bash
+$ npx cerber doctor
+
+[Cerber Doctor] Setup Validation
+
+[OK] All checks passed!
+
+Configuration:
+  Mode: dev
+  Guardian: enabled
+  Health: enabled
+  CI: github
+  Override: DISABLED
+
+[READY] Ready to commit!
+
+⭐ If Cerber helped you, star the repo: https://github.com/Agaslez/cerber-core
+💬 Join Discord for feedback/support: https://discord.gg/V8G5qw5D
+```
+
+**When drift detected:**
+```bash
+$ npx cerber doctor
+
+[Cerber Doctor] Setup Validation
+
+[FAIL] Issues found:
+
+[!] .github/workflows/cerber.yml
+    GitHub workflow not found
+
+Next Steps:
+
+1. Re-run initialization to generate missing files:
+   npx cerber init
+
+Help: https://github.com/Agaslez/cerber-core/discussions
+```
+
+---
+
+## How to Use Cerber (Full Workflow)
+
+Cerber is simple: **write rules once in `CERBER.md`**, enforce forever (pre-commit + CI + optional post-deploy).
+
+**Roadmap → CERBER.md contract → enforced automatically on every commit/push.**
 
 ### 1) Install
 ```bash
@@ -85,11 +195,16 @@ npx cerber doctor
 
 ---
 
-## What Cerber enforces (in practice)
+## 💬 Feedback & Support
 
-- **Pre-commit (Guardian):** Blocks committing obvious violations (secrets, forbidden patterns, missing required imports, etc.)
-- **CI (GitHub Actions):** Re-validates on push/PR and protects the workflow itself (`cerber-integrity` job)
-- **Optional post-deploy:** Can validate production health if enabled in contract
+**Having issues? Want to share your setup?**
+
+- 💬 **Discord:** https://discord.gg/V8G5qw5D (fastest support)
+- 🐛 **GitHub Issues:** [Report bugs](https://github.com/Agaslez/cerber-core/issues)
+- 💡 **GitHub Discussions:** [Ask questions, share ideas](https://github.com/Agaslez/cerber-core/discussions)
+- 📖 **Case Studies:** [See Cerber in production](docs/case-studies/)
+
+**Show your CI runs in Discord `#showcase`!**
 
 ---
 
