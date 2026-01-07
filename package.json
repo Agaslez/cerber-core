@@ -1,6 +1,6 @@
 {
   "name": "cerber-core",
-  "version": "1.1.11",
+  "version": "1.1.12",
   "description": "Prevent secrets (API keys, passwords) and console.log in commits. Zero-config pre-commit hooks with Husky auto-install. Blocks Stripe, GitHub, AWS credentials out-of-the-box. 357+ teams protected.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
