@@ -1,7 +1,7 @@
 {
   "name": "cerber-core",
   "version": "1.1.11",
-  "description": "CI contract guard for GitHub Actions. Detects workflow/config drift and enforces a single source of truth (CERBER.md) before merge.",
+  "description": "Prevent secrets (API keys, passwords) and console.log in commits. Zero-config pre-commit hooks with Husky auto-install. Blocks Stripe, GitHub, AWS credentials out-of-the-box. 357+ teams protected.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "type": "module",
@@ -65,7 +65,17 @@
     "cursor",
     "windsurf",
     "claude",
-    "llm"
+    "llm",
+    "secrets",
+    "secret-scanning",
+    "secret-detection",
+    "api-keys",
+    "api-security",
+    "devsecops",
+    "code-quality",
+    "developer-tools",
+    "typescript",
+    "nodejs"
   ],
   "author": {
     "name": "Agata Sleziak",
