@@ -126,6 +126,26 @@ async function main() {
     }
   }
 
+  // Parse forbidConsole setting
+  const forbidConsoleMatch = cerberContent.match(/forbidConsole:\s*(true|false)/);
+  if (forbidConsoleMatch && forbidConsoleMatch[1] === 'true') {
+    forbiddenPatterns.push({
+      pattern: 'console\\.(log|debug|info|warn|error)',
+      name: 'Forbidden: console statements',
+      severity: 'error'
+    });
+  }
+
+  // Parse forbidDebugger setting
+  const forbidDebuggerMatch = cerberContent.match(/forbidDebugger:\s*(true|false)/);
+  if (forbidDebuggerMatch && forbidDebuggerMatch[1] === 'true') {
+    forbiddenPatterns.push({
+      pattern: '\\bdebugger\\b',
+      name: 'Forbidden: debugger statements',
+      severity: 'error'
+    });
+  }
+
   if (schemaMode === 'required' && forbiddenPatterns.length === 0) {
     console.error('❌ SCHEMA.mode: required but no rules defined');
     console.error('Add forbiddenPatterns to SCHEMA section in CERBER.md');

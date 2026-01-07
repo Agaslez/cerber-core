@@ -61,9 +61,19 @@ SCHEMA:
   mode: required   # required | disabled
   rules:
     forbiddenPatterns:
-      - "pwd="              # Example: detect password patterns
-      - "secret="           # Example: detect secret patterns  
-      - "apikey="           # Example: detect API key patterns
+      - "pwd="              # Generic password patterns
+      - "secret="           # Generic secret patterns  
+      - "apikey="           # Generic API key patterns
+      - "sk_live_"          # Stripe live secret keys
+      - "pk_test_"          # Stripe test publishable keys
+      - "pk_live_"          # Stripe live publishable keys
+      - "ghp_"              # GitHub Personal Access Tokens
+      - "gho_"              # GitHub OAuth tokens
+      - "github_pat_"       # GitHub fine-grained PATs
+      - "AKIA"              # AWS Access Key IDs
+      - "aws_secret_key"    # AWS Secret Access Keys
+      - "token="            # Generic token patterns
+      - "bearer "           # Bearer tokens (case sensitive)
     forbidConsole: true
     forbidDebugger: true
 \`\`\`
