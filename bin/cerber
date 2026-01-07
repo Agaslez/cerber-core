@@ -83,6 +83,17 @@ program
   .command('morning')
   .description('Run morning dashboard (SOLO)')
   .action(async () => {
+    const fs = await import('fs');
+    const path = await import('path');
+    const scriptPath = path.default.join(process.cwd(), 'solo/scripts/cerber-daily-check.js');
+    
+    if (!fs.default.existsSync(scriptPath)) {
+      console.error(chalk.red('❌ This command requires SOLO mode'));
+      console.error(chalk.yellow('Run: npx cerber init --mode solo'));
+      console.error(chalk.gray('\nSOLO mode includes daily automation scripts for single developers.'));
+      process.exit(1);
+    }
+    
     const { execSync } = await import('child_process');
     execSync('node solo/scripts/cerber-daily-check.js', { stdio: 'inherit' });
   });
@@ -93,6 +104,17 @@ program
   .option('--dry-run', 'Show what would be fixed without making changes')
   .option('--approve', 'Require approval for each fix')
   .action(async (options) => {
+    const fs = await import('fs');
+    const path = await import('path');
+    const scriptPath = path.default.join(process.cwd(), 'solo/scripts/cerber-auto-repair.js');
+    
+    if (!fs.default.existsSync(scriptPath)) {
+      console.error(chalk.red('❌ This command requires SOLO mode'));
+      console.error(chalk.yellow('Run: npx cerber init --mode solo'));
+      console.error(chalk.gray('\nSOLO mode includes auto-repair scripts for maintenance.'));
+      process.exit(1);
+    }
+    
     const { execSync } = await import('child_process');
     const args = [
       options.dryRun && '--dry-run',
@@ -106,6 +128,17 @@ program
   .command('focus <module>')
   .description('Generate focus context for module (TEAM)')
   .action(async (module) => {
+    const fs = await import('fs');
+    const path = await import('path');
+    const scriptPath = path.default.join(process.cwd(), 'team/scripts/cerber-focus.sh');
+    
+    if (!fs.default.existsSync(scriptPath)) {
+      console.error(chalk.red('❌ This command requires TEAM mode'));
+      console.error(chalk.yellow('Run: npx cerber init --mode team'));
+      console.error(chalk.gray('\nTEAM mode includes collaboration tools and CODEOWNERS.'));
+      process.exit(1);
+    }
+    
     const { execSync } = await import('child_process');
     execSync(`bash team/scripts/cerber-focus.sh ${module}`, { stdio: 'inherit' });
   });
@@ -114,6 +147,17 @@ program
   .command('dashboard')
   .description('Show system dashboard (SOLO)')
   .action(async () => {
+    const fs = await import('fs');
+    const path = await import('path');
+    const scriptPath = path.default.join(process.cwd(), 'solo/scripts/cerber-dashboard.js');
+    
+    if (!fs.default.existsSync(scriptPath)) {
+      console.error(chalk.red('❌ This command requires SOLO mode'));
+      console.error(chalk.yellow('Run: npx cerber init --mode solo'));
+      console.error(chalk.gray('\nSOLO mode includes system monitoring dashboards.'));
+      process.exit(1);
+    }
+    
     const { execSync } = await import('child_process');
     execSync('node solo/scripts/cerber-dashboard.js', { stdio: 'inherit' });
   });
