@@ -437,7 +437,7 @@ npm test
 
 ## 📞 Support & Links
 
-- 💬 **Discord:** [Join community](https://discord.gg/XzGUgxrRnn)
+- 💬 **Discord:** [Join community](https://discord.gg/V8G5qw5D)
 - 🐛 **Issues:** [GitHub Issues](https://github.com/Agaslez/cerber-core/issues)
 - 💡 **Discussions:** [GitHub Discussions](https://github.com/Agaslez/cerber-core/discussions)
 - 📖 **Full Docs:** [docs/README_LONG.md](docs/README_LONG.md)
