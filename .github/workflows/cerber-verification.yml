@@ -90,7 +90,7 @@ jobs:
           ls -la
 
       - name: Upload tarball artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: cerber-tarball
           path: ${{ steps.pack.outputs.tarball }}
@@ -331,7 +331,7 @@ jobs:
           ls -la /tmp/cerber-artifacts | head -200
 
       - name: Upload E2E artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: cerber-e2e-output
           path: /tmp/cerber-artifacts
