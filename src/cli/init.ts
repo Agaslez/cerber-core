@@ -8,6 +8,7 @@
  */
 
 import chalk from 'chalk';
+import { execSync } from 'child_process';
 import fs from 'fs/promises';
 import path from 'path';
 import { getDefaultContract, parseCerberContract } from './contract-parser.js';
@@ -290,11 +291,16 @@ export async function initCommand(options: InitOptions = {}): Promise<void> {
     await updatePackageJson(projectRoot);
   }
   
+  // Step 5: Auto-install and setup Husky (if Guardian enabled)
+  if (!options.dryRun && contract.guardian.enabled && !options.noHusky) {
+    await setupHusky(projectRoot);
+  }
+  
   console.log('');
   console.log(chalk.bold.green('✅ Cerber initialization complete!'));
   console.log('');
   
-  // Step 5: Show next steps
+  // Step 6: Show next steps
   await showNextSteps(contract, options, files, projectRoot);
 }
 
@@ -320,6 +326,65 @@ async function updatePackageJson(projectRoot: string): Promise<void> {
   }
 }
 
+async function setupHusky(projectRoot: string): Promise<void> {
+  console.log(chalk.cyan('🔧 Setting up Husky...'));
+  
+  try {
+    // Check if husky is already in devDependencies
+    const packagePath = path.join(projectRoot, 'package.json');
+    const packageContent = await fs.readFile(packagePath, 'utf-8');
+    const pkg = JSON.parse(packageContent);
+    
+    const hasHusky = pkg.devDependencies?.husky || pkg.dependencies?.husky;
+    
+    if (!hasHusky) {
+      console.log(chalk.gray('   Installing husky...'));
+      try {
+        execSync('npm install husky --save-dev', { 
+          cwd: projectRoot, 
+          stdio: 'pipe',
+          encoding: 'utf-8'
+        });
+        console.log(chalk.green('   ✅ Husky installed'));
+      } catch (installError: any) {
+        console.log(chalk.yellow('   ⚠️  Could not auto-install husky'));
+        console.log(chalk.gray(`   Error: ${installError.message}`));
+        console.log(chalk.cyan('   Please install manually: npm install husky --save-dev'));
+        return;
+      }
+    } else {
+      console.log(chalk.green('   ✅ Husky already installed'));
+    }
+    
+    // Initialize husky (works with both old and new versions)
+    console.log(chalk.gray('   Initializing git hooks...'));
+    try {
+      execSync('npx husky install', { 
+        cwd: projectRoot, 
+        stdio: 'pipe',
+        encoding: 'utf-8'
+      });
+      console.log(chalk.green('   ✅ Git hooks initialized'));
+    } catch (initError: any) {
+      // Husky 8+ doesn't need 'husky install', hooks work automatically
+      // Only warn if .git doesn't exist
+      try {
+        await fs.access(path.join(projectRoot, '.git'));
+        console.log(chalk.green('   ✅ Git hooks ready'));
+      } catch {
+        console.log(chalk.yellow('   ⚠️  Not a git repository - hooks will work after git init'));
+      }
+    }
+    
+  } catch (error: any) {
+    console.log(chalk.yellow('⚠️  Could not setup Husky automatically'));
+    console.log(chalk.gray(`   Error: ${error.message}`));
+    console.log(chalk.cyan('   Please run manually:'));
+    console.log(chalk.gray('   npm install husky --save-dev'));
+    console.log(chalk.gray('   npx husky install'));
+  }
+}
+
 async function fileExists(filePath: string): Promise<boolean> {
   try {
     await fs.access(filePath);
@@ -333,12 +398,7 @@ async function showNextSteps(contract: CerberContract, options: InitOptions, gen
   console.log(chalk.bold('📝 Next Steps:'));
   console.log('');
   
-  if (contract.guardian.enabled && !options.noHusky) {
-    console.log(chalk.cyan('1. Install Husky (if not already installed):'));
-    console.log('   npm install husky --save-dev');
-    console.log('   npx husky install');
-    console.log('');
-  }
+  // Remove old Husky manual install instructions since we auto-install now
   
   // Schema section (based on schema config in CERBER.md)
   if (contract.schema && contract.schema.enabled) {
@@ -348,13 +408,13 @@ async function showNextSteps(contract: CerberContract, options: InitOptions, gen
     
     if (schemaGenerated) {
       // Template was generated
-      console.log(chalk.cyan(`2. Customize your architecture schema:`));
+      console.log(chalk.cyan(`1. Customize your architecture schema:`));
       console.log(chalk.yellow(`   ⚠️  ${schemaFile} is a TEMPLATE (not source of truth)`));
       console.log(`   Edit it to match your architecture defined in CERBER.md`);
       console.log('   See: https://github.com/Agaslez/cerber-core#guardian-configuration');
     } else if (!schemaExists && contract.schema.mode === 'strict') {
       // Strict mode: schema required but not generated
-      console.log(chalk.cyan(`2. Create your schema file:`));
+      console.log(chalk.cyan(`1. Create your schema file:`));
       console.log(chalk.yellow(`   Schema mode: strict (you must create ${schemaFile})`));
       console.log(`   Template: npx cerber init --print-schema-template > ${schemaFile}`);
       console.log('   See: https://github.com/Agaslez/cerber-core#guardian-configuration');
@@ -367,18 +427,18 @@ async function showNextSteps(contract: CerberContract, options: InitOptions, gen
     // Legacy: guardian enabled but no schema config (backward compat)
     const schemaGenerated = generatedFiles.some(f => f.path.endsWith(contract.guardian.schemaFile));
     if (schemaGenerated) {
-      console.log(chalk.cyan(`2. Customize your architecture schema:`));
+      console.log(chalk.cyan(`1. Customize your architecture schema:`));
       console.log(`   Edit: ${contract.guardian.schemaFile}`);
       console.log('   Add your project-specific rules and patterns');
     } else {
-      console.log(chalk.cyan(`2. Create your schema file: ${contract.guardian.schemaFile}`));
+      console.log(chalk.cyan(`1. Create your schema file: ${contract.guardian.schemaFile}`));
     }
     console.log('   See: https://github.com/Agaslez/cerber-core#guardian-configuration');
     console.log('');
   }
   
   if (contract.health.enabled && !options.noHealth) {
-    console.log(chalk.cyan('3. Customize health checks:'));
+    console.log(chalk.cyan('2. Customize health checks:'));
     console.log('   Edit: src/cerber/health-checks.ts');
     console.log('   Add route to your server: src/cerber/health-route.ts');
     console.log(`   Endpoint: ${contract.health.endpoint}`);
@@ -386,7 +446,7 @@ async function showNextSteps(contract: CerberContract, options: InitOptions, gen
   }
   
   if (contract.ci.provider === 'github' && !options.noWorkflow) {
-    console.log(chalk.cyan('4. GitHub Actions workflow created:'));
+    console.log(chalk.cyan('3. GitHub Actions workflow created:'));
     console.log('   .github/workflows/cerber.yml');
     
     if (contract.ci.postDeploy.enabled) {
@@ -402,7 +462,7 @@ async function showNextSteps(contract: CerberContract, options: InitOptions, gen
   }
   
   if (contract.mode === 'team') {
-    console.log(chalk.cyan('5. Team mode setup:'));
+    console.log(chalk.cyan('4. Team mode setup:'));
     console.log('   - Edit .github/CODEOWNERS (replace @OWNER_USERNAME)');
     console.log('   - Enable branch protection: Settings > Branches');
     console.log('   - Require review from Code Owners');
