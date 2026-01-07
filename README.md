@@ -7,7 +7,7 @@ Detects workflow/config drift across repos and enforces a single source of truth
 [![npm version](https://img.shields.io/npm/v/cerber-core.svg)](https://www.npmjs.com/package/cerber-core)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![GitHub](https://img.shields.io/badge/GitHub-cerber--core-blue.svg)](https://github.com/Agaslez/cerber-core)
-[![Discord](https://img.shields.io/discord/1457747175017545928?color=7289da&label=Discord&logo=discord&logoColor=white)](https://discord.gg/XzGUgxrRnn)
+[![Discord](https://img.shields.io/discord/1457747175017545928?color=7289da&label=Discord&logo=discord&logoColor=white)](https://discord.gg/V8G5qw5D)
 
 ---
 
