@@ -183,7 +183,7 @@ describe.skip('Auto-Fix', () => {
       };
 
       const comparator = new SemanticComparator();
-      const result = await comparator.compare(workflow);
+      await comparator.compare(workflow);
 
       // After fixes, workflow name and branches should be unchanged
       expect(workflow.name).toBe('My Workflow');

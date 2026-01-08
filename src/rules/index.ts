@@ -481,7 +481,6 @@ function createUseCompositeActionsRule(): Rule {
       const violations: Violation[] = [];
 
       if (workflow.jobs) {
-        const jobCount = Object.keys(workflow.jobs).length;
         const setupPatterns = new Map<string, number>();
 
         // Count repeated patterns
@@ -492,7 +491,7 @@ function createUseCompositeActionsRule(): Rule {
           setupPatterns.set(firstSteps, (setupPatterns.get(firstSteps) || 0) + 1);
         }
 
-        for (const [pattern, count] of setupPatterns) {
+        for (const [, count] of setupPatterns) {
           if (count >= 3) {
             violations.push({
               level: 'rule',
