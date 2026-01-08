@@ -1,0 +1,494 @@
+#!/usr/bin/env node
+
+/**
+ * Cerber Validate - Professional Workflow Validator
+ * 
+ * PRINCIPLES:
+ * - CONTRACT = CONSTRAINTS (not diff)
+ * - MULTI-FILE by default
+ * - DETERMINISTIC output
+ * - EXIT CODES: 0=ok, 1=validation, 2=config, 3=runtime
+ * - --fix = SAFE ONLY (whitelist)
+ * 
+ * @package cerber-core
+ * @version 2.0.0
+ */
+
+import chalk from 'chalk';
+import { program } from 'commander';
+import * as fs from 'fs';
+import { glob } from 'glob';
+import * as path from 'path';
+import * as yaml from 'yaml';
+
+// Exit codes
+const EXIT = {
+  SUCCESS: 0,
+  VALIDATION_FAILED: 1,
+  CONFIG_ERROR: 2,
+  RUNTIME_ERROR: 3
+};
+
+// Safe fix whitelist (high-confidence only)
+const SAFE_FIX_WHITELIST = new Set([
+  'security/checkout-without-persist-credentials',
+  'security/limit-permissions',
+  'best-practices/timeout-minutes',
+  'best-practices/concurrency',
+  'security/require-action-pinning'
+]);
+
+program
+  .name('cerber-validate')
+  .description('Cerber Core - Contract-based workflow validator')
+  .version('2.0.0-beta.1')
+  .argument('[pattern]', 'File, folder, or glob pattern', '.github/workflows/**/*.{yml,yaml}')
+  .option('-c, --contract <file>', 'Path to contract file', '.cerber/contract.yml')
+  .option('-v, --verbose', 'Verbose output', false)
+  .option('--fix', 'Auto-fix violations (safe fixes only)', false)
+  .option('--dry-run', 'Preview fixes without applying', false)
+  .option('--json', 'Output results as JSON', false)
+  .option('--fail-on-warning', 'Exit 1 on warnings', false)
+  .parse();
+
+const options = program.opts();
+const pattern = program.args[0] || '.github/workflows/**/*.{yml,yaml}';
+
+/**
+ * Main entry point
+ */
+async function main() {
+  const startTime = Date.now();
+  
+  try {
+    // Load modules
+    const { SemanticComparator } = await import('../dist/semantic/SemanticComparator.js');
+    const { RuleManager } = await import('../dist/rules/index.js');
+    
+    // Resolve files to validate
+    const files = await resolveFiles(pattern);
+    
+    if (files.length === 0) {
+      if (!options.json) {
+        console.error(chalk.red('❌ No workflow files found'));
+      }
+      process.exit(EXIT.CONFIG_ERROR);
+    }
+    
+    // Load contract (optional)
+    let contract = null;
+    if (fs.existsSync(options.contract)) {
+      try {
+        const contractContent = fs.readFileSync(options.contract, 'utf-8');
+        contract = yaml.parse(contractContent);
+        
+        // Validate contract schema
+        if (contract && typeof contract !== 'object') {
+          throw new Error('Contract must be a valid YAML object');
+        }
+      } catch (err) {
+        if (!options.json) {
+          console.error(chalk.red(`❌ Failed to parse contract: ${err.message}`));
+        }
+        process.exit(EXIT.CONFIG_ERROR);
+      }
+    }
+    
+    // Print header (non-JSON mode)
+    if (!options.json && options.verbose) {
+      console.log(chalk.cyan('\n🛡️  Cerber Core - Workflow Validator\n'));
+      console.log(chalk.dim(`📁 Found ${files.length} workflow file(s)`));
+      if (contract) {
+        console.log(chalk.dim(`📋 Contract: ${options.contract}`));
+      }
+      console.log('');
+    }
+    
+    // Validate all files
+    const results = [];
+    for (const file of files) {
+      const result = await validateFile(file, contract, SemanticComparator, RuleManager);
+      results.push(result);
+    }
+    
+    // Apply fixes if requested
+    if (options.fix) {
+      await applyFixes(results, options.dryRun);
+    }
+    
+    // Calculate global summary
+    const summary = calculateGlobalSummary(results);
+    
+    // Output results
+    const output = {
+      version: '2.0.0-beta.1',
+      summary,
+      files: results,
+      meta: {
+        durationMs: Date.now() - startTime,
+        filesScanned: files.length,
+        contract: contract ? options.contract : null
+      }
+    };
+    
+    if (options.json) {
+      // Stable JSON output
+      console.log(JSON.stringify(output, null, 2));
+    } else {
+      displayResults(output, options);
+    }
+    
+    // Exit with appropriate code
+    const exitCode = determineExitCode(summary, options.failOnWarning);
+    process.exit(exitCode);
+    
+  } catch (err) {
+    if (options.json) {
+      console.error(JSON.stringify({
+        error: 'RUNTIME_ERROR',
+        message: err.message,
+        stack: options.verbose ? err.stack : undefined
+      }, null, 2));
+    } else {
+      console.error(chalk.red(`❌ Runtime error: ${err.message}`));
+      if (options.verbose) {
+        console.error(chalk.dim(err.stack));
+      }
+    }
+    process.exit(EXIT.RUNTIME_ERROR);
+  }
+}
+
+/**
+ * Resolve file pattern to list of files
+ */
+async function resolveFiles(pattern) {
+  // Security: normalize path to prevent traversal
+  const normalized = path.normalize(pattern);
+  
+  // Block path traversal
+  if (normalized.includes('..')) {
+    throw new Error('Path traversal not allowed');
+  }
+  
+  // Check if pattern is single file
+  if (fs.existsSync(pattern) && fs.statSync(pattern).isFile()) {
+    return [pattern];
+  }
+  
+  // Check if pattern is directory
+  if (fs.existsSync(pattern) && fs.statSync(pattern).isDirectory()) {
+    // Use forward slashes for glob (cross-platform)
+    pattern = pattern.replace(/\\/g, '/') + '/**/*.{yml,yaml}';
+  }
+  
+  // Resolve glob (glob v10 uses Promise API by default)
+  const files = await glob(pattern, {
+    ignore: ['**/node_modules/**', '**/dist/**', '**/build/**']
+  });
+  
+  // Sort for deterministic output
+  return files.sort();
+}
+
+/**
+ * Validate single file
+ */
+async function validateFile(filePath, contract, SemanticComparator, RuleManager) {
+  const violations = [];
+  
+  try {
+    // Load workflow
+    const content = fs.readFileSync(filePath, 'utf-8');
+    const workflow = yaml.parse(content);
+    
+    if (!workflow || typeof workflow !== 'object') {
+      return {
+        path: filePath,
+        violations: [{
+          id: 'PARSE_ERROR',
+          severity: 'error',
+          level: 'structure',
+          message: 'Invalid workflow: must be YAML object',
+          path: '<root>',
+          file: filePath
+        }]
+      };
+    }
+    
+    // Run semantic validation (constraint-based, not diff)
+    const comparator = new SemanticComparator(contract);
+    const result = await comparator.compare(workflow);
+    
+    // Extract violations from result
+    violations.push(...(result.structureViolations || []));
+    violations.push(...(result.semanticViolations || []));
+    
+    // Run rule engine
+    const ruleManager = new RuleManager();
+    const ruleViolations = await ruleManager.runRules(workflow, contract?.rules);
+    violations.push(...ruleViolations);
+    
+    // Enhance violations with file info
+    violations.forEach(v => {
+      v.file = filePath;
+      if (!v.id) {
+        v.id = `${v.level}_${Math.random().toString(36).substr(2, 9)}`;
+      }
+    });
+    
+  } catch (err) {
+    violations.push({
+      id: 'PARSE_ERROR',
+      severity: 'error',
+      level: 'structure',
+      message: `Failed to parse: ${err.message}`,
+      path: '<root>',
+      file: filePath
+    });
+  }
+  
+  // Sort violations deterministically
+  violations.sort((a, b) => {
+    // Priority: severity > level > id > path
+    const severityOrder = { critical: 0, error: 1, warning: 2, info: 3 };
+    if (severityOrder[a.severity] !== severityOrder[b.severity]) {
+      return severityOrder[a.severity] - severityOrder[b.severity];
+    }
+    if (a.level !== b.level) return a.level.localeCompare(b.level);
+    if (a.id !== b.id) return (a.id || '').localeCompare(b.id || '');
+    return (a.location || a.path || '').localeCompare(b.location || b.path || '');
+  });
+  
+  return {
+    path: filePath,
+    violations
+  };
+}
+
+/**
+ * Apply safe fixes to files
+ */
+async function applyFixes(results, dryRun) {
+  for (const result of results) {
+    const fixableViolations = result.violations.filter(v => 
+      v.fix && 
+      v.fix.confidence >= 70 &&
+      isSafeFix(v)
+    );
+    
+    if (fixableViolations.length === 0) continue;
+    
+    if (dryRun) {
+      // Show patch without applying
+      console.log(chalk.cyan(`\n📄 ${result.path} (DRY RUN)\n`));
+      for (const v of fixableViolations) {
+        console.log(chalk.yellow(`  [${v.id}] ${v.message}`));
+        if (v.fix.before && v.fix.after) {
+          console.log(chalk.red(`  - ${v.fix.before.substring(0, 80)}`));
+          console.log(chalk.green(`  + ${v.fix.after.substring(0, 80)}`));
+        }
+        console.log('');
+      }
+    } else {
+      // Apply fixes with backup
+      const timestamp = Date.now();
+      const backupPath = `${result.path}.backup-${timestamp}`;
+      fs.copyFileSync(result.path, backupPath);
+      
+      let content = fs.readFileSync(result.path, 'utf-8');
+      let applied = 0;
+      
+      for (const v of fixableViolations) {
+        if (v.fix.before && v.fix.after && content.includes(v.fix.before)) {
+          content = content.replace(v.fix.before, v.fix.after);
+          applied++;
+        }
+      }
+      
+      if (applied > 0) {
+        fs.writeFileSync(result.path, content, 'utf-8');
+        console.log(chalk.green(`✅ ${result.path}: Applied ${applied} fix(es), backup: ${backupPath}`));
+      }
+    }
+  }
+}
+
+/**
+ * Check if fix is in safe whitelist
+ */
+function isSafeFix(violation) {
+  // Extract rule ID from violation
+  const ruleId = violation.id || '';
+  
+  // Only allow whitelisted rules
+  for (const safeFix of SAFE_FIX_WHITELIST) {
+    if (ruleId.includes(safeFix)) {
+      return true;
+    }
+  }
+  
+  // NEVER auto-fix:
+  // - Secrets (manual review required)
+  // - Run commands (logic changes)
+  // - Conditionals (if:, strategy)
+  // - Matrix (needs analysis)
+  const forbidden = ['secret', 'run:', 'if:', 'matrix', 'strategy'];
+  const message = (violation.message || '').toLowerCase();
+  const location = (violation.location || violation.path || '').toLowerCase();
+  
+  for (const word of forbidden) {
+    if (message.includes(word) || location.includes(word)) {
+      return false;
+    }
+  }
+  
+  return false;
+}
+
+/**
+ * Calculate global summary from all results
+ */
+function calculateGlobalSummary(results) {
+  const summary = {
+    totalFiles: results.length,
+    filesWithViolations: 0,
+    critical: 0,
+    errors: 0,
+    warnings: 0,
+    info: 0
+  };
+  
+  for (const result of results) {
+    if (result.violations.length > 0) {
+      summary.filesWithViolations++;
+    }
+    
+    for (const v of result.violations) {
+      if (v.severity === 'critical') summary.critical++;
+      else if (v.severity === 'error') summary.errors++;
+      else if (v.severity === 'warning') summary.warnings++;
+      else if (v.severity === 'info') summary.info++;
+    }
+  }
+  
+  return summary;
+}
+
+/**
+ * Determine exit code based on violations
+ */
+function determineExitCode(summary, failOnWarning) {
+  if (summary.critical > 0 || summary.errors > 0) {
+    return EXIT.VALIDATION_FAILED;
+  }
+  
+  if (failOnWarning && summary.warnings > 0) {
+    return EXIT.VALIDATION_FAILED;
+  }
+  
+  return EXIT.SUCCESS;
+}
+
+/**
+ * Display results in human-readable format
+ */
+function displayResults(output, options) {
+  const { summary, files } = output;
+  
+  // Header
+  console.log(chalk.cyan('\n📊 Validation Summary'));
+  console.log(chalk.dim('─'.repeat(60)));
+  console.log(`  Files scanned: ${summary.totalFiles}`);
+  console.log(`  Files with violations: ${summary.filesWithViolations}`);
+  console.log(`  Total violations: ${summary.critical + summary.errors + summary.warnings + summary.info}`);
+  if (summary.critical > 0) console.log(chalk.red(`  🔴 Critical: ${summary.critical}`));
+  if (summary.errors > 0) console.log(chalk.red(`  ❌ Errors: ${summary.errors}`));
+  if (summary.warnings > 0) console.log(chalk.yellow(`  ⚠️  Warnings: ${summary.warnings}`));
+  if (summary.info > 0) console.log(chalk.blue(`  ℹ️  Info: ${summary.info}`));
+  
+  // Per-file violations
+  const filesWithIssues = files.filter(f => f.violations.length > 0);
+  
+  if (filesWithIssues.length === 0) {
+    console.log(chalk.green('\n✅ All workflows passed validation!\n'));
+    return;
+  }
+  
+  console.log(chalk.cyan('\n🔍 Violations by File:\n'));
+  
+  for (const file of filesWithIssues) {
+    console.log(chalk.bold(`\n📄 ${file.path}`));
+    console.log(chalk.dim('─'.repeat(60)));
+    
+    // Group by severity
+    const critical = file.violations.filter(v => v.severity === 'critical');
+    const errors = file.violations.filter(v => v.severity === 'error');
+    const warnings = file.violations.filter(v => v.severity === 'warning');
+    const info = file.violations.filter(v => v.severity === 'info');
+    
+    // Display critical + errors always
+    [...critical, ...errors].forEach(v => displayViolation(v, options));
+    
+    // Display warnings (limit unless verbose)
+    const warningsToShow = options.verbose ? warnings : warnings.slice(0, 3);
+    warningsToShow.forEach(v => displayViolation(v, options));
+    if (!options.verbose && warnings.length > 3) {
+      console.log(chalk.dim(`  ... and ${warnings.length - 3} more warnings\n`));
+    }
+    
+    // Display info only if verbose
+    if (options.verbose) {
+      info.forEach(v => displayViolation(v, options));
+    }
+  }
+  
+  // Final verdict
+  console.log('');
+  if (summary.critical > 0 || summary.errors > 0) {
+    console.log(chalk.red('❌ Validation FAILED\n'));
+  } else if (summary.warnings > 0) {
+    console.log(chalk.yellow('⚠️  Validation passed with WARNINGS\n'));
+  } else {
+    console.log(chalk.green('✅ Validation PASSED\n'));
+  }
+}
+
+/**
+ * Display single violation
+ */
+function displayViolation(violation, options) {
+  const icon = {
+    critical: '🔴',
+    error: '❌',
+    warning: '⚠️',
+    info: 'ℹ️'
+  }[violation.severity] || '•';
+  
+  const level = (violation.level || 'rule').toUpperCase();
+  console.log(`\n${icon} [${level}] ${violation.message}`);
+  
+  if (violation.location || violation.path) {
+    console.log(chalk.dim(`   Location: ${violation.location || violation.path}`));
+  }
+  
+  if (violation.suggestion || violation.hint) {
+    console.log(chalk.cyan(`   💡 Suggestion: ${violation.suggestion || violation.hint}`));
+  }
+  
+  if (violation.fix && violation.fix.confidence >= 70) {
+    const safe = isSafeFix(violation) ? '✓ safe' : '⚠ manual';
+    console.log(chalk.green(`   🔧 Fix available (${violation.fix.confidence}%, ${safe})`));
+  }
+  
+  if (options.verbose && violation.expected && violation.actual) {
+    console.log(chalk.dim(`   Expected: ${violation.expected}`));
+    console.log(chalk.dim(`   Actual:   ${violation.actual}`));
+  }
+}
+
+// Run
+main().catch(err => {
+  console.error(chalk.red('Fatal error:', err.message));
+  process.exit(EXIT.RUNTIME_ERROR);
+});

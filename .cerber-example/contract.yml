@@ -1,0 +1,70 @@
+# CERBER CONTRACT v2.0
+# Purpose: Prevent CI drift - validate checks, triggers, pinning, permissions
+
+contractVersion: 1
+name: nodejs-ci-contract
+version: 2.0.0
+
+# EXTEND BASE CONTRACT (optional)
+# extends: "@cerber-core/contracts/nodejs-base"
+
+metadata:
+  description: Standard CI contract for Node.js projects
+  author: Your Team
+  tags:
+    - nodejs
+    - ci
+
+# DEFAULT POLICIES
+defaults:
+  permissionsPolicy:
+    maxLevel: read
+    allowedScopes:
+      - contents
+      - pull-requests
+  
+  actionPinning: required
+  secretsPolicy: no-hardcoded
+  
+  nodeVersion:
+    required: true
+    minVersion: "18.0.0"
+
+# CORE VALIDATION RULES (built-in)
+rules:
+  # Security (enforced)
+  security/no-hardcoded-secrets: error
+  security/require-action-pinning: error
+  security/limit-permissions: error
+  security/checkout-persist-credentials: warning
+  
+  # Best practices (recommended)
+  best-practices/setup-node-version: error
+  best-practices/cache-dependencies: warning
+  
+  # Performance (optional)
+  performance/avoid-unnecessary-checkout: warning
+
+# REQUIRED WORKFLOW STRUCTURE
+requiredActions:
+  - action: actions/checkout@v4
+    minVersion: "4"
+  - action: actions/setup-node@v4
+    minVersion: "4"
+
+requiredSteps:
+  - name: Install dependencies
+    command: npm ci
+  - name: Run tests
+    command: npm test
+
+# ALLOWED TRIGGERS
+allowedTriggers:
+  - push
+  - pull_request
+  - workflow_dispatch
+
+# NOTES:
+# - Cerber validates workflow YAML only
+# - Repo settings (branch protection, secret existence) require GitHub API
+# - Run: npx cerber-validate .github/workflows/ci.yml --contract .cerber/contract.yml

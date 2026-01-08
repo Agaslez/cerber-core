@@ -1,0 +1,37 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Auto-Fix Fix snapshots should match snapshot for action pinning fix 1`] = `
+[
+  {
+    "fix": undefined,
+    "location": "jobs.test.steps[0]",
+  },
+  {
+    "fix": undefined,
+    "location": "jobs.test.steps[1]",
+  },
+  {
+    "fix": undefined,
+    "location": "jobs.test.steps[2]",
+  },
+]
+`;
+
+exports[`Auto-Fix Fix snapshots should match snapshot for permission narrowing fix 1`] = `[]`;
+
+exports[`Auto-Fix Fix snapshots should match snapshot for secret replacement fix 1`] = `
+[
+  {
+    "confidence": 95,
+    "fix": undefined,
+    "location": "jobs.deploy.steps[0].env",
+    "message": "Hardcoded secret detected in STRIPE_KEY",
+  },
+  {
+    "confidence": 95,
+    "fix": undefined,
+    "location": "jobs.deploy.steps[0].env",
+    "message": "Hardcoded secret detected in GITHUB_TOKEN",
+  },
+]
+`;
