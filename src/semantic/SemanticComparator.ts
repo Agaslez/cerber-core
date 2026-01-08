@@ -46,6 +46,10 @@ export interface Permissions {
 }
 
 export interface ContractAST {
+  name?: string;
+  version?: string;
+  description?: string;
+  rules?: Record<string, 'error' | 'warning' | 'info' | 'off'>;
   requiredActions?: string[];
   forbiddenActions?: string[];
   requiredSteps?: string[];
@@ -81,6 +85,8 @@ export interface Fix {
   location: string;
   before?: string;
   after?: string;
+  patch?: string; // The actual fix content
+  description?: string; // Human-readable description
   confidence: number; // 0-100
 }
 

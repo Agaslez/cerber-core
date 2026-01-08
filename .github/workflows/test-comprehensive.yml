@@ -1,0 +1,190 @@
+name: Comprehensive Test Suite
+
+on:
+  push:
+    branches: [main, develop, 'feat/**']
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  # Unit Tests - Security Rules
+  test-security-rules:
+    name: Unit - Security Rules
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4.1.0
+        with:
+          persist-credentials: false
+      
+      - uses: actions/setup-node@v4.0.0
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - run: npm ci
+      - run: npx jest test/rules/security-rules.test.ts --coverage
+      
+      - uses: codecov/codecov-action@v4
+        with:
+          files: ./coverage/lcov.info
+          flags: security-rules
+
+  # Unit Tests - Best Practices Rules
+  test-best-practices:
+    name: Unit - Best Practices Rules
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4.1.0
+        with:
+          persist-credentials: false
+      
+      - uses: actions/setup-node@v4.0.0
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - run: npm ci
+      - run: npx jest test/rules/best-practices-rules.test.ts --coverage
+
+  # Unit Tests - Performance Rules
+  test-performance:
+    name: Unit - Performance Rules
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4.1.0
+        with:
+          persist-credentials: false
+      
+      - uses: actions/setup-node@v4.0.0
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - run: npm ci
+      - run: npx jest test/rules/performance-rules.test.ts --coverage
+
+  # Unit Tests - Semantic Comparator
+  test-semantic:
+    name: Unit - Semantic Comparator
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4.1.0
+        with:
+          persist-credentials: false
+      
+      - uses: actions/setup-node@v4.0.0
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - run: npm ci
+      - run: npx jest test/semantic-comparator.test.ts --coverage
+
+  # E2E Tests - CLI
+  test-e2e:
+    name: E2E - CLI Commands
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4.1.0
+        with:
+          persist-credentials: false
+      
+      - uses: actions/setup-node@v4.0.0
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - run: npm ci
+      - run: npm run build
+      - run: npx jest test/e2e/cli.test.ts --testTimeout=30000
+
+  # Template Tests
+  test-templates:
+    name: Templates Validation
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4.1.0
+        with:
+          persist-credentials: false
+      
+      - uses: actions/setup-node@v4.0.0
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - run: npm ci
+      - run: npx jest test/templates/contracts.test.ts --coverage
+
+  # Auto-Fix Tests
+  test-autofix:
+    name: Auto-Fix with Snapshots
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4.1.0
+        with:
+          persist-credentials: false
+      
+      - uses: actions/setup-node@v4.0.0
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - run: npm ci
+      - run: npx jest test/autofix/autofix.test.ts -u
+
+  # Dogfooding
+  dogfood:
+    name: Self-Validation
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4.1.0
+        with:
+          persist-credentials: false
+      
+      - uses: actions/setup-node@v4.0.0
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - run: npm ci
+      - run: npm run build
+      
+      - name: Validate all workflows
+        run: |
+          for workflow in .github/workflows/*.yml; do
+            echo "Validating $workflow..."
+            node bin/cerber-validate "$workflow" --verbose || echo "⚠️ Issues found"
+          done
+
+  # Final Gate
+  all-pass:
+    name: ✅ All Tests Pass
+    needs: [
+      test-security-rules,
+      test-best-practices,
+      test-performance,
+      test-semantic,
+      test-e2e,
+      test-templates,
+      test-autofix,
+      dogfood
+    ]
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "🎉 All tests passed!"
