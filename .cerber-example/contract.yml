@@ -1,0 +1,51 @@
+# CERBER CONTRACT v1
+# Purpose: Prevent CI drift - validate checks, triggers, pinning, permissions
+
+name: nodejs-ci-contract
+version: 1.0.0
+description: Standard CI contract for Node.js projects
+
+# CORE VALIDATION RULES (built-in)
+rules:
+  # Security (enforced)
+  security/no-hardcoded-secrets: error
+  security/require-action-pinning: error
+  security/limit-permissions: error
+  security/checkout-without-persist-credentials: warn
+  
+  # Best practices (recommended)
+  best-practices/setup-node-with-version: error
+  best-practices/cache-dependencies: warn
+  
+  # Performance (optional)
+  performance/avoid-unnecessary-checkout: warn
+
+# REQUIRED WORKFLOW STRUCTURE
+requiredActions:
+  - actions/checkout@v4
+  - actions/setup-node@v4
+
+# PERMISSIONS POLICY
+permissionsPolicy:
+  maxLevel: read
+  allowedScopes:
+    - contents
+    - pull-requests
+  forbiddenScopes:
+    - packages
+    - deployments
+
+# TRIGGER POLICY
+triggerPolicy:
+  allowedEvents:
+    - push
+    - pull_request
+    - workflow_dispatch
+  forbiddenEvents:
+    - repository_dispatch
+  requireProtectedBranches: false  # Set true if you control repo settings
+
+# NOTES:
+# - Cerber validates workflow YAML only
+# - Repo settings (branch protection, secret existence) require GitHub API
+# - Run: npx cerber-validate .github/workflows/ci.yml --contract .cerber/contract.yml
