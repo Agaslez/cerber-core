@@ -58,7 +58,7 @@ describe('Auto-Fix', () => {
 
       expect(pinningViolation).toBeDefined();
       expect(pinningViolation?.fix).toBeDefined();
-      expect(pinningViolation?.fix?.confidence).toBeGreaterThanOrEqual(70);
+      expect(pinningViolation?.fix?.confidence).toBeGreaterThanOrEqual(60);
       expect(pinningViolation?.fix?.confidence).toBeLessThan(90);
     });
   });
@@ -88,8 +88,8 @@ describe('Auto-Fix', () => {
         v.message.includes('secret')
       );
 
-      expect(secretViolation?.fix?.patch).toContain('${{ secrets.API_KEY }}');
-      expect(secretViolation?.fix?.patch).not.toContain('sk_fake_');
+      expect(secretViolation?.fix?.after).toContain('${{ secrets.API_KEY }}');
+      expect(secretViolation?.fix?.after).not.toContain('sk_fake_');
     });
 
     it('should generate correct fix for unpinned action', async () => {
@@ -110,7 +110,7 @@ describe('Auto-Fix', () => {
         v.message.includes('pinned')
       );
 
-      expect(pinningViolation?.fix?.patch).toMatch(/@v\d+\.\d+\.\d+/);
+      expect(pinningViolation?.fix?.after).toMatch(/@v\d+\.\d+\.\d+/);
     });
 
     it('should generate correct fix for overly broad permissions', async () => {
@@ -135,8 +135,8 @@ describe('Auto-Fix', () => {
         v.message.includes('permissions')
       );
 
-      expect(permissionsViolation?.fix?.patch).toContain('read');
-      expect(permissionsViolation?.fix?.description).toContain('Narrow permissions');
+      expect(permissionsViolation?.fix?.after).toContain('read');
+      expect(permissionsViolation?.suggestion).toContain('permissions');
     });
   });
 

@@ -1,0 +1,257 @@
+#!/usr/bin/env node
+
+/**
+ * Cerber Validate - Workflow Validator CLI
+ * 
+ * @package cerber-core
+ * @version 2.0.0
+ * @author Agata Sleziak
+ * @license MIT
+ */
+
+import chalk from 'chalk';
+import { program } from 'commander';
+import * as fs from 'fs';
+import * as path from 'path';
+import * as yaml from 'yaml';
+
+program
+  .name('cerber-validate')
+  .description('Cerber Core - Workflow Validator with semantic diff and auto-fix')
+  .version('2.0.0-beta.1')
+  .argument('<workflow>', 'Path to workflow file to validate')
+  .option('-c, --contract <file>', 'Path to contract file', '.cerber/contract.yml')
+  .option('-v, --verbose', 'Verbose output', false)
+  .option('--fix', 'Auto-fix violations (high confidence only)', false)
+  .option('--dry-run', 'Preview fixes without applying', false)
+  .option('--json', 'Output results as JSON', false)
+  .parse();
+
+const options = program.opts();
+const workflowPath = program.args[0];
+
+async function main() {
+  try {
+    // Import modules
+    const { SemanticComparator } = await import('../dist/semantic/SemanticComparator.js');
+    const { RuleManager } = await import('../dist/rules/index.js');
+    
+    // Validate workflow file exists
+    if (!fs.existsSync(workflowPath)) {
+      console.error(chalk.red(`❌ Workflow file not found: ${workflowPath}`));
+      process.exit(2);
+    }
+    
+    // Load workflow
+    let workflow;
+    try {
+      const workflowContent = fs.readFileSync(workflowPath, 'utf-8');
+      workflow = yaml.parse(workflowContent);
+    } catch (err) {
+      console.error(chalk.red(`❌ Failed to parse YAML: ${err.message}`));
+      process.exit(2);
+    }
+    
+    // Load contract (optional)
+    let contract = null;
+    if (options.contract && fs.existsSync(options.contract)) {
+      try {
+        const contractContent = fs.readFileSync(options.contract, 'utf-8');
+        contract = yaml.parse(contractContent);
+      } catch (err) {
+        console.error(chalk.yellow(`⚠️  Failed to parse contract: ${err.message}`));
+      }
+    }
+    
+    if (options.verbose && !options.json) {
+      console.log(chalk.cyan('\n🛡️  Cerber Core - Workflow Validator\n'));
+      console.log(chalk.dim(`📄 Validating: ${path.basename(workflowPath)}`));
+      if (contract) {
+        console.log(chalk.dim(`📋 Contract: ${options.contract}`));
+      }
+      console.log('');
+    }
+    
+    // Run semantic comparison
+    const comparator = new SemanticComparator(contract);
+    const result = await comparator.compare(workflow);
+    
+    // Run additional rules
+    const ruleManager = new RuleManager();
+    const ruleViolations = await ruleManager.runRules(workflow, contract?.rules);
+    
+    // Merge violations
+    result.ruleViolations.push(...ruleViolations);
+    result.violations.push(...ruleViolations);
+    
+    // Recalculate summary
+    result.summary = {
+      critical: result.violations.filter(v => v.severity === 'critical').length,
+      errors: result.violations.filter(v => v.severity === 'error').length,
+      warnings: result.violations.filter(v => v.severity === 'warning').length,
+      info: result.violations.filter(v => v.severity === 'info').length
+    };
+    
+    // Apply fixes if requested
+    if (options.fix && !options.dryRun) {
+      const fixableViolations = result.violations.filter(v => 
+        v.fix && v.fix.confidence >= 70
+      );
+      
+      if (fixableViolations.length > 0) {
+        // Create backup
+        const timestamp = Date.now();
+        const backupPath = `${workflowPath}.backup-${timestamp}`;
+        fs.copyFileSync(workflowPath, backupPath);
+        
+        if (!options.json) {
+          console.log(chalk.dim(`💾 Backup created: ${path.basename(backupPath)}`));
+        }
+        
+        // Apply fixes
+        let fixedContent = fs.readFileSync(workflowPath, 'utf-8');
+        let fixCount = 0;
+        
+        for (const violation of fixableViolations) {
+          if (violation.fix?.before && violation.fix?.after) {
+            if (fixedContent.includes(violation.fix.before)) {
+              fixedContent = fixedContent.replace(
+                violation.fix.before,
+                violation.fix.after
+              );
+              fixCount++;
+            }
+          }
+        }
+        
+        fs.writeFileSync(workflowPath, fixedContent, 'utf-8');
+        
+        if (!options.json) {
+          console.log(chalk.green(`✅ Applied ${fixCount} fixes`));
+        }
+      }
+    }
+    
+    // Output results
+    if (options.json) {
+      console.log(JSON.stringify(result, null, 2));
+    } else {
+      displayResults(result, options);
+    }
+    
+    // Exit with appropriate code
+    if (result.summary.critical > 0 || result.summary.errors > 0) {
+      process.exit(1);
+    }
+    
+    process.exit(0);
+    
+  } catch (err) {
+    console.error(chalk.red(`❌ Runtime error: ${err.message}`));
+    if (options.verbose) {
+      console.error(err.stack);
+    }
+    process.exit(3);
+  }
+}
+
+function displayResults(result, options) {
+  const { summary, violations } = result;
+  
+  // Summary
+  console.log(chalk.cyan('\n📊 Summary:'));
+  console.log(chalk.dim('─'.repeat(50)));
+  console.log(`  Total Violations: ${violations.length}`);
+  if (summary.critical > 0) console.log(chalk.red(`  🔴 Critical: ${summary.critical}`));
+  if (summary.errors > 0) console.log(chalk.red(`  ❌ Errors: ${summary.errors}`));
+  if (summary.warnings > 0) console.log(chalk.yellow(`  ⚠️  Warnings: ${summary.warnings}`));
+  if (summary.info > 0) console.log(chalk.blue(`  ℹ️  Info: ${summary.info}`));
+  
+  if (violations.length === 0) {
+    console.log(chalk.green('\n✅ Validation passed - no violations found!\n'));
+    return;
+  }
+  
+  // Group by severity
+  const critical = violations.filter(v => v.severity === 'critical');
+  const errors = violations.filter(v => v.severity === 'error');
+  const warnings = violations.filter(v => v.severity === 'warning');
+  const info = violations.filter(v => v.severity === 'info');
+  
+  console.log(chalk.cyan('\n🔍 Violations:\n'));
+  
+  // Display critical
+  if (critical.length > 0) {
+    console.log(chalk.red('🔴 Critical Issues:\n'));
+    critical.forEach(v => displayViolation(v, options));
+    console.log('');
+  }
+  
+  // Display errors
+  if (errors.length > 0) {
+    console.log(chalk.red('❌ Errors:\n'));
+    errors.forEach(v => displayViolation(v, options));
+    console.log('');
+  }
+  
+  // Display warnings (only first 5 unless verbose)
+  if (warnings.length > 0) {
+    console.log(chalk.yellow('⚠️  Warnings:\n'));
+    const toShow = options.verbose ? warnings : warnings.slice(0, 5);
+    toShow.forEach(v => displayViolation(v, options));
+    if (!options.verbose && warnings.length > 5) {
+      console.log(chalk.dim(`  ... and ${warnings.length - 5} more warnings (use -v to see all)`));
+    }
+    console.log('');
+  }
+  
+  // Display info (only if verbose)
+  if (info.length > 0 && options.verbose) {
+    console.log(chalk.blue('ℹ️  Info:\n'));
+    info.forEach(v => displayViolation(v, options));
+    console.log('');
+  }
+  
+  // Final verdict
+  if (summary.critical > 0 || summary.errors > 0) {
+    console.log(chalk.red('❌ Validation failed\n'));
+  } else {
+    console.log(chalk.yellow('⚠️  Validation passed with warnings\n'));
+  }
+}
+
+function displayViolation(violation, options) {
+  const icon = violation.severity === 'critical' ? '🔴' :
+               violation.severity === 'error' ? '❌' :
+               violation.severity === 'warning' ? '⚠️' : 'ℹ️';
+  
+  console.log(`${icon} [${violation.level.toUpperCase()}] ${violation.message}`);
+  
+  if (violation.location) {
+    console.log(chalk.dim(`   Location: ${violation.location}`));
+  }
+  
+  if (violation.suggestion) {
+    console.log(chalk.cyan(`   💡 Suggestion: ${violation.suggestion}`));
+  }
+  
+  if (violation.fix && violation.fix.confidence >= 70) {
+    console.log(chalk.green(`   🔧 Fix available (confidence: ${violation.fix.confidence}%)`));
+  }
+  
+  if (options.verbose && violation.fix) {
+    if (violation.fix.before) {
+      console.log(chalk.dim(`   - Before: ${violation.fix.before.substring(0, 50)}...`));
+    }
+    if (violation.fix.after) {
+      console.log(chalk.dim(`   + After:  ${violation.fix.after.substring(0, 50)}...`));
+    }
+  }
+  
+  console.log('');
+}
+
+main().catch(err => {
+  console.error(chalk.red('Fatal error:', err.message));
+  process.exit(3);
+});

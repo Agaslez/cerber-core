@@ -41,12 +41,12 @@ describe('Contract Templates', () => {
       expect(contract.rules).toBeDefined();
       
       // Security rules should be enabled
-      expect(contract.rules['security/no-hardcoded-secrets']).toBe('error');
-      expect(contract.rules['security/require-action-pinning']).toBe('error');
+      expect(contract.rules?.['security/no-hardcoded-secrets']).toBe('error');
+      expect(contract.rules?.['security/require-action-pinning']).toBe('error');
       
       // Best practices for Node.js
-      expect(contract.rules['best-practices/cache-dependencies']).toBeDefined();
-      expect(contract.rules['best-practices/setup-node-with-version']).toBe('error');
+      expect(contract.rules?.['best-practices/cache-dependencies']).toBeDefined();
+      expect(contract.rules?.['best-practices/setup-node-with-version']).toBe('error');
     });
 
     it('should have example workflow that passes validation', () => {
@@ -82,7 +82,7 @@ describe('Contract Templates', () => {
       const contract: ContractAST = yaml.parse(content);
 
       expect(contract.name).toContain('docker');
-      expect(contract.rules['security/no-hardcoded-secrets']).toBe('error');
+      expect(contract.rules?.['security/no-hardcoded-secrets']).toBe('error');
       
       // Should mention Docker actions
       expect(contract.requiredActions).toBeDefined();
@@ -109,7 +109,7 @@ describe('Contract Templates', () => {
       const contract: ContractAST = yaml.parse(content);
 
       expect(contract.name).toContain('react');
-      expect(contract.rules['best-practices/cache-dependencies']).toBeDefined();
+      expect(contract.rules?.['best-practices/cache-dependencies']).toBeDefined();
     });
 
     it('should have example with build and test steps', () => {
@@ -133,7 +133,7 @@ describe('Contract Templates', () => {
       const contract: ContractAST = yaml.parse(content);
 
       expect(contract.name).toContain('python');
-      expect(contract.rules['security/no-hardcoded-secrets']).toBe('error');
+      expect(contract.rules?.['security/no-hardcoded-secrets']).toBe('error');
     });
 
     it('should have example with Python setup', () => {
@@ -155,7 +155,7 @@ describe('Contract Templates', () => {
       const contract: ContractAST = yaml.parse(content);
 
       expect(contract.name).toContain('terraform');
-      expect(contract.rules['security/no-hardcoded-secrets']).toBe('error');
+      expect(contract.rules?.['security/no-hardcoded-secrets']).toBe('error');
     });
 
     it('should have example with Terraform steps', () => {
@@ -187,8 +187,8 @@ describe('Contract Templates', () => {
         const contract: ContractAST = yaml.parse(content);
 
         securityRules.forEach(rule => {
-          expect(contract.rules[rule]).toBeDefined();
-          expect(['error', 'warning']).toContain(contract.rules[rule]);
+          expect(contract.rules?.[rule]).toBeDefined();
+          expect(['error', 'warning']).toContain(contract.rules?.[rule]);
         });
       });
     });

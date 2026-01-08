@@ -117,7 +117,7 @@ describe('Performance Rules', () => {
       const violations = await ruleManager.runRule('performance/use-composite-actions', workflow);
 
       expect(violations.length).toBeGreaterThan(0);
-      expect(violations[0].message).toContain('composite action');
+      expect(violations[0].message).toContain('Repeated step pattern');
       expect(violations[0].severity).toBe('info');
     });
 

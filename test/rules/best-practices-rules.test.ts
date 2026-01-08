@@ -31,7 +31,7 @@ describe('Best Practices Rules', () => {
       const violations = await ruleManager.runRule('best-practices/cache-dependencies', workflow);
 
       expect(violations.length).toBeGreaterThan(0);
-      expect(violations[0].message).toContain('cache');
+      expect(violations[0].message).toContain('caching');
       expect(violations[0].severity).toBe('warning');
     });
 

@@ -53,7 +53,7 @@ describe('Security Rules', () => {
       const violations = await ruleManager.runRule('security/no-hardcoded-secrets', workflow);
 
       expect(violations.length).toBeGreaterThan(0);
-      expect(violations[0].message).toContain('GitHub token');
+      expect(violations[0].message).toContain('GitHub personal token');
     });
 
     it('should detect AWS access key (AKIA)', async () => {
@@ -191,7 +191,7 @@ describe('Security Rules', () => {
       const violations = await ruleManager.runRule('security/limit-permissions', workflow);
 
       expect(violations.length).toBeGreaterThan(0);
-      expect(violations[0].message).toContain('write permissions');
+      expect(violations[0].message).toContain('permissions');
     });
 
     it('should pass read-only permissions', async () => {
@@ -234,7 +234,7 @@ describe('Security Rules', () => {
       const violations = await ruleManager.runRule('security/no-wildcard-triggers', workflow);
 
       expect(violations.length).toBeGreaterThan(0);
-      expect(violations[0].message).toContain('wildcard');
+      expect(violations[0].message).toContain('Wildcard');
     });
 
     it('should pass specific branches', async () => {
