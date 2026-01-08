@@ -1,0 +1,154 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://cerber-core.dev/schemas/contract.v1.json",
+  "title": "Cerber Core Contract",
+  "description": "Contract schema for GitHub Actions workflow validation",
+  "type": "object",
+  "required": ["contractVersion", "name", "version"],
+  "properties": {
+    "contractVersion": {
+      "type": "integer",
+      "const": 1,
+      "description": "Contract schema version (current: 1)"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Contract name (e.g., 'nodejs-ci-contract')"
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "description": "Semantic version (e.g., '1.0.0')"
+    },
+    "extends": {
+      "type": "string",
+      "description": "Base contract to extend (e.g., '@cerber-core/contracts/nodejs-base')"
+    },
+    "defaults": {
+      "type": "object",
+      "description": "Default policies applied to all workflows",
+      "properties": {
+        "permissionsPolicy": {
+          "type": "object",
+          "properties": {
+            "maxLevel": {
+              "type": "string",
+              "enum": ["read", "write", "none"],
+              "description": "Maximum permission level allowed"
+            },
+            "allowedScopes": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Allowed permission scopes (e.g., ['contents', 'issues'])"
+            }
+          }
+        },
+        "actionPinning": {
+          "type": "string",
+          "enum": ["required", "recommended", "optional"],
+          "description": "Action pinning policy"
+        },
+        "secretsPolicy": {
+          "type": "string",
+          "enum": ["no-hardcoded", "allowed-with-approval"],
+          "description": "Hardcoded secrets policy"
+        },
+        "nodeVersion": {
+          "type": "object",
+          "properties": {
+            "required": {
+              "type": "boolean",
+              "description": "Whether node-version is required"
+            },
+            "minVersion": {
+              "type": "string",
+              "description": "Minimum Node.js version (e.g., '18.0.0')"
+            }
+          }
+        }
+      }
+    },
+    "rules": {
+      "type": "object",
+      "description": "Rule configurations (overrides defaults)",
+      "additionalProperties": {
+        "type": "string",
+        "enum": ["error", "warning", "info", "off"]
+      }
+    },
+    "requiredActions": {
+      "type": "array",
+      "description": "Actions that MUST be present in workflows",
+      "items": {
+        "type": "object",
+        "required": ["action"],
+        "properties": {
+          "action": {
+            "type": "string",
+            "description": "Action name (e.g., 'actions/checkout@v4')"
+          },
+          "minVersion": {
+            "type": "string",
+            "description": "Minimum version required"
+          },
+          "allowedVersions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Allowed versions (e.g., ['v3', 'v4'])"
+          }
+        }
+      }
+    },
+    "requiredSteps": {
+      "type": "array",
+      "description": "Steps that MUST be present in workflows",
+      "items": {
+        "type": "object",
+        "required": ["name"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Step name or pattern"
+          },
+          "command": {
+            "type": "string",
+            "description": "Required command (for 'run' steps)"
+          }
+        }
+      }
+    },
+    "allowedTriggers": {
+      "type": "array",
+      "description": "Allowed workflow triggers (e.g., ['push', 'pull_request'])",
+      "items": {
+        "type": "string"
+      }
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Additional contract metadata",
+      "properties": {
+        "description": {
+          "type": "string"
+        },
+        "author": {
+          "type": "string"
+        },
+        "repository": {
+          "type": "string"
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}
