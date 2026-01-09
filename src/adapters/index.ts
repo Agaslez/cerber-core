@@ -8,4 +8,5 @@ export type {
     Adapter,
     AdapterConfig, AdapterResult, AdapterRunOptions, ToolDetection
 } from './types.js';
+export { ZizmorAdapter } from './zizmor/ZizmorAdapter.js';
 
