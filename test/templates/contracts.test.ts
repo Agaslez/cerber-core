@@ -12,7 +12,7 @@ import * as path from 'path';
 import * as yaml from 'yaml';
 import type { ContractAST } from '../../src/semantic/SemanticComparator';
 
-describe.skip('Contract Templates', () => {
+describe('Contract Templates', () => {
   const templatesDir = path.join(process.cwd(), 'templates');
 
   describe('Template Structure', () => {

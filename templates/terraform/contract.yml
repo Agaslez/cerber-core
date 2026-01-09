@@ -1,0 +1,71 @@
+# Terraform CI Contract
+# Base contract for Terraform/IaC projects
+contractVersion: 1
+name: terraform-ci-contract
+version: 1.0.0
+
+metadata:
+  description: 'Base contract for Terraform CI/CD workflows'
+  author: 'Cerber Core'
+  tags:
+    - terraform
+    - iac
+    - infrastructure
+    - ci
+
+# Extend base terraform contract
+extends: '@cerber-core/contracts/terraform-base'
+
+defaults:
+  permissionsPolicy:
+    maxLevel: read
+    allowedScopes:
+      - contents
+      - pull-requests
+  actionPinning: required
+  secretsPolicy: no-hardcoded
+  terraformVersion:
+    required: true
+    minVersion: '1.0.0'
+
+rules:
+  # Security rules
+  security/no-hardcoded-secrets: error
+  security/require-action-pinning: error
+  security/limit-permissions: error
+  security/no-wildcard-triggers: warning
+  security/checkout-persist-credentials: warning
+  security/no-state-in-repo: error
+  
+  # Terraform-specific rules
+  terraform/require-fmt-check: error
+  terraform/require-validate: error
+  terraform/require-plan-on-pr: warning
+  terraform/no-auto-apply: error
+  terraform/use-remote-backend: warning
+  
+  # Best practices
+  best-practices/use-workspaces: warning
+  best-practices/lock-providers: error
+  best-practices/use-modules: info
+  
+  # Performance
+  performance/avoid-unnecessary-checkout: warning
+  performance/cache-plugins: warning
+
+requiredActions:
+  - action: actions/checkout@v4
+    minVersion: '4'
+  - action: hashicorp/setup-terraform@v3
+    minVersion: '3'
+
+requiredSteps:
+  - name: Terraform Format Check
+    command: terraform fmt -check
+  - name: Terraform Validate
+    command: terraform validate
+
+allowedTriggers:
+  - push
+  - pull_request
+  - workflow_dispatch

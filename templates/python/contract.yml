@@ -1,0 +1,63 @@
+# Python CI Contract
+# Base contract for Python projects with pip/pytest
+contractVersion: 1
+name: python-ci-contract
+version: 1.0.0
+
+metadata:
+  description: 'Base contract for Python CI/CD workflows'
+  author: 'Cerber Core'
+  tags:
+    - python
+    - pytest
+    - ci
+
+# Extend base python contract
+extends: '@cerber-core/contracts/python-base'
+
+defaults:
+  permissionsPolicy:
+    maxLevel: read
+    allowedScopes:
+      - contents
+      - pull-requests
+  actionPinning: required
+  secretsPolicy: no-hardcoded
+  pythonVersion:
+    required: true
+    minVersion: '3.9.0'
+
+rules:
+  # Security rules
+  security/no-hardcoded-secrets: error
+  security/require-action-pinning: error
+  security/limit-permissions: error
+  security/no-wildcard-triggers: warning
+  security/checkout-persist-credentials: warning
+  
+  # Best practices
+  best-practices/cache-dependencies: warning
+  best-practices/setup-python-version: error
+  best-practices/parallelize-matrix: warning
+  best-practices/use-requirements-file: warning
+  
+  # Performance
+  performance/avoid-unnecessary-checkout: warning
+  performance/use-composite-actions: info
+
+requiredActions:
+  - action: actions/checkout@v4
+    minVersion: '4'
+  - action: actions/setup-python@v5
+    minVersion: '5'
+
+requiredSteps:
+  - name: Install dependencies
+    command: pip install -r requirements.txt
+  - name: Run tests
+    command: pytest
+
+allowedTriggers:
+  - push
+  - pull_request
+  - workflow_dispatch

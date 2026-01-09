@@ -1,0 +1,38 @@
+# Docker CI Contract
+contractVersion: 1
+name: docker-ci-contract
+version: 1.0.0
+
+metadata:
+  description: 'Contract for Docker-based CI/CD workflows'
+  author: 'Cerber Core'
+  tags:
+    - docker
+    - containers
+    - ci
+
+defaults:
+  permissionsPolicy:
+    maxLevel: read
+    allowedScopes:
+      - contents
+      - packages
+  actionPinning: required
+  secretsPolicy: no-hardcoded
+
+rules:
+  security/no-hardcoded-secrets: error
+  security/require-action-pinning: error
+  security/limit-permissions: error
+  best-practices/cache-dependencies: warning
+  performance/use-composite-actions: info
+
+requiredActions:
+  - action: actions/checkout@v4
+  - action: docker/setup-buildx-action@v3
+  - action: docker/build-push-action@v5
+
+allowedTriggers:
+  - push
+  - pull_request
+  - workflow_dispatch
