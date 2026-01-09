@@ -21,8 +21,13 @@
 - 🎯 **Guardian** - pre-commit (fast) + CI (complete)
 - 🎯 **Doctor** - auto-detect + generate contract
 - 🎯 **Universal** - not just GitHub Actions
+- 🎯 **Production-Ready** - reliability, observability, lifecycle management
 
-**Timeline:** 4 tygodnie (20 dni roboczych)
+**Timeline:** 6.5 tygodni (162h total)
+- Phase 1 Extended: 90h (orchestrator + reliability + state machine)
+- Phase 2 Extended: 50h (observability + configuration + persistence)
+- Phase 3 Extended: 30h (lifecycle + resources + cache + plugins)
+- Phase 4: 12h (guardian pre-commit)
 
 ---
 
@@ -1744,6 +1749,351 @@ export class Orchestrator {
 
 ---
 
+### 1.7 Execution State Machine (8h) - **CRITICAL**
+
+**Problem:** Orchestrator nie ma stanu wykonania - nie można trackować progressu, debugować, ani wznowić po błędzie.
+
+**Create:**
+```typescript
+// src/core/execution/ExecutionContext.ts
+export enum ExecutionState {
+  PENDING = 'pending',
+  INITIALIZING = 'initializing',
+  VALIDATING_INPUT = 'validating_input',
+  DISCOVERING_FILES = 'discovering_files',
+  CHECKING_TOOLS = 'checking_tools',
+  RUNNING_ADAPTERS = 'running_adapters',
+  MERGING_RESULTS = 'merging_results',
+  VALIDATING_OUTPUT = 'validating_output',
+  COMPLETED = 'completed',
+  FAILED = 'failed',
+  CANCELLED = 'cancelled'
+}
+
+export interface ExecutionContext {
+  id: string;                      // Unique execution ID (UUID)
+  state: ExecutionState;
+  startTime: Date;
+  endTime?: Date;
+  options: OrchestratorRunOptions;
+  
+  metadata: {
+    adapters: Array<{
+      name: string;
+      state: 'pending' | 'running' | 'completed' | 'failed';
+      startTime?: Date;
+      endTime?: Date;
+      error?: string;
+    }>;
+    files: string[];
+    errors: Error[];
+    warnings: string[];
+  };
+  
+  checkpoints: Array<{
+    state: ExecutionState;
+    timestamp: Date;
+    data?: any;
+  }>;
+}
+
+export class ExecutionContextManager {
+  private executions: Map<string, ExecutionContext> = new Map();
+  private currentExecution: ExecutionContext | null = null;
+  
+  create(options: OrchestratorRunOptions): ExecutionContext {
+    const context: ExecutionContext = {
+      id: generateUUID(),
+      state: ExecutionState.PENDING,
+      startTime: new Date(),
+      options,
+      metadata: {
+        adapters: [],
+        files: [],
+        errors: [],
+        warnings: []
+      },
+      checkpoints: []
+    };
+    
+    this.executions.set(context.id, context);
+    this.currentExecution = context;
+    return context;
+  }
+  
+  transitionTo(state: ExecutionState, data?: any): void {
+    if (!this.currentExecution) {
+      throw new Error('No active execution');
+    }
+    
+    const prev = this.currentExecution.state;
+    this.currentExecution.state = state;
+    
+    // Create checkpoint
+    this.currentExecution.checkpoints.push({
+      state,
+      timestamp: new Date(),
+      data
+    });
+    
+    // Emit event for monitoring
+    this.emit('state_transition', {
+      executionId: this.currentExecution.id,
+      from: prev,
+      to: state,
+      data
+    });
+  }
+  
+  getCurrent(): ExecutionContext | null {
+    return this.currentExecution;
+  }
+  
+  get(id: string): ExecutionContext | undefined {
+    return this.executions.get(id);
+  }
+}
+```
+
+**Update Orchestrator:**
+```typescript
+// src/core/Orchestrator.ts
+export class Orchestrator {
+  private contextManager: ExecutionContextManager;
+  
+  async run(options: OrchestratorRunOptions): Promise<OrchestratorResult> {
+    // Create execution context
+    const context = this.contextManager.create(options);
+    
+    try {
+      // State machine flow
+      await this.transitionTo(ExecutionState.INITIALIZING);
+      await this.initialize();
+      
+      await this.transitionTo(ExecutionState.VALIDATING_INPUT);
+      await this.validateInput(options);
+      
+      await this.transitionTo(ExecutionState.DISCOVERING_FILES);
+      const files = await this.discoverFiles(options);
+      
+      await this.transitionTo(ExecutionState.CHECKING_TOOLS);
+      await this.checkTools();
+      
+      await this.transitionTo(ExecutionState.RUNNING_ADAPTERS);
+      const results = await this.runAdapters(options);
+      
+      await this.transitionTo(ExecutionState.MERGING_RESULTS);
+      const merged = await this.mergeResults(results);
+      
+      await this.transitionTo(ExecutionState.VALIDATING_OUTPUT);
+      await this.validateOutput(merged);
+      
+      await this.transitionTo(ExecutionState.COMPLETED);
+      return merged;
+      
+    } catch (error) {
+      await this.transitionTo(ExecutionState.FAILED, error);
+      throw error;
+    }
+  }
+  
+  private async transitionTo(state: ExecutionState, data?: any): Promise<void> {
+    this.contextManager.transitionTo(state, data);
+    await this.executeStateLogic(state, data);
+  }
+}
+```
+
+**Deliverables:**
+- ✅ ExecutionContext interface
+- ✅ ExecutionState enum
+- ✅ ExecutionContextManager
+- ✅ State machine integration in Orchestrator
+- ✅ Checkpoint system for recovery
+- ✅ Git committed
+
+**Tests:**
+- Unit test: state transitions (15 tests)
+- Unit test: checkpoint creation
+- Unit test: execution tracking
+- Integration test: full state machine flow
+
+---
+
+### 1.8 Reliability Patterns (12h) - **CRITICAL**
+
+**Problem:** Orchestrator fails fast bez retry, circuit breaker, timeout management.
+
+**Create:**
+```typescript
+// src/core/reliability/CircuitBreaker.ts
+export class CircuitBreaker {
+  private state: 'CLOSED' | 'OPEN' | 'HALF_OPEN' = 'CLOSED';
+  private failures = 0;
+  private lastFailureTime?: Date;
+  
+  constructor(
+    private readonly threshold: number = 5,
+    private readonly resetTimeout: number = 60000
+  ) {}
+  
+  async execute<T>(fn: () => Promise<T>, name: string): Promise<T> {
+    if (this.state === 'OPEN') {
+      if (this.shouldAttemptReset()) {
+        this.state = 'HALF_OPEN';
+      } else {
+        throw new CircuitOpenError(`Circuit breaker open for ${name}`);
+      }
+    }
+    
+    try {
+      const result = await fn();
+      this.onSuccess();
+      return result;
+    } catch (error) {
+      this.onFailure();
+      throw error;
+    }
+  }
+  
+  private onFailure(): void {
+    this.failures++;
+    this.lastFailureTime = new Date();
+    
+    if (this.failures >= this.threshold) {
+      this.state = 'OPEN';
+    }
+  }
+  
+  private onSuccess(): void {
+    this.failures = 0;
+    this.state = 'CLOSED';
+  }
+  
+  private shouldAttemptReset(): boolean {
+    if (!this.lastFailureTime) return false;
+    return Date.now() - this.lastFailureTime.getTime() > this.resetTimeout;
+  }
+}
+
+// src/core/reliability/RetryExecutor.ts
+export interface RetryPolicy {
+  maxAttempts: number;
+  initialDelay: number;
+  maxDelay: number;
+  backoffMultiplier: number;
+  retryableErrors: Array<new (...args: any[]) => Error>;
+}
+
+export class RetryExecutor {
+  async executeWithRetry<T>(
+    fn: () => Promise<T>,
+    policy: RetryPolicy,
+    context: string
+  ): Promise<T> {
+    let lastError: Error;
+    
+    for (let attempt = 1; attempt <= policy.maxAttempts; attempt++) {
+      try {
+        return await fn();
+      } catch (error) {
+        lastError = error as Error;
+        
+        if (!this.isRetryable(error, policy)) {
+          throw error;
+        }
+        
+        if (attempt === policy.maxAttempts) {
+          throw new MaxRetriesExceededError(context, attempt, lastError);
+        }
+        
+        const delay = this.calculateDelay(attempt, policy);
+        await this.sleep(delay);
+      }
+    }
+    
+    throw lastError!;
+  }
+  
+  private calculateDelay(attempt: number, policy: RetryPolicy): number {
+    const delay = policy.initialDelay * Math.pow(policy.backoffMultiplier, attempt - 1);
+    return Math.min(delay, policy.maxDelay);
+  }
+  
+  private isRetryable(error: any, policy: RetryPolicy): boolean {
+    return policy.retryableErrors.some(ErrorType => error instanceof ErrorType);
+  }
+}
+
+// src/core/reliability/TimeoutManager.ts
+export class TimeoutManager {
+  async executeWithTimeout<T>(
+    fn: () => Promise<T>,
+    timeout: number,
+    context: string
+  ): Promise<T> {
+    return Promise.race([
+      fn(),
+      new Promise<T>((_, reject) => {
+        setTimeout(() => {
+          reject(new TimeoutError(`Operation timed out after ${timeout}ms: ${context}`));
+        }, timeout);
+      })
+    ]);
+  }
+}
+```
+
+**Update Orchestrator:**
+```typescript
+export class Orchestrator {
+  private circuitBreakers: Map<string, CircuitBreaker> = new Map();
+  private retryExecutor: RetryExecutor;
+  private timeoutManager: TimeoutManager;
+  
+  async runAdapter(adapter: Adapter, options: AdapterRunOptions): Promise<AdapterResult> {
+    const breaker = this.getOrCreateCircuitBreaker(adapter.name);
+    
+    const policy: RetryPolicy = {
+      maxAttempts: 3,
+      initialDelay: 1000,
+      maxDelay: 10000,
+      backoffMultiplier: 2,
+      retryableErrors: [NetworkError, ToolCrashedError]
+    };
+    
+    return breaker.execute(
+      () => this.retryExecutor.executeWithRetry(
+        () => this.timeoutManager.executeWithTimeout(
+          () => adapter.run(options),
+          options.timeout ?? 30000,
+          `Adapter ${adapter.name}`
+        ),
+        policy,
+        `Adapter ${adapter.name}`
+      ),
+      adapter.name
+    );
+  }
+}
+```
+
+**Deliverables:**
+- ✅ CircuitBreaker class
+- ✅ RetryExecutor with exponential backoff
+- ✅ TimeoutManager
+- ✅ Integration in Orchestrator
+- ✅ Error types (CircuitOpenError, MaxRetriesExceededError, TimeoutError)
+- ✅ Git committed
+
+**Tests:**
+- Unit test: CircuitBreaker states (10 tests)
+- Unit test: RetryExecutor logic (10 tests)
+- Unit test: TimeoutManager (5 tests)
+- Integration test: adapter with retry + circuit breaker
+
+---
+
 ### 1.6 Reporting & Output Formats (8h)
 
 **Create unified reporting system:**
@@ -1942,11 +2292,769 @@ export class ReportFormatter {
 
 ---
 
-## 🎯 PHASE 2: CLI & MODES (Dni 8-10) - 18h
+### 1.7 Execution State Machine (8h) - **CRITICAL**
 
-**Cel:** Universal CLI modes (validate, guard, stdin)
+**Problem:** Orchestrator nie ma stanu wykonania - nie można trackować progressu, debugować, ani wznowić po błędzie.
 
-### 2.1 Update cerber validate (6h)
+**Create:**
+```typescript
+// src/core/execution/ExecutionContext.ts
+export enum ExecutionState {
+  PENDING = 'pending',
+  INITIALIZING = 'initializing',
+  VALIDATING_INPUT = 'validating_input',
+  DISCOVERING_FILES = 'discovering_files',
+  CHECKING_TOOLS = 'checking_tools',
+  RUNNING_ADAPTERS = 'running_adapters',
+  MERGING_RESULTS = 'merging_results',
+  VALIDATING_OUTPUT = 'validating_output',
+  COMPLETED = 'completed',
+  FAILED = 'failed',
+  CANCELLED = 'cancelled'
+}
+
+export interface ExecutionContext {
+  id: string;                      // Unique execution ID (UUID)
+  state: ExecutionState;
+  startTime: Date;
+  endTime?: Date;
+  options: OrchestratorRunOptions;
+  
+  metadata: {
+    adapters: Array<{
+      name: string;
+      state: 'pending' | 'running' | 'completed' | 'failed';
+      startTime?: Date;
+      endTime?: Date;
+      error?: string;
+    }>;
+    files: string[];
+    errors: Error[];
+    warnings: string[];
+  };
+  
+  checkpoints: Array<{
+    state: ExecutionState;
+    timestamp: Date;
+    data?: any;
+  }>;
+}
+
+export class ExecutionContextManager {
+  private executions: Map<string, ExecutionContext> = new Map();
+  private currentExecution: ExecutionContext | null = null;
+  
+  create(options: OrchestratorRunOptions): ExecutionContext {
+    const context: ExecutionContext = {
+      id: generateUUID(),
+      state: ExecutionState.PENDING,
+      startTime: new Date(),
+      options,
+      metadata: {
+        adapters: [],
+        files: [],
+        errors: [],
+        warnings: []
+      },
+      checkpoints: []
+    };
+    
+    this.executions.set(context.id, context);
+    this.currentExecution = context;
+    return context;
+  }
+  
+  transitionTo(state: ExecutionState, data?: any): void {
+    if (!this.currentExecution) {
+      throw new Error('No active execution');
+    }
+    
+    const prev = this.currentExecution.state;
+    this.currentExecution.state = state;
+    
+    // Create checkpoint
+    this.currentExecution.checkpoints.push({
+      state,
+      timestamp: new Date(),
+      data
+    });
+    
+    // Emit event for monitoring
+    this.emit('state_transition', {
+      executionId: this.currentExecution.id,
+      from: prev,
+      to: state,
+      data
+    });
+  }
+  
+  getCurrent(): ExecutionContext | null {
+    return this.currentExecution;
+  }
+  
+  get(id: string): ExecutionContext | undefined {
+    return this.executions.get(id);
+  }
+}
+```
+
+**Update Orchestrator:**
+```typescript
+// src/core/Orchestrator.ts
+export class Orchestrator {
+  private contextManager: ExecutionContextManager;
+  
+  async run(options: OrchestratorRunOptions): Promise<OrchestratorResult> {
+    // Create execution context
+    const context = this.contextManager.create(options);
+    
+    try {
+      // State machine flow
+      await this.transitionTo(ExecutionState.INITIALIZING);
+      await this.initialize();
+      
+      await this.transitionTo(ExecutionState.VALIDATING_INPUT);
+      await this.validateInput(options);
+      
+      await this.transitionTo(ExecutionState.DISCOVERING_FILES);
+      const files = await this.discoverFiles(options);
+      
+      await this.transitionTo(ExecutionState.CHECKING_TOOLS);
+      await this.checkTools();
+      
+      await this.transitionTo(ExecutionState.RUNNING_ADAPTERS);
+      const results = await this.runAdapters(options);
+      
+      await this.transitionTo(ExecutionState.MERGING_RESULTS);
+      const merged = await this.mergeResults(results);
+      
+      await this.transitionTo(ExecutionState.VALIDATING_OUTPUT);
+      await this.validateOutput(merged);
+      
+      await this.transitionTo(ExecutionState.COMPLETED);
+      return merged;
+      
+    } catch (error) {
+      await this.transitionTo(ExecutionState.FAILED, error);
+      throw error;
+    }
+  }
+  
+  private async transitionTo(state: ExecutionState, data?: any): Promise<void> {
+    this.contextManager.transitionTo(state, data);
+    await this.executeStateLogic(state, data);
+  }
+}
+```
+
+**Deliverables:**
+- ✅ ExecutionContext interface
+- ✅ ExecutionState enum
+- ✅ ExecutionContextManager
+- ✅ State machine integration in Orchestrator
+- ✅ Checkpoint system for recovery
+- ✅ Git committed
+
+**Tests:**
+- Unit test: state transitions (15 tests)
+- Unit test: checkpoint creation
+- Unit test: execution tracking
+- Integration test: full state machine flow
+
+---
+
+### 1.8 Reliability Patterns (12h) - **CRITICAL**
+
+**Problem:** Orchestrator fails fast bez retry, circuit breaker, timeout management.
+
+**Create:**
+```typescript
+// src/core/reliability/CircuitBreaker.ts
+export class CircuitBreaker {
+  private state: 'CLOSED' | 'OPEN' | 'HALF_OPEN' = 'CLOSED';
+  private failures = 0;
+  private lastFailureTime?: Date;
+  
+  constructor(
+    private readonly threshold: number = 5,
+    private readonly resetTimeout: number = 60000
+  ) {}
+  
+  async execute<T>(fn: () => Promise<T>, name: string): Promise<T> {
+    if (this.state === 'OPEN') {
+      if (this.shouldAttemptReset()) {
+        this.state = 'HALF_OPEN';
+      } else {
+        throw new CircuitOpenError(`Circuit breaker open for ${name}`);
+      }
+    }
+    
+    try {
+      const result = await fn();
+      this.onSuccess();
+      return result;
+    } catch (error) {
+      this.onFailure();
+      throw error;
+    }
+  }
+  
+  private onFailure(): void {
+    this.failures++;
+    this.lastFailureTime = new Date();
+    
+    if (this.failures >= this.threshold) {
+      this.state = 'OPEN';
+    }
+  }
+  
+  private onSuccess(): void {
+    this.failures = 0;
+    this.state = 'CLOSED';
+  }
+  
+  private shouldAttemptReset(): boolean {
+    if (!this.lastFailureTime) return false;
+    return Date.now() - this.lastFailureTime.getTime() > this.resetTimeout;
+  }
+}
+
+// src/core/reliability/RetryExecutor.ts
+export interface RetryPolicy {
+  maxAttempts: number;
+  initialDelay: number;
+  maxDelay: number;
+  backoffMultiplier: number;
+  retryableErrors: Array<new (...args: any[]) => Error>;
+}
+
+export class RetryExecutor {
+  async executeWithRetry<T>(
+    fn: () => Promise<T>,
+    policy: RetryPolicy,
+    context: string
+  ): Promise<T> {
+    let lastError: Error;
+    
+    for (let attempt = 1; attempt <= policy.maxAttempts; attempt++) {
+      try {
+        return await fn();
+      } catch (error) {
+        lastError = error as Error;
+        
+        if (!this.isRetryable(error, policy)) {
+          throw error;
+        }
+        
+        if (attempt === policy.maxAttempts) {
+          throw new MaxRetriesExceededError(context, attempt, lastError);
+        }
+        
+        const delay = this.calculateDelay(attempt, policy);
+        await this.sleep(delay);
+      }
+    }
+    
+    throw lastError!;
+  }
+  
+  private calculateDelay(attempt: number, policy: RetryPolicy): number {
+    const delay = policy.initialDelay * Math.pow(policy.backoffMultiplier, attempt - 1);
+    return Math.min(delay, policy.maxDelay);
+  }
+  
+  private isRetryable(error: any, policy: RetryPolicy): boolean {
+    return policy.retryableErrors.some(ErrorType => error instanceof ErrorType);
+  }
+}
+
+// src/core/reliability/TimeoutManager.ts
+export class TimeoutManager {
+  async executeWithTimeout<T>(
+    fn: () => Promise<T>,
+    timeout: number,
+    context: string
+  ): Promise<T> {
+    return Promise.race([
+      fn(),
+      new Promise<T>((_, reject) => {
+        setTimeout(() => {
+          reject(new TimeoutError(`Operation timed out after ${timeout}ms: ${context}`));
+        }, timeout);
+      })
+    ]);
+  }
+}
+```
+
+**Update Orchestrator:**
+```typescript
+export class Orchestrator {
+  private circuitBreakers: Map<string, CircuitBreaker> = new Map();
+  private retryExecutor: RetryExecutor;
+  private timeoutManager: TimeoutManager;
+  
+  async runAdapter(adapter: Adapter, options: AdapterRunOptions): Promise<AdapterResult> {
+    const breaker = this.getOrCreateCircuitBreaker(adapter.name);
+    
+    const policy: RetryPolicy = {
+      maxAttempts: 3,
+      initialDelay: 1000,
+      maxDelay: 10000,
+      backoffMultiplier: 2,
+      retryableErrors: [NetworkError, ToolCrashedError]
+    };
+    
+    return breaker.execute(
+      () => this.retryExecutor.executeWithRetry(
+        () => this.timeoutManager.executeWithTimeout(
+          () => adapter.run(options),
+          options.timeout ?? 30000,
+          `Adapter ${adapter.name}`
+        ),
+        policy,
+        `Adapter ${adapter.name}`
+      ),
+      adapter.name
+    );
+  }
+}
+```
+
+**Deliverables:**
+- ✅ CircuitBreaker class
+- ✅ RetryExecutor with exponential backoff
+- ✅ TimeoutManager
+- ✅ Integration in Orchestrator
+- ✅ Error types (CircuitOpenError, MaxRetriesExceededError, TimeoutError)
+- ✅ Git committed
+
+**Tests:**
+- Unit test: CircuitBreaker states (10 tests)
+- Unit test: RetryExecutor logic (10 tests)
+- Unit test: TimeoutManager (5 tests)
+- Integration test: adapter with retry + circuit breaker
+
+---
+
+## 🎯 PHASE 2: OBSERVABILITY & OPERATIONS (Dni 8-12) - 50h
+
+**Cel:** Production-ready observability, configuration, and operations
+
+### 2.1 Observability Stack (10h) - **CRITICAL**
+
+**Problem:** Orchestrator = black box - zero visibility do execution flow
+
+**Create:**
+```typescript
+// src/core/observability/TracingCollector.ts
+export interface Span {
+  id: string;
+  traceId: string;
+  parentId?: string;
+  name: string;
+  startTime: Date;
+  endTime?: Date;
+  duration?: number;
+  status: 'OK' | 'ERROR';
+  attributes: Record<string, any>;
+  events: SpanEvent[];
+}
+
+export class TracingCollector {
+  private spans: Map<string, Span> = new Map();
+  
+  startSpan(name: string, parentId?: string): Span {
+    const span: Span = {
+      id: generateId(),
+      traceId: parentId ? this.getTraceId(parentId) : generateId(),
+      parentId,
+      name,
+      startTime: new Date(),
+      status: 'OK',
+      attributes: {},
+      events: []
+    };
+    
+    this.spans.set(span.id, span);
+    return span;
+  }
+  
+  endSpan(spanId: string, status: 'OK' | 'ERROR'): void {
+    const span = this.spans.get(spanId);
+    if (span) {
+      span.endTime = new Date();
+      span.duration = span.endTime.getTime() - span.startTime.getTime();
+      span.status = status;
+    }
+  }
+  
+  addEvent(spanId: string, event: SpanEvent): void {
+    const span = this.spans.get(spanId);
+    if (span) {
+      span.events.push(event);
+    }
+  }
+  
+  exportTraces(): Span[] {
+    return Array.from(this.spans.values());
+  }
+}
+
+// src/core/observability/MetricsCollector.ts
+export class MetricsCollector {
+  private counters: Map<string, number> = new Map();
+  private gauges: Map<string, number> = new Map();
+  private histograms: Map<string, number[]> = new Map();
+  
+  increment(metric: string, value = 1): void {
+    const current = this.counters.get(metric) || 0;
+    this.counters.set(metric, current + value);
+  }
+  
+  gauge(metric: string, value: number): void {
+    this.gauges.set(metric, value);
+  }
+  
+  recordTime(metric: string, duration: number): void {
+    const values = this.histograms.get(metric) || [];
+    values.push(duration);
+    this.histograms.set(metric, values);
+  }
+  
+  getP95(metric: string): number {
+    const values = this.histograms.get(metric) || [];
+    return this.percentile(values, 0.95);
+  }
+  
+  exportMetrics(): Record<string, any> {
+    return {
+      counters: Object.fromEntries(this.counters),
+      gauges: Object.fromEntries(this.gauges),
+      histograms: Object.fromEntries(
+        Array.from(this.histograms.entries()).map(([k, v]) => [
+          k,
+          { count: v.length, p50: this.percentile(v, 0.5), p95: this.percentile(v, 0.95) }
+        ])
+      )
+    };
+  }
+}
+
+// src/core/observability/StructuredLogger.ts
+export class StructuredLogger {
+  log(level: 'DEBUG' | 'INFO' | 'WARN' | 'ERROR', message: string, context?: Record<string, any>): void {
+    const entry = {
+      '@timestamp': new Date().toISOString(),
+      level,
+      message,
+      ...context
+    };
+    
+    console.log(JSON.stringify(entry));
+  }
+}
+```
+
+**Update Orchestrator:**
+```typescript
+export class Orchestrator {
+  private tracing: TracingCollector;
+  private metrics: MetricsCollector;
+  private logger: StructuredLogger;
+  
+  async run(options: OrchestratorRunOptions): Promise<OrchestratorResult> {
+    const rootSpan = this.tracing.startSpan('orchestrator.run');
+    this.metrics.increment('orchestrator.executions.total');
+    
+    try {
+      // Each phase gets its own span
+      const validateSpan = this.tracing.startSpan('validate_input', rootSpan.id);
+      await this.validateInput(options);
+      this.tracing.endSpan(validateSpan.id, 'OK');
+      
+      // Run adapters with tracing
+      for (const adapter of adapters) {
+        const adapterSpan = this.tracing.startSpan(`adapter.${adapter.name}`, rootSpan.id);
+        const startTime = Date.now();
+        
+        try {
+          const result = await adapter.run(options);
+          const duration = Date.now() - startTime;
+          
+          this.tracing.addEvent(adapterSpan.id, {
+            type: 'violations_found',
+            count: result.violations.length
+          });
+          this.tracing.endSpan(adapterSpan.id, 'OK');
+          
+          this.metrics.increment(`adapter.${adapter.name}.runs`);
+          this.metrics.recordTime(`adapter.${adapter.name}.duration_ms`, duration);
+          this.metrics.increment(`adapter.${adapter.name}.violations`, result.violations.length);
+        } catch (error) {
+          this.tracing.endSpan(adapterSpan.id, 'ERROR');
+          this.metrics.increment(`adapter.${adapter.name}.errors`);
+          this.logger.log('ERROR', `Adapter ${adapter.name} failed`, { error: error.message });
+        }
+      }
+      
+      this.tracing.endSpan(rootSpan.id, 'OK');
+      this.metrics.increment('orchestrator.executions.success');
+      
+      return result;
+    } catch (error) {
+      this.tracing.endSpan(rootSpan.id, 'ERROR');
+      this.metrics.increment('orchestrator.executions.failed');
+      throw error;
+    }
+  }
+  
+  getMetrics(): Record<string, any> {
+    return this.metrics.exportMetrics();
+  }
+  
+  getTraces(): Span[] {
+    return this.tracing.exportTraces();
+  }
+}
+```
+
+**Deliverables:**
+- ✅ TracingCollector (distributed tracing)
+- ✅ MetricsCollector (counters, gauges, histograms)
+- ✅ StructuredLogger (JSON logs)
+- ✅ Integration in Orchestrator
+- ✅ CLI command: `cerber metrics` (show stats)
+- ✅ CLI command: `cerber traces <execution-id>` (show trace)
+- ✅ Git committed
+
+**Tests:**
+- Unit test: TracingCollector (15 tests)
+- Unit test: MetricsCollector (10 tests)
+- Unit test: StructuredLogger (5 tests)
+- Integration test: full observability stack
+
+---
+
+### 2.2 Configuration Management (6h) - **CRITICAL**
+
+**Problem:** Brak runtime configuration, hot reload, priority overrides
+
+**Create:**
+```typescript
+// src/core/config/ConfigurationManager.ts
+export interface Configuration {
+  contract: Contract;
+  
+  runtime: {
+    adapters: {
+      [name: string]: {
+        enabled: boolean;
+        timeout: number;
+        retryPolicy: RetryPolicy;
+        circuitBreaker: CircuitBreakerConfig;
+      };
+    };
+    
+    orchestrator: {
+      mode: 'solo' | 'dev' | 'team';
+      parallel: boolean;
+      maxConcurrency: number;
+      globalTimeout: number;
+    };
+    
+    observability: {
+      tracing: boolean;
+      metrics: boolean;
+      logging: {
+        level: 'DEBUG' | 'INFO' | 'WARN' | 'ERROR';
+        format: 'json' | 'text';
+      };
+    };
+    
+    features: {
+      autoInstall: boolean;
+      selfHealing: boolean;
+      telemetry: boolean;
+    };
+  };
+}
+
+export class ConfigurationManager {
+  private config: Configuration;
+  private watchers: Array<(config: Configuration) => void> = [];
+  
+  async load(contractPath?: string): Promise<Configuration> {
+    const contract = await ContractLoader.load(contractPath || '.cerber/contract.yml');
+    const runtime = await this.loadRuntimeConfig();
+    
+    this.config = { contract, runtime };
+    return this.config;
+  }
+  
+  async reload(): Promise<void> {
+    const newConfig = await this.load();
+    this.config = newConfig;
+    
+    // Notify watchers
+    this.watchers.forEach(watcher => watcher(newConfig));
+  }
+  
+  override(path: string, value: any): void {
+    set(this.config, path, value);
+    this.watchers.forEach(watcher => watcher(this.config));
+  }
+  
+  get<T>(path: string, fallback?: T): T {
+    return get(this.config, path, fallback);
+  }
+  
+  watch(watcher: (config: Configuration) => void): () => void {
+    this.watchers.push(watcher);
+    return () => {
+      const index = this.watchers.indexOf(watcher);
+      if (index > -1) this.watchers.splice(index, 1);
+    };
+  }
+}
+```
+
+**Priority order:**
+1. CLI flags (highest)
+2. Environment variables
+3. Runtime config file
+4. Contract (lowest)
+
+**Deliverables:**
+- ✅ ConfigurationManager
+- ✅ Hot reload support
+- ✅ Runtime overrides
+- ✅ Priority resolution
+- ✅ Git committed
+
+**Tests:**
+- Unit test: configuration loading (10 tests)
+- Unit test: priority resolution (5 tests)
+- Unit test: hot reload (5 tests)
+
+---
+
+### 2.3 Execution Persistence & Audit (8h) - **CRITICAL**
+
+**Problem:** Brak historii wykonań - nie można zreprodukować błędów
+
+**Create:**
+```typescript
+// src/core/persistence/ExecutionStore.ts
+export interface ExecutionRecord {
+  id: string;
+  startTime: Date;
+  endTime?: Date;
+  duration?: number;
+  status: 'running' | 'completed' | 'failed' | 'cancelled';
+  
+  input: {
+    options: OrchestratorRunOptions;
+    files: string[];
+    config: Configuration;
+  };
+  
+  output?: OrchestratorResult;
+  
+  timeline: Array<{
+    timestamp: Date;
+    type: string;
+    data: any;
+  }>;
+  
+  error?: {
+    message: string;
+    stack: string;
+    recoverable: boolean;
+  };
+  
+  metadata: {
+    user?: string;
+    ci?: string;
+    commit?: string;
+    branch?: string;
+    environment: string;
+  };
+}
+
+export class ExecutionStore {
+  private store: Map<string, ExecutionRecord> = new Map();
+  private persistPath: string;
+  
+  async save(execution: ExecutionRecord): Promise<void> {
+    this.store.set(execution.id, execution);
+    
+    // Persist to disk
+    await fs.writeFile(
+      path.join(this.persistPath, `${execution.id}.json`),
+      JSON.stringify(execution, null, 2)
+    );
+  }
+  
+  async get(id: string): Promise<ExecutionRecord | null> {
+    return this.store.get(id) || null;
+  }
+  
+  async list(filters?: {
+    status?: string;
+    startDate?: Date;
+    endDate?: Date;
+  }): Promise<ExecutionRecord[]> {
+    let records = Array.from(this.store.values());
+    
+    if (filters) {
+      if (filters.status) {
+        records = records.filter(r => r.status === filters.status);
+      }
+      if (filters.startDate) {
+        records = records.filter(r => r.startTime >= filters.startDate!);
+      }
+    }
+    
+    return records.sort((a, b) => b.startTime.getTime() - a.startTime.getTime());
+  }
+  
+  async replay(id: string): Promise<OrchestratorResult> {
+    const record = await this.get(id);
+    if (!record) {
+      throw new Error(`Execution ${id} not found`);
+    }
+    
+    // Replay with same inputs
+    const orchestrator = new Orchestrator();
+    return orchestrator.run(record.input.options);
+  }
+}
+```
+
+**CLI Commands:**
+```bash
+cerber history                          # List executions
+cerber history --status=failed          # Filter by status
+cerber show <execution-id>              # Show details
+cerber replay <execution-id>            # Replay execution
+cerber diff <exec-1> <exec-2>           # Compare executions
+```
+
+**Deliverables:**
+- ✅ ExecutionStore
+- ✅ Persistence to disk (~/.cerber/history/)
+- ✅ CLI commands (history, show, replay, diff)
+- ✅ Git committed
+
+**Tests:**
+- Unit test: ExecutionStore (15 tests)
+- Integration test: persistence + replay
+- E2E test: CLI commands
+
+---
+
+### 2.4 Update cerber validate (6h)
 
 **Supports multiple input modes:**
 ```bash
@@ -2214,7 +3322,342 @@ rules:
 
 ---
 
-## 🎯 PHASE 3: GUARDIAN PRE-COMMIT (Dni 11-12) - 12h
+## 🎯 PHASE 3: OPERATIONS & LIFECYCLE (Dni 13-15) - 30h
+
+**Cel:** Production operations, adapter lifecycle, resource management
+
+### 3.1 Adapter Lifecycle Management (6h) - **CRITICAL**
+
+**Problem:** Adapters są fire-and-forget - nie można ich anulować ani monitorować
+
+**Create:**
+```typescript
+// src/core/lifecycle/AdapterLifecycle.ts
+export enum AdapterState {
+  UNINITIALIZED = 'uninitialized',
+  INITIALIZING = 'initializing',
+  READY = 'ready',
+  RUNNING = 'running',
+  COMPLETED = 'completed',
+  FAILED = 'failed',
+  CANCELLED = 'cancelled',
+  DISPOSED = 'disposed'
+}
+
+export interface AdapterLifecycle {
+  state: AdapterState;
+  adapter: Adapter;
+  execution?: {
+    startTime: Date;
+    endTime?: Date;
+    pid?: number;
+    cancelToken?: CancellationToken;
+  };
+  health: {
+    lastCheck: Date;
+    responsive: boolean;
+    errorCount: number;
+    successCount: number;
+  };
+}
+
+export class AdapterManager {
+  private lifecycles: Map<string, AdapterLifecycle> = new Map();
+  
+  async initialize(adapter: Adapter): Promise<void> {
+    const lifecycle = this.getOrCreate(adapter);
+    
+    lifecycle.state = AdapterState.INITIALIZING;
+    
+    try {
+      // Check if tool is installed
+      const installed = await adapter.isInstalled();
+      if (!installed) {
+        throw new Error(`${adapter.name} not installed`);
+      }
+      
+      // Get version
+      const version = await adapter.getVersion();
+      
+      lifecycle.state = AdapterState.READY;
+      lifecycle.health = {
+        lastCheck: new Date(),
+        responsive: true,
+        errorCount: 0,
+        successCount: 0
+      };
+    } catch (error) {
+      lifecycle.state = AdapterState.FAILED;
+      throw error;
+    }
+  }
+  
+  async run(adapter: Adapter, options: AdapterRunOptions): Promise<AdapterResult> {
+    const lifecycle = this.lifecycles.get(adapter.name);
+    if (!lifecycle || lifecycle.state !== AdapterState.READY) {
+      throw new Error(`Adapter ${adapter.name} not ready`);
+    }
+    
+    lifecycle.state = AdapterState.RUNNING;
+    lifecycle.execution = {
+      startTime: new Date(),
+      cancelToken: new CancellationToken()
+    };
+    
+    try {
+      const result = await adapter.run({
+        ...options,
+        cancelToken: lifecycle.execution.cancelToken
+      });
+      
+      lifecycle.state = AdapterState.COMPLETED;
+      lifecycle.execution.endTime = new Date();
+      lifecycle.health.successCount++;
+      lifecycle.health.lastCheck = new Date();
+      lifecycle.health.responsive = true;
+      
+      return result;
+    } catch (error) {
+      lifecycle.state = AdapterState.FAILED;
+      lifecycle.health.errorCount++;
+      lifecycle.health.responsive = false;
+      throw error;
+    }
+  }
+  
+  async cancel(adapterName: string): Promise<void> {
+    const lifecycle = this.lifecycles.get(adapterName);
+    if (!lifecycle || !lifecycle.execution) {
+      return;
+    }
+    
+    lifecycle.execution.cancelToken?.cancel();
+    lifecycle.state = AdapterState.CANCELLED;
+  }
+  
+  async dispose(adapterName: string): Promise<void> {
+    const lifecycle = this.lifecycles.get(adapterName);
+    if (!lifecycle) return;
+    
+    if (lifecycle.state === AdapterState.RUNNING) {
+      await this.cancel(adapterName);
+    }
+    
+    lifecycle.state = AdapterState.DISPOSED;
+    this.lifecycles.delete(adapterName);
+  }
+  
+  async healthCheck(adapterName: string): Promise<boolean> {
+    const lifecycle = this.lifecycles.get(adapterName);
+    if (!lifecycle) return false;
+    
+    try {
+      const installed = await lifecycle.adapter.isInstalled();
+      lifecycle.health.lastCheck = new Date();
+      lifecycle.health.responsive = installed;
+      return installed;
+    } catch (error) {
+      lifecycle.health.responsive = false;
+      return false;
+    }
+  }
+  
+  getState(adapterName: string): AdapterState | undefined {
+    return this.lifecycles.get(adapterName)?.state;
+  }
+  
+  getHealth(adapterName: string): AdapterLifecycle['health'] | undefined {
+    return this.lifecycles.get(adapterName)?.health;
+  }
+}
+```
+
+**Deliverables:**
+- ✅ AdapterState enum
+- ✅ AdapterLifecycle interface
+- ✅ AdapterManager with lifecycle methods
+- ✅ CancellationToken support
+- ✅ Health check per adapter
+- ✅ Git committed
+
+**Tests:**
+- Unit test: AdapterManager (20 tests)
+- Unit test: lifecycle state transitions
+- Integration test: cancel long-running adapter
+- Integration test: health checks
+
+---
+
+### 3.2 Resource Management (4h)
+
+**Problem:** Brak kontroli nad zasobami - memory leaks, process limits
+
+**Create:**
+```typescript
+// src/core/resources/ResourceManager.ts
+export interface ResourceLimits {
+  maxConcurrency: number;
+  maxMemoryMB: number;
+  maxExecutionTime: number;
+  maxFileSize: number;
+}
+
+export class ResourceManager {
+  private activeProcesses = 0;
+  private memoryUsage = 0;
+  
+  async acquire(limits: ResourceLimits): Promise<ResourceHandle> {
+    // Wait if at limit
+    while (this.activeProcesses >= limits.maxConcurrency) {
+      await this.sleep(100);
+    }
+    
+    // Check memory
+    const currentMemory = process.memoryUsage().heapUsed / 1024 / 1024;
+    if (currentMemory + this.memoryUsage > limits.maxMemoryMB) {
+      throw new OutOfMemoryError();
+    }
+    
+    this.activeProcesses++;
+    
+    return new ResourceHandle(() => {
+      this.activeProcesses--;
+    });
+  }
+}
+```
+
+**Deliverables:**
+- ✅ ResourceManager
+- ✅ ResourceLimits configuration
+- ✅ Process/memory tracking
+- ✅ Git committed
+
+**Tests:**
+- Unit test: ResourceManager (10 tests)
+- Integration test: concurrency limits
+
+---
+
+### 3.3 Caching Layer (4h)
+
+**Problem:** Każde wykonanie od zera - brak cache dla wyników
+
+**Create:**
+```typescript
+// src/core/cache/CacheManager.ts
+export class CacheManager {
+  private cache: Map<string, CacheEntry> = new Map();
+  
+  async get<T>(key: string): Promise<T | null> {
+    const entry = this.cache.get(key);
+    if (!entry) return null;
+    
+    if (this.isExpired(entry)) {
+      this.cache.delete(key);
+      return null;
+    }
+    
+    return entry.value as T;
+  }
+  
+  async set<T>(key: string, value: T, ttl: number): Promise<void> {
+    this.cache.set(key, {
+      value,
+      expiresAt: Date.now() + ttl
+    });
+  }
+  
+  generateKey(adapter: string, files: string[], config: any): string {
+    const hash = crypto.createHash('sha256');
+    hash.update(adapter);
+    hash.update(JSON.stringify(files));
+    hash.update(JSON.stringify(config));
+    return hash.digest('hex');
+  }
+}
+```
+
+**Deliverables:**
+- ✅ CacheManager
+- ✅ TTL support
+- ✅ Cache key generation
+- ✅ Git committed
+
+**Tests:**
+- Unit test: CacheManager (10 tests)
+
+---
+
+### 3.4 Dependency Resolution (4h)
+
+**Problem:** Brak zależności między adapterami
+
+**Create:**
+```typescript
+// src/core/dependencies/DependencyResolver.ts
+export class DependencyResolver {
+  resolve(adapters: Adapter[]): Adapter[][] {
+    // Topological sort based on dependencies
+    const graph = this.buildGraph(adapters);
+    return this.topologicalSort(graph);
+  }
+}
+```
+
+**Deliverables:**
+- ✅ DependencyResolver
+- ✅ Topological sort
+- ✅ Git committed
+
+**Tests:**
+- Unit test: DependencyResolver (10 tests)
+
+---
+
+### 3.5 Plugin System (6h)
+
+**Problem:** Brak extensibility - nie można dodać custom adapterów
+
+**Create:**
+```typescript
+// src/core/plugins/PluginManager.ts
+export interface Plugin {
+  name: string;
+  version: string;
+  adapters?: Adapter[];
+  hooks?: {
+    beforeRun?: () => Promise<void>;
+    afterRun?: (result: OrchestratorResult) => Promise<void>;
+  };
+}
+
+export class PluginManager {
+  private plugins: Map<string, Plugin> = new Map();
+  
+  register(plugin: Plugin): void {
+    this.plugins.set(plugin.name, plugin);
+  }
+  
+  async loadFromFile(path: string): Promise<void> {
+    const plugin = await import(path);
+    this.register(plugin.default);
+  }
+}
+```
+
+**Deliverables:**
+- ✅ PluginManager
+- ✅ Plugin interface
+- ✅ Hook system
+- ✅ Git committed
+
+**Tests:**
+- Unit test: PluginManager (10 tests)
+
+---
+
+## 🎯 PHASE 4: GUARDIAN PRE-COMMIT (Dni 16-17) - 12h
 
 **Cel:** Fast pre-commit with lint-staged
 
@@ -2600,30 +4043,53 @@ GitHub: github.com/Agaslez/cerber-core
 | Phase | Days | Hours | Deliverables |
 |-------|------|-------|--------------|
 | Phase 0: Foundation | 1-2 | 12h | AGENTS.md, schemas, docs, copilot instructions |
-| Phase 1: Core Infrastructure | 3-7 | 40h | Tool manager, targets, file discovery, adapters, reporting |
-| Phase 2: CLI & Modes | 8-10 | 18h | validate, guard, doctor, stdin/paths modes |
-| Phase 3: Guardian Pre-commit | 11-12 | 12h | lint-staged, fast mode, git hooks |
-| Phase 4: Polish & Release | 13-15 | 16h | Docs, tests, CHANGELOG, release |
-| Phase 5: Marketing & Launch | 16-17 | 12h | Demo video, posts, monitoring |
-| Phase 6: Universal Deployment | 18 | 12h | Docker image, GitHub Action, CI examples |
-| **TOTAL** | **18 days** | **122h** | **V2.0.0 Release** |
+| **Phase 1 Extended: Core + Reliability** | **3-12** | **90h** | **Tool manager, adapters, orchestrator + state machine + reliability patterns** |
+| Phase 1.1-1.4: Core | 3-6 | 40h | Tool manager, file discovery, adapters (actionlint, zizmor, ratchet) |
+| Phase 1.5-1.6: Orchestrator | 7-9 | 16h | Orchestrator engine, reporting & output formats |
+| Phase 1.7: State Machine | 10 | 8h | **ExecutionContext, state transitions, checkpoints** |
+| Phase 1.8: Reliability | 11-12 | 12h | **Circuit breaker, retry with backoff, timeout management** |
+| Phase 1.9: Reporting | - | 14h | (already in 1.6) |
+| **Phase 2 Extended: Observability & Ops** | **13-18** | **50h** | **Tracing, metrics, logging, config, persistence** |
+| Phase 2.1: Observability | 13-14 | 10h | **Distributed tracing, metrics collector, structured logging** |
+| Phase 2.2: Configuration | 15 | 6h | **Hot reload, runtime overrides, priority resolution** |
+| Phase 2.3: Persistence | 16-17 | 8h | **Execution history, audit trail, replay capability** |
+| Phase 2.4-2.6: CLI | 18 | 26h | cerber validate, cerber doctor, profile support |
+| **Phase 3 Extended: Operations** | **19-22** | **30h** | **Lifecycle, resources, cache, plugins** |
+| Phase 3.1: Adapter Lifecycle | 19 | 6h | **Lifecycle states, cancel, health checks** |
+| Phase 3.2: Resource Management | 20 | 4h | **Concurrency limits, memory tracking** |
+| Phase 3.3: Caching | 20 | 4h | **Result caching, TTL** |
+| Phase 3.4: Dependencies | 21 | 4h | **Dependency resolution, topological sort** |
+| Phase 3.5: Plugin System | 22 | 6h | **Plugin manager, custom adapters, hooks** |
+| Phase 3.6: Templates | 22 | 6h | Profile support in templates |
+| **Phase 4: Guardian** | **23-24** | **12h** | **Pre-commit with lint-staged** |
+| Phase 5: Polish & Release | 25-27 | 16h | Docs, tests, CHANGELOG, release |
+| Phase 6: Marketing & Launch | 28-29 | 12h | Demo video, posts, monitoring |
+| Phase 7: Universal Deployment | 30 | 12h | Docker image, GitHub Action, CI examples |
+| **TOTAL** | **30 days** | **234h** | **V2.0.0 Production-Ready Release** |
 
 **Critical Path:**
-- Days 1-7: Core infrastructure (52h) - BLOCKER for everything else
-- Days 8-12: CLI + Guardian (30h) - User-facing features
-- Days 13-18: Polish + Launch (40h) - Release readiness
+- Days 1-12: **Core + Reliability** (102h) - Foundation + enterprise patterns
+- Days 13-18: **Observability** (50h) - Production visibility
+- Days 19-24: **Operations** (42h) - Lifecycle + Guardian
+- Days 25-30: **Polish + Launch** (40h) - Release readiness
+
+**🚨 PRODUCTION-READY ADDITIONS:**
+- +72h for enterprise orchestration features
+- State machine (8h), Reliability (12h), Observability (10h)
+- Configuration (6h), Persistence (8h), Lifecycle (6h)
+- Resource management (4h), Caching (4h), Dependencies (4h), Plugins (6h)
 
 **Parallel Work Opportunities:**
 - Docs can be written while code is being implemented
 - Tests can be written in parallel with features
-- Marketing materials can be prepared during Phase 4
+- Marketing materials can be prepared during Phase 5
 
 ---
 
-## ✅ DEFINITION OF DONE (V2.0.0)
+## ✅ DEFINITION OF DONE (V2.0.0 - Production Ready)
 
-**Technical:**
-- [ ] All tests passing (120+ tests)
+**Technical - Core:**
+- [ ] All tests passing (200+ tests including reliability/observability)
 - [ ] 3 adapters working (actionlint, zizmor, ratchet)
 - [ ] Orchestrator validated on 10+ real workflows
 - [ ] Output schema documented + validated
@@ -2634,17 +4100,41 @@ GitHub: github.com/Agaslez/cerber-core
 - [ ] Zero TypeScript errors
 - [ ] Zero lint errors
 
+**Technical - Production Features:**
+- [ ] **Execution State Machine** - ExecutionContext with state tracking
+- [ ] **Reliability Patterns** - Circuit breaker + retry with exponential backoff + timeout management
+- [ ] **Observability Stack** - Distributed tracing + metrics + structured logging
+- [ ] **Configuration Management** - Hot reload + runtime overrides + priority resolution
+- [ ] **Execution Persistence** - History + audit trail + replay capability
+- [ ] **Adapter Lifecycle** - State management + cancellation + health checks
+- [ ] **Resource Management** - Concurrency limits + memory tracking
+- [ ] **Caching Layer** - Result caching with TTL
+- [ ] **Dependency Resolution** - Topological sort for adapter execution
+- [ ] **Plugin System** - Custom adapters + hooks
+
+**Technical - Operations:**
+- [ ] CLI commands: `cerber metrics`, `cerber traces`, `cerber history`, `cerber replay`
+- [ ] Health checks for all adapters
+- [ ] Graceful degradation on tool failures
+- [ ] No path traversal vulnerabilities (input sanitization)
+- [ ] Retry logic for transient failures
+- [ ] Circuit breaker prevents cascade failures
+- [ ] Execution history persisted to disk
+
 **Documentation:**
 - [ ] AGENTS.md exists
-- [ ] README.md updated (orchestrator section)
-- [ ] CERBER.md updated (profiles, schemas)
+- [ ] README.md updated (orchestrator section + reliability patterns)
+- [ ] CERBER.md updated (profiles, schemas, observability)
+- [ ] ORCHESTRATOR_ARCHITECTURE.md (implementation guide)
+- [ ] ORCHESTRATOR_GAPS_ANALYSIS.md (professional analysis)
 - [ ] MIGRATION.md exists (v1 → v2)
 - [ ] QUICKSTART.md updated
 - [ ] Demo video published
+- [ ] Architecture diagrams (state machine, circuit breaker, tracing)
 
 **Release:**
 - [ ] package.json → 2.0.0
-- [ ] CHANGELOG.md complete
+- [ ] CHANGELOG.md complete (including all enterprise features)
 - [ ] Git tag v2.0.0
 - [ ] NPM published
 - [ ] GitHub release
@@ -2655,6 +4145,15 @@ GitHub: github.com/Agaslez/cerber-core
 - [ ] Dev.to article
 - [ ] Twitter thread
 - [ ] LinkedIn post
+
+**Enterprise Readiness Criteria:**
+- [ ] Solo mode: Auto-recovery + simple monitoring
+- [ ] Dev mode: Debugging tools + telemetry opt-in
+- [ ] Team mode: Strict validation + required telemetry + audit trails
+- [ ] Black box → Full observability (no blind spots)
+- [ ] Fail fast → Resilient with retry + circuit breaker
+- [ ] Ephemeral → Persistent execution history
+- [ ] Static config → Hot reload configuration
 
 ---
 
