@@ -12,7 +12,8 @@
     "cerber-focus": "./bin/cerber-focus",
     "cerber-morning": "./bin/cerber-morning",
     "cerber-repair": "./bin/cerber-repair",
-    "cerber-validate": "./bin/cerber-validate"
+    "cerber-validate": "./bin/cerber-validate",
+    "cerber-init": "./bin/cerber-init"
   },
   "exports": {
     ".": "./dist/index.js",

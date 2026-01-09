@@ -244,13 +244,13 @@ jobs:
     });
   });
 
-  describe.skip('cerber init', () => {
+  describe('cerber init', () => {
     it('should create contract with nodejs template', () => {
       const projectDir = path.join(tempDir, 'nodejs-project');
       fs.mkdirSync(projectDir, { recursive: true });
 
-      execSync('node bin/cerber init --template nodejs', {
-        cwd: projectDir,
+      execSync(`node bin/cerber-init --template nodejs --dir ${projectDir}`, {
+        cwd: process.cwd(),
         encoding: 'utf-8'
       });
 
@@ -267,8 +267,8 @@ jobs:
       const projectDir = path.join(tempDir, 'docker-project');
       fs.mkdirSync(projectDir, { recursive: true });
 
-      execSync('node bin/cerber init --template docker', {
-        cwd: projectDir,
+      execSync(`node bin/cerber-init --template docker --dir ${projectDir}`, {
+        cwd: process.cwd(),
         encoding: 'utf-8'
       });
 
@@ -290,8 +290,8 @@ jobs:
       fs.writeFileSync(contractPath, 'existing: content');
 
       try {
-        execSync('node bin/cerber init --template nodejs', {
-          cwd: projectDir,
+        execSync(`node bin/cerber-init --template nodejs --dir ${projectDir}`, {
+          cwd: process.cwd(),
           encoding: 'utf-8'
         });
         throw new Error('Should have failed without --force');

@@ -1,3 +1,51 @@
+# CERBER — AGENT RULES (ONE TRUTH)
+
+## ONE TRUTH (cel nadrzędny)
+Cerber v2 to: SEMANTIC validator GitHub Actions + czytelna diagnostyka + deterministyczny output + testy.
+Nie robimy "ładniej" kosztem: stabilności, determinismu, kompatybilności, testów.
+
+## SCOPE NA TERAZ (żelazne)
+1) Priorytet: dokończyć `bin/cerber-validate` tak, żeby przechodziły testy (E2E + unit + templates + autofix).
+2) NIE refaktoruj RuleManager / SemanticComparator / typów "bo można".
+3) Nie ruszaj roadmapy funkcjonalnie, jeśli nie jest to potrzebne do przejścia testów.
+
+## ZASADA: TESTUJ KAŻDĄ ZMIANĘ (zero wyjątków)
+- Każda zmiana w CLI => E2E test + snapshot/fixture.
+- Każda zmiana w regułach => unit test.
+- Każda zmiana w autofix => snapshot patchy + rollback test.
+- Output JSON: zawsze deterministyczny (ten sam input = identyczny output).
+- Minimalny zestaw przed PR: `npm test` + `npm run typecheck` + uruchomienie CLI na fixtures.
+
+## BEZPIECZEŃSTWO I NIEZAWODNOŚĆ (must-have)
+- Nigdy nie czytaj plików "arbitrary path" bez normalizacji/limitów (path traversal).
+- Zawsze backup przed `--fix` + test rollback.
+- Exit codes zgodnie ze specyfikacją (0/1/2/3).
+- Nie zmieniaj public API/exportów bez testów kompatybilności.
+
+## DIAGNOSTYKA (must-have)
+Każde naruszenie musi zawierać:
+- severity (error/warn/info)
+- path (np. jobs.test.steps[2].env.API_KEY)
+- message (co nie tak)
+- hint/suggestion (jak naprawić)
+- location (plik + linia jeśli możliwe)
+- stable id (np. SEC001)
+
+## PR FLOW (bez gadania)
+1) Najpierw test/fixture opisujący problem.
+2) Dopiero implementacja.
+3) Snapshoty aktualizuj tylko, jeśli świadomie zmieniasz output.
+4) PR opisuje: "co zepsute / jak test łapie / co zmieniono / jak zweryfikowano".
+
+## RED FLAGS = STOP (odrzucić PR)
+- "Działa u mnie" bez testów
+- zmiana formatu outputu bez snapshotów i migracji
+- refaktor "dla czystości"
+- niestabilny/dynamiczny JSON (kolejność kluczy, losowe ID)
+- dotykanie 5+ plików bez potrzeby (scope creep)
+
+---
+
 ROADMAP CERBER-CORE v1.0 → v2.0 (15×5)
 **AKTUALIZACJA ROADMAP - Profesjonalna Transformacja**
 
