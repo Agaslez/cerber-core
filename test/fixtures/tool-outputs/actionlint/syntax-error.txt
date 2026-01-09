@@ -1,0 +1,4 @@
+.github/workflows/ci.yml:5:1: unexpected key "jobs" [syntax-check]
+  |
+5 | jobs:
+  | ^~~~~

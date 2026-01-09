@@ -1,0 +1,4 @@
+.github/workflows/test.yml:15:25: property "unknown" is not defined in object type {name: string; path: string} [expression]
+  |
+15 |     run: echo ${{ steps.unknown.outputs.value }}
+  |                         ^~~~~~~
