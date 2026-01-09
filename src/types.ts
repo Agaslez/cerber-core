@@ -92,3 +92,40 @@ export interface CerberResult {
 
 // Legacy compatibility
 export type CerberIssueInstance = CerberIssue;
+
+// ============================================
+// V2.0 TYPES - Orchestrator & Adapters
+// ============================================
+
+/**
+ * Violation - unified format from all tools
+ * @rule Per AGENTS.md §3 - Deterministic output (sorted)
+ */
+export interface Violation {
+  /** Stable rule ID (e.g., "security/no-hardcoded-secrets") */
+  id: string;
+  
+  /** Severity level */
+  severity: 'error' | 'warning' | 'info';
+  
+  /** Human-readable message */
+  message: string;
+  
+  /** Tool that generated violation (e.g., "actionlint", "zizmor") */
+  source: string;
+  
+  /** File path (relative to repo root) */
+  path?: string;
+  
+  /** Line number (1-indexed) */
+  line?: number;
+  
+  /** Column number (1-indexed) */
+  column?: number;
+  
+  /** Fix suggestion */
+  hint?: string;
+  
+  /** Original tool output (for debugging) */
+  toolOutput?: unknown;
+}
