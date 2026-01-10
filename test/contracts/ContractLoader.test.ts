@@ -39,7 +39,9 @@ contractVersion: 1
 name: test-contract
 version: 1.0.0
 rules:
-  security/no-hardcoded-secrets: error
+  security/no-hardcoded-secrets:
+    severity: error
+    gate: true
 `;
       writeFileSync(contractPath, contractContent);
 
@@ -49,7 +51,10 @@ rules:
       expect(contract.contractVersion).toBe(1);
       expect(contract.name).toBe('test-contract');
       expect(contract.version).toBe('1.0.0');
-      expect(contract.rules?.['security/no-hardcoded-secrets']).toBe('error');
+      expect(contract.rules?.['security/no-hardcoded-secrets']).toMatchObject({
+        severity: 'error',
+        gate: true,
+      });
     });
 
     it('loads valid JSON contract', async () => {
@@ -59,8 +64,11 @@ rules:
         name: 'test-contract',
         version: '1.0.0',
         rules: {
-          'security/no-hardcoded-secrets': 'error'
-        }
+          'security/no-hardcoded-secrets': {
+            severity: 'error',
+            gate: true,
+          },
+        },
       };
       writeFileSync(contractPath, JSON.stringify(contractContent, null, 2));
 
@@ -116,7 +124,8 @@ version: 1.0.0
 defaults:
   actionPinning: required
 rules:
-  security/no-hardcoded-secrets: error
+  security/no-hardcoded-secrets:
+    severity: error
 `;
       writeFileSync(basePath, baseContent);
 
@@ -128,7 +137,8 @@ name: child-contract
 version: 1.0.0
 extends: ./base.yml
 rules:
-  best-practices/cache-dependencies: warning
+  best-practices/cache-dependencies:
+    severity: warning
 `;
       writeFileSync(childPath, childContent);
 
@@ -137,8 +147,8 @@ rules:
 
       expect(resolved.name).toBe('child-contract');
       expect(resolved.defaults?.actionPinning).toBe('required'); // From base
-      expect(resolved.rules?.['security/no-hardcoded-secrets']).toBe('error'); // From base
-      expect(resolved.rules?.['best-practices/cache-dependencies']).toBe('warning'); // From child
+      expect(resolved.rules?.['security/no-hardcoded-secrets']).toMatchObject({ severity: 'error' }); // From base
+      expect(resolved.rules?.['best-practices/cache-dependencies']).toMatchObject({ severity: 'warning' }); // From child
     });
 
     it('resolves multi-level inheritance', async () => {
@@ -151,7 +161,8 @@ version: 1.0.0
 defaults:
   actionPinning: required
 rules:
-  security/no-hardcoded-secrets: error
+  security/no-hardcoded-secrets:
+    severity: error
 `;
       writeFileSync(grandparentPath, grandparentContent);
 
@@ -163,7 +174,8 @@ name: parent
 version: 1.0.0
 extends: ./grandparent.yml
 rules:
-  security/require-action-pinning: error
+  security/require-action-pinning:
+    severity: error
 `;
       writeFileSync(parentPath, parentContent);
 
@@ -175,7 +187,8 @@ name: child
 version: 1.0.0
 extends: ./parent.yml
 rules:
-  best-practices/cache-dependencies: warning
+  best-practices/cache-dependencies:
+    severity: warning
 `;
       writeFileSync(childPath, childContent);
 
@@ -184,9 +197,9 @@ rules:
 
       expect(resolved.name).toBe('child');
       expect(resolved.defaults?.actionPinning).toBe('required'); // From grandparent
-      expect(resolved.rules?.['security/no-hardcoded-secrets']).toBe('error'); // From grandparent
-      expect(resolved.rules?.['security/require-action-pinning']).toBe('error'); // From parent
-      expect(resolved.rules?.['best-practices/cache-dependencies']).toBe('warning'); // From child
+      expect(resolved.rules?.['security/no-hardcoded-secrets']).toMatchObject({ severity: 'error' }); // From grandparent
+      expect(resolved.rules?.['security/require-action-pinning']).toMatchObject({ severity: 'error' }); // From parent
+      expect(resolved.rules?.['best-practices/cache-dependencies']).toMatchObject({ severity: 'warning' }); // From child
     });
 
     it('allows child to override parent rules', async () => {
@@ -197,7 +210,8 @@ contractVersion: 1
 name: base
 version: 1.0.0
 rules:
-  security/no-hardcoded-secrets: warning
+  security/no-hardcoded-secrets:
+    severity: warning
 `;
       writeFileSync(basePath, baseContent);
 
@@ -209,14 +223,15 @@ name: child
 version: 1.0.0
 extends: ./base.yml
 rules:
-  security/no-hardcoded-secrets: error
+  security/no-hardcoded-secrets:
+    severity: error
 `;
       writeFileSync(childPath, childContent);
 
       const child = await validator.loadContract(childPath);
       const resolved = await validator.resolveContract(child, tmpDir);
 
-      expect(resolved.rules?.['security/no-hardcoded-secrets']).toBe('error'); // Child overrides
+      expect(resolved.rules?.['security/no-hardcoded-secrets']).toMatchObject({ severity: 'error' }); // Child overrides
     });
 
     it('handles built-in contract references', async () => {
@@ -228,7 +243,8 @@ name: child
 version: 1.0.0
 extends: '@cerber-core/contracts/nodejs-base'
 rules:
-  best-practices/cache-dependencies: warning
+  best-practices/cache-dependencies:
+    severity: warning
 `;
       writeFileSync(childPath, childContent);
 

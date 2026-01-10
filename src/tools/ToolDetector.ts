@@ -108,6 +108,7 @@ export class ToolDetector {
     }
 
     // Remove ANSI color codes
+    // eslint-disable-next-line no-control-regex
     const clean = output.replace(/\x1b\[[0-9;]*m/g, '');
 
     // Try different version patterns

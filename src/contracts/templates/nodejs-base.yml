@@ -29,13 +29,23 @@ defaults:
     minVersion: "18.0.0"
 
 rules:
-  security/no-hardcoded-secrets: error
-  security/require-action-pinning: error
-  security/limit-permissions: error
-  security/checkout-persist-credentials: warning
-  best-practices/cache-dependencies: warning
-  best-practices/setup-node-version: error
-  performance/avoid-unnecessary-checkout: warning
+  security/no-hardcoded-secrets:
+    severity: error
+    gate: true
+  security/require-action-pinning:
+    severity: error
+    gate: true
+  security/limit-permissions:
+    severity: error
+    gate: false
+  security/checkout-persist-credentials:
+    severity: warning
+  best-practices/cache-dependencies:
+    severity: warning
+  best-practices/setup-node-version:
+    severity: error
+  performance/avoid-unnecessary-checkout:
+    severity: warning
 
 requiredActions:
   - action: actions/checkout@v4

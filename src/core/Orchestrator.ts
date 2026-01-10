@@ -5,6 +5,7 @@
  * @rule Per AGENTS.md §6 - Graceful degradation
  */
 
+import crypto from 'crypto';
 import { ActionlintAdapter } from '../adapters/actionlint/ActionlintAdapter.js';
 import type { Adapter, AdapterResult } from '../adapters/types.js';
 import { ZizmorAdapter } from '../adapters/zizmor/ZizmorAdapter.js';
@@ -247,23 +248,35 @@ export class Orchestrator {
 
   /**
    * Get deduplication key for violation
+   * @rule 32-char hash reduces collision probability to negligible levels
    */
   private getDedupeKey(violation: Violation): string {
-    const crypto = require('crypto');
-    const messageHash = crypto
-      .createHash('sha256')
-      .update(violation.message)
-      .digest('hex')
-      .substring(0, 16);
+    try {
+      const messageHash = crypto
+        .createHash('sha256')
+        .update(violation.message)
+        .digest('hex')
+        .substring(0, 32); // 32 chars = 2^128 space
 
-    return [
-      violation.source,
-      violation.id,
-      violation.path || '',
-      violation.line || 0,
-      violation.column || 0,
-      messageHash,
-    ].join('|');
+      return [
+        violation.source,
+        violation.id,
+        violation.path || '',
+        violation.line || 0,
+        violation.column || 0,
+        messageHash,
+      ].join('|');
+    } catch (error) {
+      // Fallback: if hashing fails, use full message (rare edge case)
+      return [
+        violation.source,
+        violation.id,
+        violation.path || '',
+        violation.line || 0,
+        violation.column || 0,
+        violation.message.substring(0, 32),
+      ].join('|');
+    }
   }
 
   /**

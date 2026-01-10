@@ -33,17 +33,24 @@ defaults:
 # CORE VALIDATION RULES (built-in)
 rules:
   # Security (enforced)
-  security/no-hardcoded-secrets: error
-  security/require-action-pinning: error
-  security/limit-permissions: error
-  security/checkout-persist-credentials: warning
+  security/no-hardcoded-secrets:
+    severity: error
+  security/require-action-pinning:
+    severity: error
+  security/limit-permissions:
+    severity: error
+  security/checkout-persist-credentials:
+    severity: warning
   
   # Best practices (recommended)
-  best-practices/setup-node-version: error
-  best-practices/cache-dependencies: warning
+  best-practices/setup-node-version:
+    severity: error
+  best-practices/cache-dependencies:
+    severity: warning
   
   # Performance (optional)
-  performance/avoid-unnecessary-checkout: warning
+  performance/avoid-unnecessary-checkout:
+    severity: warning
 
 # REQUIRED WORKFLOW STRUCTURE
 requiredActions:

@@ -232,12 +232,16 @@ describe('Orchestrator', () => {
         cwd: process.cwd(),
       });
 
-      expect(result.metadata.tools['mock1']).toMatchObject({
+      // Schema V1: tools is an array
+      const mock1Tool = result.metadata.tools.find(t => t.name === 'mock1');
+      const mock2Tool = result.metadata.tools.find(t => t.name === 'mock2');
+      
+      expect(mock1Tool).toMatchObject({
         version: '1.0.0',
         exitCode: 0,
       });
 
-      expect(result.metadata.tools['mock2']).toMatchObject({
+      expect(mock2Tool).toMatchObject({
         version: '1.0.0',
         exitCode: 0,
       });
@@ -247,24 +251,30 @@ describe('Orchestrator', () => {
       const result = await orchestrator.run({
         files: ['test.yml'],
         cwd: process.cwd(),
+        tools: ['mock1', 'mock2'],  // Explicitly specify only mock adapters
       });
 
       expect(result.runMetadata).toBeDefined();
-      expect(result.runMetadata?.executionTime).toBeGreaterThan(0);
-      expect(result.runMetadata?.adaptersRun).toContain('mock1');
-      expect(result.runMetadata?.adaptersRun).toContain('mock2');
+      expect(result.runMetadata?.executionTime).toBeGreaterThanOrEqual(0);  // Can be 0 for fast execution
+      expect(result.runMetadata?.generatedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+      
+      // Verify tools were run
+      expect(result.metadata.tools).toHaveLength(2);
+      expect(result.metadata.tools.map(t => t.name)).toContain('mock1');
+      expect(result.metadata.tools.map(t => t.name)).toContain('mock2');
     });
 
     it('should run only specified adapters', async () => {
       const result = await orchestrator.run({
         files: ['test.yml'],
         cwd: process.cwd(),
-        adapters: ['mock1'],
+        tools: ['mock1'],  // Changed from 'adapters' to 'tools'
       });
 
       expect(result.violations).toHaveLength(1);
       expect(result.violations[0].source).toBe('mock1');
-      expect(Object.keys(result.metadata.tools)).toEqual(['mock1']);
+      expect(result.metadata.tools).toHaveLength(1);
+      expect(result.metadata.tools[0].name).toBe('mock1');
     });
 
     it('should handle empty adapter list gracefully', async () => {
@@ -274,12 +284,12 @@ describe('Orchestrator', () => {
       const result = await emptyOrchestrator.run({
         files: ['test.yml'],
         cwd: process.cwd(),
-        adapters: ['nonexistent'], // Request adapter that doesn't exist
+        tools: ['nonexistent'], // Request adapter that doesn't exist
       });
 
       expect(result.violations).toHaveLength(0);
       expect(result.summary.total).toBe(0);
-      expect(Object.keys(result.metadata.tools)).toHaveLength(0);
+      expect(result.metadata.tools).toHaveLength(0);
     });
   });
 
@@ -329,8 +339,9 @@ describe('Orchestrator', () => {
       expect(result.violations[0].source).toBe('working');
 
       // Should have error metadata for failing adapter
-      expect(result.metadata.tools['failing'].skipped).toBe(true);
-      expect(result.metadata.tools['failing'].reason).toContain('crashed');
+      const failingTool = result.metadata.tools.find(t => t.name === 'failing');
+      expect(failingTool?.skipped).toBe(true);
+      expect(failingTool?.reason).toContain('crashed');
     });
   });
 
@@ -357,8 +368,9 @@ describe('Orchestrator', () => {
         cwd: process.cwd(),
       });
 
-      expect(result.metadata.tools).toHaveProperty('mock1');
-      expect(result.metadata.tools).toHaveProperty('mock2');
+      const toolNames = result.metadata.tools.map(t => t.name);
+      expect(toolNames).toContain('mock1');
+      expect(toolNames).toContain('mock2');
     });
 
     it('should run sequentially when parallel=false', async () => {
@@ -368,8 +380,9 @@ describe('Orchestrator', () => {
         parallel: false,
       });
 
-      expect(result.metadata.tools).toHaveProperty('mock1');
-      expect(result.metadata.tools).toHaveProperty('mock2');
+      const toolNames = result.metadata.tools.map(t => t.name);
+      expect(toolNames).toContain('mock1');
+      expect(toolNames).toContain('mock2');
     });
   });
 
