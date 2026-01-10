@@ -13,11 +13,13 @@ import { ZizmorAdapter } from '../adapters/zizmor/ZizmorAdapter.js';
 import type { Violation } from '../types.js';
 import { createChildLogger, generateRequestId, logError } from './logger.js';
 import { metrics } from './metrics.js';
+import { sanitizePathArray, validateAdapterName, validateProfileName } from './security.js';
 import type {
     AdapterRegistryEntry,
     OrchestratorResult,
     OrchestratorRunOptions,
 } from './types.js';
+import { validateOrchestratorOptions } from './validation.js';
 
 /**
  * Orchestrator - coordinates multiple adapters
@@ -107,6 +109,34 @@ export class Orchestrator {
       runId,
       profile: options.profile 
     });
+    
+    // PRODUCTION HARDENING - P1: Input validation
+    try {
+      validateOrchestratorOptions(options);
+      
+      // Sanitize file paths
+      options.files = sanitizePathArray(options.files);
+      
+      // Validate profile name if provided
+      if (options.profile) {
+        validateProfileName(options.profile);
+      }
+      
+      // Validate adapter names if provided
+      if (options.tools) {
+        for (const tool of options.tools) {
+          validateAdapterName(tool);
+        }
+      }
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      log.error({ error: errorMsg }, 'Input validation failed');
+      metrics.orchestratorRuns.inc({ 
+        profile: options.profile || 'default',
+        status: 'error'
+      });
+      throw new Error(`Input validation failed: ${errorMsg}`);
+    }
     
     const startTime = Date.now();
     const timer = metrics.orchestratorDuration.startTimer({ 
