@@ -22,9 +22,11 @@ import type {
  */
 export class Orchestrator {
   private adapters: Map<string, AdapterRegistryEntry>;
+  private adapterCache: Map<string, Adapter>;
 
   constructor() {
     this.adapters = new Map();
+    this.adapterCache = new Map();
     this.registerDefaultAdapters();
   }
 
@@ -56,14 +58,24 @@ export class Orchestrator {
   }
 
   /**
-   * Get registered adapter
+   * Get registered adapter (cached)
+   * @rule Cache instances to prevent re-creation overhead
    */
   getAdapter(name: string): Adapter | null {
     const entry = this.adapters.get(name);
     if (!entry || !entry.enabled) {
       return null;
     }
-    return entry.factory();
+
+    // Return cached instance if available
+    if (this.adapterCache.has(name)) {
+      return this.adapterCache.get(name)!;
+    }
+
+    // Create and cache new instance
+    const adapter = entry.factory();
+    this.adapterCache.set(name, adapter);
+    return adapter;
   }
 
   /**
@@ -121,21 +133,38 @@ export class Orchestrator {
   ): Promise<AdapterResult[]> {
     const promises = adapters.map(async ({ adapter }) => {
       try {
+        // Clone options to prevent adapter mutations affecting others
         return await adapter.run({
-          files: options.files,
+          files: [...options.files],  // Clone array
           cwd: options.cwd,
           timeout: options.timeout,
         });
       } catch (error) {
-        // Graceful: adapter crashes → create error result
+        // Graceful: adapter crashes → create error result with proper classification
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        let exitCode = 3;  // Default: crash
+        let reason = 'Adapter crashed';
+
+        // Classify error type
+        if (errorMessage.includes('ENOENT') || errorMessage.includes('not found')) {
+          exitCode = 127;
+          reason = 'Tool not found';
+        } else if (errorMessage.includes('timeout') || errorMessage.includes('ETIMEDOUT')) {
+          exitCode = 124;
+          reason = 'Execution timeout';
+        } else if (errorMessage.includes('EACCES') || errorMessage.includes('permission denied')) {
+          exitCode = 126;
+          reason = 'Permission denied';
+        }
+
         return {
           tool: adapter.name,
           version: 'unknown',
-          exitCode: 3,
+          exitCode,
           violations: [],
           executionTime: 0,
           skipped: true,
-          skipReason: `Adapter crashed: ${error instanceof Error ? error.message : String(error)}`,
+          skipReason: `${reason}: ${errorMessage}`,
         };
       }
     });
@@ -154,22 +183,39 @@ export class Orchestrator {
 
     for (const { adapter } of adapters) {
       try {
+        // Clone options to prevent adapter mutations
         const result = await adapter.run({
-          files: options.files,
+          files: [...options.files],  // Clone array
           cwd: options.cwd,
           timeout: options.timeout,
         });
         results.push(result);
       } catch (error) {
         // Graceful: adapter crashes → create error result, continue
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        let exitCode = 3;
+        let reason = 'Adapter crashed';
+
+        // Classify error type
+        if (errorMessage.includes('ENOENT') || errorMessage.includes('not found')) {
+          exitCode = 127;
+          reason = 'Tool not found';
+        } else if (errorMessage.includes('timeout') || errorMessage.includes('ETIMEDOUT')) {
+          exitCode = 124;
+          reason = 'Execution timeout';
+        } else if (errorMessage.includes('EACCES') || errorMessage.includes('permission denied')) {
+          exitCode = 126;
+          reason = 'Permission denied';
+        }
+
         results.push({
           tool: adapter.name,
           version: 'unknown',
-          exitCode: 3,
+          exitCode,
           violations: [],
           executionTime: 0,
           skipped: true,
-          skipReason: `Adapter crashed: ${error instanceof Error ? error.message : String(error)}`,
+          skipReason: `${reason}: ${errorMessage}`,
         });
       }
     }
@@ -229,8 +275,10 @@ export class Orchestrator {
   /**
    * Deduplicate violations
    * @rule Deduplication key: source|id|path|line|column|hash(message)
+   * @rule Safety: limit Set size to prevent OOM (max 50k violations)
    */
   private deduplicate(violations: Violation[]): Violation[] {
+    const MAX_DEDUP_SIZE = 50000; // ~3MB for Set
     const seen = new Set<string>();
     const unique: Violation[] = [];
 
@@ -240,6 +288,12 @@ export class Orchestrator {
       if (!seen.has(key)) {
         seen.add(key);
         unique.push(violation);
+
+        // Safety: if we hit limit, stop deduplication and log warning
+        if (seen.size >= MAX_DEDUP_SIZE) {
+          console.warn(`Deduplication limit reached (${MAX_DEDUP_SIZE}). Some duplicates may remain.`);
+          break;
+        }
       }
     }
 

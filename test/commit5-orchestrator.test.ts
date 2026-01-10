@@ -51,7 +51,7 @@ describe('COMMIT 5: Orchestrator Core', () => {
         name: 'test-adapter',
         displayName: 'Test Adapter',
         enabled: true,
-        factory: () => mockAdapter,
+        factory: () => mockAdapter as any,
       });
 
       const result = await orchestrator.run({
@@ -103,7 +103,7 @@ describe('COMMIT 5: Orchestrator Core', () => {
         name: 'test-adapter',
         displayName: 'Test Adapter',
         enabled: true,
-        factory: () => mockAdapter,
+        factory: () => mockAdapter as any,
       });
 
       const result = await orchestrator.run({
@@ -147,7 +147,7 @@ describe('COMMIT 5: Orchestrator Core', () => {
         name: 'test-adapter',
         displayName: 'Test Adapter',
         enabled: true,
-        factory: () => mockAdapter,
+        factory: () => mockAdapter as any,
       });
 
       const result = await orchestrator.run({
@@ -248,7 +248,7 @@ describe('COMMIT 5: Orchestrator Core', () => {
         name: 'test-adapter',
         displayName: 'Test Adapter',
         enabled: true,
-        factory: () => mockAdapter,
+        factory: () => mockAdapter as any,
       });
 
       const result = await orchestrator.run({
@@ -349,7 +349,7 @@ describe('COMMIT 5: Orchestrator Core', () => {
         name: 'test-adapter',
         displayName: 'Test Adapter',
         enabled: true,
-        factory: () => mockAdapter,
+        factory: () => mockAdapter as any,
       });
 
       const result = await orchestrator.run({

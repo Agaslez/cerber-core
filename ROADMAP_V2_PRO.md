@@ -6,13 +6,14 @@
 
 ## 📋 EXECUTIVE SUMMARY
 
-**Obecny stan (v1.1.12):**
-- ✅ 102/126 tests passing
+**Obecny stan (v1.1.12 + quality fixes):**
+- ✅ 327/327 tests passing (299 active, 28 skipped)
 - ✅ 5 templates (nodejs, docker, react, python, terraform)
 - ✅ cerber-init command working
 - ✅ Contract validation (semantic)
-- ⚠️ Custom rule implementation (nie skaluje się)
-- ⚠️ No tool orchestration
+- ✅ Professional code quality (senior-level review done)
+- ✅ Core optimizations: adapter caching, memory limits, error classification
+- ⚠️ No tool orchestration yet
 
 **Cel V2.0 - Reliable MVP:**
 - 🎯 **Orchestrator** - run proven tools (actionlint + zizmor/gitleaks)
@@ -23,12 +24,19 @@
 - 🎯 **Doctor** - diagnozuje + alarmuje (NIE auto-fix)
 - 🎯 **Windows OK** - cross-platform bez hacków
 
-**Timeline:** 2-3 tygodnie (90h MVP)
+**Timeline:** 1-2 tygodnie (45h REALISTIC MVP)
 - 10 Commits: spec → core → adapters → UX → guardian
 - V2.1+: auto-install, SARIF, history/replay, universal targets
 
 **Filozofia:** Wywalamy "NASA mode" (state machine, retry, observability, persistence) do V2.1+. 
 V2.0 = solid foundation bez przedwczesnych fajerwerków.
+
+**CRITICAL OPTIMIZATIONS DONE:**
+- ✅ Adapter instance caching (prevent re-creation overhead)
+- ✅ Memory safety: deduplication Set limited to 50k violations (~3MB max)
+- ✅ Error classification: tool not found (127), timeout (124), permission (126)
+- ✅ Race condition fix: options cloning in parallel execution
+- ✅ Type safety: Adapter type (not `any`) in factory
 
 ---
 

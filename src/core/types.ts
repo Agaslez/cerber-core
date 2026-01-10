@@ -3,6 +3,7 @@
  * @rule Per AGENTS.md §0 - ONE TRUTH: Orchestrator coordinates adapters
  */
 
+import type { Adapter } from '../adapters/types.js';
 import type { Violation } from '../types.js';
 
 /**
@@ -81,5 +82,5 @@ export interface AdapterRegistryEntry {
   name: string;
   displayName: string;
   enabled: boolean;
-  factory: () => any; // Returns Adapter instance
+  factory: () => Adapter; // Type-safe factory (Adapter imported at top)
 }
