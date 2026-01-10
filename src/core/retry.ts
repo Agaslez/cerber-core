@@ -16,6 +16,7 @@
  * - Improves success rate without manual intervention
  */
 
+import { ErrorClassifier } from './error-classifier.js';
 import { createLogger } from './logger.js';
 
 const log = createLogger({ name: 'retry' });
@@ -53,33 +54,12 @@ export interface RetryStats {
 }
 
 /**
- * Default retryable error patterns
- */
-const DEFAULT_RETRYABLE_ERRORS = [
-  'ETIMEDOUT',
-  'ECONNRESET',
-  'ECONNREFUSED',
-  'ENOTFOUND',
-  'ENETUNREACH',
-  'EAI_AGAIN',
-  'Rate limit',
-  'Too many requests',
-  'Service unavailable',
-  'Gateway timeout'
-];
-
-/**
  * Check if error is retryable by default
+ * 
+ * Uses ErrorClassifier as single source of truth for retryability
  */
 export function isRetryableError(error: unknown): boolean {
-  if (!error) return false;
-  
-  const errorStr = error instanceof Error ? error.message : String(error);
-  const errorCode = (error as any)?.code;
-  
-  return DEFAULT_RETRYABLE_ERRORS.some(pattern => {
-    return errorStr.includes(pattern) || errorCode === pattern;
-  });
+  return ErrorClassifier.isRetryable(error);
 }
 
 /**
