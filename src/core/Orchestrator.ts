@@ -83,10 +83,10 @@ export class Orchestrator {
   async run(options: OrchestratorRunOptions): Promise<OrchestratorResult> {
     const startTime = Date.now();
 
-    // Determine which adapters to run
+    // Determine which adapters to run (support both 'tools' and 'adapters')
     const adapterNames =
-      options.adapters && options.adapters.length > 0
-        ? options.adapters
+      options.tools && options.tools.length > 0
+        ? options.tools
         : this.listAdapters();
 
     // Get adapter instances
@@ -98,7 +98,7 @@ export class Orchestrator {
     }>;
 
     if (adapters.length === 0) {
-      return this.createEmptyResult(startTime);
+      return this.createEmptyResult(startTime, options.profile);
     }
 
     // Run adapters (parallel or sequential)
@@ -107,7 +107,7 @@ export class Orchestrator {
       : await this.runSequential(adapters, options);
 
     // Merge results
-    return this.mergeResults(results, adapters.map((a) => a.name), startTime);
+    return this.mergeResults(results, adapters.map((a) => a.name), startTime, options.profile);
   }
 
   /**
@@ -183,7 +183,8 @@ export class Orchestrator {
   private mergeResults(
     results: AdapterResult[],
     adapterNames: string[],
-    startTime: number
+    startTime: number,
+    profile?: string
   ): OrchestratorResult {
     // Collect all violations
     const allViolations: Violation[] = [];
@@ -191,53 +192,93 @@ export class Orchestrator {
       allViolations.push(...result.violations);
     }
 
+    // Deduplicate violations
+    const uniqueViolations = this.deduplicate(allViolations);
+
     // Sort violations deterministically
-    const sortedViolations = this.sortViolations(allViolations);
+    const sortedViolations = this.sortViolations(uniqueViolations);
 
-    // Build metadata (sorted by tool name for determinism)
-    const metadata: OrchestratorResult['metadata'] = {
-      tools: {},
-    };
-
-    for (const result of results) {
-      metadata.tools[result.tool] = {
-        version: result.version,
-        exitCode: result.exitCode,
-        skipped: result.skipped,
-        reason: result.skipReason,
-      };
-    }
-
-    // Sort metadata keys
-    const sortedMetadata = Object.keys(metadata.tools)
-      .sort()
-      .reduce((acc, key) => {
-        acc[key] = metadata.tools[key];
-        return acc;
-      }, {} as typeof metadata.tools);
+    // Build metadata (array format per new schema)
+    const tools = results.map(result => ({
+      name: result.tool,
+      version: result.version,
+      exitCode: result.exitCode,
+      skipped: result.skipped,
+      reason: result.skipReason,
+    }));
 
     // Calculate summary
     const summary = this.calculateSummary(sortedViolations);
 
     return {
+      schemaVersion: 1,
       contractVersion: 1,
       deterministic: true,
       summary,
       violations: sortedViolations,
-      metadata: { tools: sortedMetadata },
+      metadata: { tools },
       runMetadata: {
+        generatedAt: new Date().toISOString(),
         executionTime: Date.now() - startTime,
-        adaptersRun: adapterNames,
+        profile,
       },
     };
   }
 
   /**
+   * Deduplicate violations
+   * @rule Deduplication key: source|id|path|line|column|hash(message)
+   */
+  private deduplicate(violations: Violation[]): Violation[] {
+    const seen = new Set<string>();
+    const unique: Violation[] = [];
+
+    for (const violation of violations) {
+      const key = this.getDedupeKey(violation);
+      
+      if (!seen.has(key)) {
+        seen.add(key);
+        unique.push(violation);
+      }
+    }
+
+    return unique;
+  }
+
+  /**
+   * Get deduplication key for violation
+   */
+  private getDedupeKey(violation: Violation): string {
+    const crypto = require('crypto');
+    const messageHash = crypto
+      .createHash('sha256')
+      .update(violation.message)
+      .digest('hex')
+      .substring(0, 16);
+
+    return [
+      violation.source,
+      violation.id,
+      violation.path || '',
+      violation.line || 0,
+      violation.column || 0,
+      messageHash,
+    ].join('|');
+  }
+
+  /**
    * Sort violations deterministically
-   * @rule Per AGENTS.md §3 - path → line → column → id → source
+   * @rule Per AGENTS.md §3 - severity → path → line → column → id → source
    */
   private sortViolations(violations: Violation[]): Violation[] {
+    const severityOrder = { error: 0, warning: 1, info: 2 };
+
     return [...violations].sort((a, b) => {
+      // Sort by severity first
+      if (a.severity !== b.severity) {
+        return severityOrder[a.severity] - severityOrder[b.severity];
+      }
+
       // Sort by path
       if (a.path && b.path && a.path !== b.path) {
         return a.path.localeCompare(b.path);
@@ -302,16 +343,18 @@ export class Orchestrator {
   /**
    * Create empty result (no adapters to run)
    */
-  private createEmptyResult(startTime: number): OrchestratorResult {
+  private createEmptyResult(startTime: number, profile?: string): OrchestratorResult {
     return {
+      schemaVersion: 1,
       contractVersion: 1,
       deterministic: true,
       summary: { total: 0, errors: 0, warnings: 0, info: 0 },
       violations: [],
-      metadata: { tools: {} },
+      metadata: { tools: [] },
       runMetadata: {
+        generatedAt: new Date().toISOString(),
         executionTime: Date.now() - startTime,
-        adaptersRun: [],
+        profile,
       },
     };
   }

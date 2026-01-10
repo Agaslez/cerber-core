@@ -15,8 +15,11 @@ export interface OrchestratorRunOptions {
   /** Working directory (repo root) */
   cwd: string;
   
-  /** Adapters to run (e.g., ['actionlint', 'zizmor']) */
-  adapters?: string[];
+  /** Tools to run (e.g., ['actionlint', 'zizmor']) */
+  tools?: string[];
+  
+  /** Profile name (for metadata) */
+  profile?: string;
   
   /** Run adapters in parallel (default: true) */
   parallel?: boolean;
