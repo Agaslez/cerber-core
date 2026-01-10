@@ -6,14 +6,13 @@
 
 ## 📋 EXECUTIVE SUMMARY
 
-**Obecny stan (v1.1.12 + quality fixes):**
-- ✅ 327/327 tests passing (299 active, 28 skipped)
-- ✅ 5 templates (nodejs, docker, react, python, terraform)
-- ✅ cerber-init command working
-- ✅ Contract validation (semantic)
-- ✅ Professional code quality (senior-level review done)
-- ✅ Core optimizations: adapter caching, memory limits, error classification
-- ⚠️ No tool orchestration yet
+**Obecny stan (v1.1.12 + P0+P1+P2):**
+- ✅ 327+ tests passing (P0: 24, P1: 84, P2: 71, Core: 299)
+- ✅ P0 Observability: pino + prom-client (10/10)
+- ✅ P1 Security: Zod validation + sanitization (9/10)
+- ✅ P2 Resilience: circuit breaker + retry + timeout (8.5/10 functional)
+- ⚠️ **P2 Architectural Debt:** 6.5/10 - SOLID violations, tight coupling
+- ⚠️ **REFACTORING REQUIRED:** 10 issues, 28-44h work, detailed plan below
 
 **Cel V2.0 - Reliable MVP:**
 - 🎯 **Orchestrator** - run proven tools (actionlint + zizmor/gitleaks)
@@ -42,20 +41,484 @@ V2.0 = solid foundation bez przedwczesnych fajerwerków.
 
 ## 🔴 CRITICAL PRODUCTION AUDIT - JANUARY 2026
 
-**System Rating: 4/10** (Senior Dev Assessment)
+**System Rating Evolution:**
+- Initial: 4/10 → P0: 6/10 → P1: 7.5/10 → P2 (functional): 8.5/10 → **P2 (architectural): 6.5/10**
 
-Przeprowadzono dogłębny audyt architektury pod kątem wymagań produkcyjnych.
-Znaleziono **12 KRYTYCZNYCH problemów** blokujących deployment do produkcji.
+**Status po P0+P1+P2 (Styczeń 2026):**
+- ✅ **P0 Observability:** 10/10 - pino + prom-client, 24 tests, docs
+- ✅ **P1 Security:** 9/10 - Zod validation, sanitization, Windows path fix
+- ⚠️ **P2 Resilience:** 8.5/10 functional, **6.5/10 architectural** (71 tests, BUT architectural debt)
 
-### Kategorie problemów:
-- ❌ **Observability:** 0/10 - zero visibility
-- ❌ **Resilience:** 2/10 - brak circuit breaker, retry, rate limiting  
-- ❌ **Security:** 3/10 - brak input validation, injection risk
-- ❌ **Performance:** 4/10 - sync I/O, memory leaks, unlimited parallelism
-- ❌ **Testability:** 5/10 - brak stress tests, edge cases
-- ✅ **Functionality:** 9/10 - core logic działa dobrze
+**Senior Code Review Findings (10 KRYTYCZNYCH problemów):**
+1. ❌ **God Class** - resilience.ts robi 5 rzeczy (SRP violation)
+2. ❌ **Code Duplication** - error classification w 2 miejscach (DRY violation)
+3. ❌ **Tight Coupling** - Orchestrator → resilience direct import (DIP violation)
+4. ❌ **Missing Integration Tests** - tylko unit tests, brak Layer 3/4
+5. ⚠️ **CircuitBreaker SRP** - 15 private fields (statistics + state + window)
+6. ⚠️ **Missing Adapter Pattern** - convertToLegacyResults as plain function
+7. ⚠️ **No Strategy Pattern** - retry hardcoded (exponential only)
+8. ℹ️ **No Factory Pattern** - manual component creation
+9. ℹ️ **Memory Leak Risk** - CircuitBreakerRegistry never cleans up
+10. ℹ️ **Missing ADR docs** - architectural decisions undocumented
 
-**Szczegółowy plan naprawy:** Zobacz sekcję "PRODUCTION HARDENING PLAN" poniżej.
+**Kategorie:**
+- ✅ **Functionality:** 9/10 - wszystko działa
+- ⚠️ **Architecture:** 6.5/10 - SOLID violations, tight coupling
+- ⚠️ **Testability:** 7/10 - unit tests OK, brak integration/E2E
+- ✅ **Observability:** 10/10 - comprehensive logging + metrics
+- ✅ **Security:** 9/10 - validation + sanitization
+
+**REFACTORING REQUIRED:** 28-44h do osiągnięcia 9/10 architectural rating
+
+---
+
+## 🔧 P2 ARCHITECTURAL REFACTORING PLAN
+
+**Cel:** Architectural rating 6.5/10 → 9/10 (SOLID + test layers)
+**Zasada:** **NIGDY NA SKRÓTY** - każdy punkt z Definition of Done
+**Status:** Ready for execution (punkt po punkcie)
+
+### ✅ REFACTOR-1: Extract ErrorClassifier (CRITICAL)
+
+**Problem:** Error classification duplicated in 2 places (resilience.ts:184-200 + Orchestrator.ts:237-249)
+**Impact:** DRY violation, risk of inconsistency
+**Effort:** 1-2 hours
+
+**Definition of Done:**
+- [ ] Create src/core/error-classifier.ts with ErrorClassifier class
+- [ ] Move error classification logic from resilience.ts:184-200 to ErrorClassifier.classify()
+- [ ] Remove duplicate logic from Orchestrator.ts:237-249
+- [ ] Update Orchestrator.ts to use ErrorClassifier
+- [ ] Update resilience.ts to use ErrorClassifier
+- [ ] Add test/core/error-classifier.test.ts with 15+ test cases:
+  - [ ] ENOENT → "Tool not found" (exitCode 127)
+  - [ ] EACCES → "Permission denied" (exitCode 126)
+  - [ ] ETIMEDOUT → "Execution timeout" (exitCode 124)
+  - [ ] Validation errors → "Invalid input" (exitCode 1)
+  - [ ] Unknown errors → "Unknown error" (exitCode 1)
+  - [ ] Edge cases: null, undefined, empty message
+- [ ] All existing tests pass (327+ tests)
+- [ ] No regressions in Orchestrator tests (20/20)
+- [ ] No regressions in resilience tests (12/14)
+- [ ] grep_search confirms no duplicate logic remains
+- [ ] Code review: Single source of truth verified
+- [ ] Git commit: "refactor(error): Extract ErrorClassifier (eliminate duplication)"
+
+**Success Criteria:**
+- ✅ Zero code duplication
+- ✅ 15+ new tests passing
+- ✅ All existing tests passing
+- ✅ Clear separation of concerns
+
+---
+
+### ✅ REFACTOR-2: Decompose resilience.ts God Class (CRITICAL)
+
+**Problem:** resilience.ts does 5 things: execution, error handling, conversion, stats, coordination
+**Impact:** SRP violation, hard to test, high coupling
+**Effort:** 4-6 hours
+
+**Definition of Done:**
+- [ ] Create src/core/resilience/adapter-executor.ts
+  - [ ] AdapterExecutor class with execute(adapter, options) method
+  - [ ] Handles timeout wrapping only
+  - [ ] Returns ResilientAdapterResult
+- [ ] Create src/core/resilience/result-converter.ts
+  - [ ] ResultConverter class (Adapter Pattern)
+  - [ ] adapt(resilient: ResilientAdapterResult): AdapterResult method
+  - [ ] Handles format conversion
+- [ ] Create src/core/resilience/stats-computer.ts
+  - [ ] StatsComputer class
+  - [ ] compute(results: ResilientAdapterResult[]): PartialSuccessStats
+  - [ ] Pure function, no side effects
+- [ ] Create src/core/resilience/resilience-coordinator.ts
+  - [ ] ResilienceCoordinator class (composition)
+  - [ ] Uses: CircuitBreaker + retry() + AdapterExecutor + ErrorClassifier
+  - [ ] executeResilient(adapter, options) method
+  - [ ] executeResilientParallel(adapters, options) method
+- [ ] Refactor src/core/resilience.ts to use composition:
+  - [ ] Import and compose components
+  - [ ] executeResilientAdapter() delegates to ResilienceCoordinator
+  - [ ] convertToLegacyResults() delegates to ResultConverter
+  - [ ] computePartialSuccessStats() delegates to StatsComputer
+- [ ] Create test/core/resilience/adapter-executor.test.ts (8+ tests)
+- [ ] Create test/core/resilience/result-converter.test.ts (6+ tests)
+- [ ] Create test/core/resilience/stats-computer.test.ts (5+ tests)
+- [ ] Create test/core/resilience/resilience-coordinator.test.ts (12+ tests)
+- [ ] Update test/core/resilience.test.ts to test integration only
+- [ ] All existing tests pass (327+ tests)
+- [ ] grep_search "class.*{" in resilience/ confirms each class has one responsibility
+- [ ] Code review: Verify SRP compliance for each class
+- [ ] Git commit: "refactor(resilience): Decompose God class into composition"
+
+**Success Criteria:**
+- ✅ Each class has ONE responsibility
+- ✅ 31+ new tests passing (8+6+5+12)
+- ✅ All existing tests passing
+- ✅ Clear component boundaries
+
+---
+
+### ✅ REFACTOR-3: Add AdapterExecutionStrategy (CRITICAL)
+
+**Problem:** Orchestrator tightly coupled to resilience.ts via direct import
+**Impact:** DIP violation, cannot swap strategies, no abstraction
+**Effort:** 3-4 hours
+
+**Definition of Done:**
+- [ ] Create src/core/strategies/adapter-execution-strategy.ts
+  - [ ] AdapterExecutionStrategy interface
+  - [ ] executeParallel(adapters, options): Promise<AdapterResult[]>
+  - [ ] executeSequential(adapters, options): Promise<AdapterResult[]>
+- [ ] Create src/core/strategies/legacy-execution-strategy.ts
+  - [ ] LegacyExecutionStrategy implements AdapterExecutionStrategy
+  - [ ] Uses original Orchestrator logic (no resilience)
+  - [ ] Handles errors as before
+- [ ] Create src/core/strategies/resilient-execution-strategy.ts
+  - [ ] ResilientExecutionStrategy implements AdapterExecutionStrategy
+  - [ ] Uses ResilienceCoordinator from REFACTOR-2
+  - [ ] Handles partial success
+- [ ] Update src/core/Orchestrator.ts:
+  - [ ] Remove direct import of resilience.ts
+  - [ ] Add private strategy: AdapterExecutionStrategy field
+  - [ ] Constructor accepts strategy (DI)
+  - [ ] Default: LegacyExecutionStrategy (backward compatible)
+  - [ ] runParallel() delegates to strategy.executeParallel()
+  - [ ] runSequential() delegates to strategy.executeSequential()
+  - [ ] Remove conditional `if (options.resilience)` logic
+- [ ] Create test/core/strategies/legacy-execution-strategy.test.ts (10+ tests)
+- [ ] Create test/core/strategies/resilient-execution-strategy.test.ts (12+ tests)
+- [ ] Update test/core/Orchestrator.test.ts:
+  - [ ] Test with LegacyExecutionStrategy (default)
+  - [ ] Test with ResilientExecutionStrategy (opt-in)
+  - [ ] Verify DI works correctly
+- [ ] All existing tests pass (327+ tests)
+- [ ] No regressions in Orchestrator tests (20/20)
+- [ ] grep_search "import.*resilience" confirms Orchestrator no longer imports resilience
+- [ ] Code review: Verify DIP compliance (high-level → abstraction ← low-level)
+- [ ] Git commit: "refactor(orchestrator): Add AdapterExecutionStrategy (eliminate coupling)"
+
+**Success Criteria:**
+- ✅ Dependency Inversion Principle satisfied
+- ✅ 22+ new tests passing (10+12)
+- ✅ All existing tests passing
+- ✅ Strategy swappable via DI
+
+---
+
+### ✅ REFACTOR-4: Add Integration Tests (CRITICAL)
+
+**Problem:** Only unit tests exist, no Layer 3 (integration) or Layer 4 (E2E)
+**Impact:** Cannot verify component interaction, metrics, logs
+**Effort:** 6-8 hours
+
+**Definition of Done:**
+- [ ] Create test/integration/ directory
+- [ ] Create test/integration/resilience-integration.test.ts:
+  - [ ] Setup: Real CircuitBreaker + real retry + real timeout + real Orchestrator
+  - [ ] Test: Circuit breaker opens after N failures
+    - [ ] Verify 6th call is instant rejection (no delay)
+    - [ ] Verify metrics: circuit_breaker_state=open
+    - [ ] Verify logs contain "Circuit breaker opened"
+  - [ ] Test: Retry waits exponentially
+    - [ ] Track timestamps between attempts
+    - [ ] Verify delay increases: attempt1→2: ~100ms, attempt2→3: ~200ms
+    - [ ] Verify metrics: adapter_retry_count
+  - [ ] Test: Timeout enforced
+    - [ ] Adapter sleeps 5s, timeout=1s
+    - [ ] Verify execution aborted at ~1s
+    - [ ] Verify error: "Execution timeout"
+  - [ ] Test: Partial success (A fails, B+C succeed)
+    - [ ] 3 real adapters (mock implementations)
+    - [ ] Adapter A throws, B+C return violations
+    - [ ] Verify metadata: successfulAdapters=2, failedAdapters=1
+    - [ ] Verify results contain violations from B+C only
+  - [ ] Test: Circuit breaker half-open recovery
+    - [ ] Open circuit, wait for timeout
+    - [ ] Send probe request (success)
+    - [ ] Verify circuit closes
+    - [ ] Verify metrics: circuit_breaker_state=closed
+  - [ ] Test: Metrics recorded correctly
+    - [ ] Execute resilient adapter
+    - [ ] Verify prom-client metrics exist:
+      - [ ] adapter_execution_duration_seconds
+      - [ ] circuit_breaker_state
+      - [ ] adapter_retry_count
+  - [ ] Test: Logs written correctly
+    - [ ] Execute resilient adapter
+    - [ ] Verify pino logs contain:
+      - [ ] "Executing adapter with resilience"
+      - [ ] "Circuit breaker state: CLOSED"
+      - [ ] "Retry attempt X/Y"
+- [ ] Create test/integration/orchestrator-integration.test.ts:
+  - [ ] Test: Full workflow with 3 adapters
+  - [ ] Test: Adapter timeout doesn't block others
+  - [ ] Test: Partial success logged correctly
+- [ ] Minimum 20+ integration tests total
+- [ ] All integration tests pass
+- [ ] All existing tests pass (327+ tests)
+- [ ] Test coverage report shows integration coverage
+- [ ] Code review: Verify tests use real components (no mocks with `as any`)
+- [ ] Git commit: "test(integration): Add Layer 3 integration tests"
+
+**Success Criteria:**
+- ✅ 20+ integration tests passing
+- ✅ Component interaction verified
+- ✅ Metrics verification included
+- ✅ Logs verification included
+- ✅ No `as any` type casts
+
+---
+
+### ✅ REFACTOR-5: Refactor CircuitBreaker (MEDIUM)
+
+**Problem:** CircuitBreaker has 15 private fields (state + stats + window management)
+**Impact:** SRP violation, complex to test
+**Effort:** 2-3 hours
+
+**Definition of Done:**
+- [ ] Create src/core/resilience/circuit-breaker-stats.ts
+  - [ ] CircuitBreakerStats class
+  - [ ] Fields: totalCalls, totalFailures, totalSuccesses, failures, successes, consecutiveSuccesses
+  - [ ] Methods: recordSuccess(), recordFailure(), getStats(), reset()
+- [ ] Create src/core/resilience/failure-window.ts
+  - [ ] FailureWindow class
+  - [ ] Fields: failureTimestamps (array), windowSize, maxSize
+  - [ ] Methods: addFailure(timestamp), getFailuresInWindow(now, windowMs), cleanup()
+- [ ] Refactor src/core/circuit-breaker.ts:
+  - [ ] Remove 15 fields, keep only: state, lastStateChange, config
+  - [ ] Add: private stats: CircuitBreakerStats
+  - [ ] Add: private window: FailureWindow
+  - [ ] Delegate statistics to stats.recordSuccess(), stats.recordFailure()
+  - [ ] Delegate window management to window.addFailure(), window.getFailuresInWindow()
+  - [ ] Update execute() to use delegation
+  - [ ] Update getStats() to return stats.getStats()
+- [ ] Create test/core/resilience/circuit-breaker-stats.test.ts (8+ tests)
+- [ ] Create test/core/resilience/failure-window.test.ts (6+ tests)
+- [ ] Update test/core/circuit-breaker.test.ts to verify delegation
+- [ ] All existing tests pass (23/23 circuit breaker tests)
+- [ ] All overall tests pass (327+ tests)
+- [ ] Code review: Verify each class has single responsibility
+- [ ] Git commit: "refactor(circuit-breaker): Extract Stats and FailureWindow"
+
+**Success Criteria:**
+- ✅ CircuitBreaker has 3 fields (not 15)
+- ✅ 14+ new tests passing (8+6)
+- ✅ All existing tests passing
+- ✅ Clear delegation pattern
+
+---
+
+### ✅ REFACTOR-6: Add RetryStrategy Pattern (MEDIUM)
+
+**Problem:** Retry logic hardcoded (exponential backoff only), cannot extend
+**Impact:** OCP violation, inflexible
+**Effort:** 3-4 hours
+
+**Definition of Done:**
+- [ ] Create src/core/strategies/retry-strategy.ts
+  - [ ] RetryStrategy interface
+  - [ ] shouldRetry(attempt: number, error: Error, maxRetries: number): boolean
+  - [ ] getDelay(attempt: number, baseDelay: number, maxDelay: number): number
+- [ ] Create src/core/strategies/exponential-backoff-strategy.ts
+  - [ ] ExponentialBackoffStrategy implements RetryStrategy
+  - [ ] shouldRetry() checks attempt < maxRetries
+  - [ ] getDelay() returns Math.min(baseDelay * 2^attempt, maxDelay) + jitter
+- [ ] Create src/core/strategies/linear-backoff-strategy.ts
+  - [ ] LinearBackoffStrategy implements RetryStrategy
+  - [ ] getDelay() returns baseDelay * attempt
+- [ ] Create src/core/strategies/fibonacci-backoff-strategy.ts
+  - [ ] FibonacciBackoffStrategy implements RetryStrategy
+  - [ ] getDelay() returns fibonacci(attempt) * baseDelay
+- [ ] Refactor src/core/retry.ts:
+  - [ ] Add strategy: RetryStrategy parameter to retry() function
+  - [ ] Default: new ExponentialBackoffStrategy() (backward compatible)
+  - [ ] Remove hardcoded calculateDelay() logic
+  - [ ] Use strategy.getDelay() instead
+  - [ ] Use strategy.shouldRetry() instead of attempt check
+- [ ] Create test/core/strategies/exponential-backoff-strategy.test.ts (6+ tests)
+- [ ] Create test/core/strategies/linear-backoff-strategy.test.ts (5+ tests)
+- [ ] Create test/core/strategies/fibonacci-backoff-strategy.test.ts (5+ tests)
+- [ ] Update test/core/retry.test.ts to test with different strategies
+- [ ] All existing tests pass (18/18 retry tests)
+- [ ] All overall tests pass (327+ tests)
+- [ ] Code review: Verify OCP compliance (new strategies without editing retry.ts)
+- [ ] Git commit: "feat(retry): Add RetryStrategy pattern for flexibility"
+
+**Success Criteria:**
+- ✅ Strategy Pattern implemented
+- ✅ 16+ new tests passing (6+5+5)
+- ✅ All existing tests passing
+- ✅ Easy to add new strategies (OCP)
+
+---
+
+### ✅ REFACTOR-7: Add E2E Tests (MEDIUM)
+
+**Problem:** No Layer 4 (E2E) tests with full Orchestrator workflow
+**Impact:** Cannot verify end-to-end functionality
+**Effort:** 4-5 hours
+
+**Definition of Done:**
+- [ ] Create test/e2e/ directory
+- [ ] Create test/e2e/full-workflow.test.ts:
+  - [ ] Test: Full workflow with 3 real adapters
+    - [ ] Setup: Orchestrator with ResilientExecutionStrategy
+    - [ ] Adapters: eslint, prettier, actionlint (mock implementations)
+    - [ ] Execute: runParallel()
+    - [ ] Verify: All 3 adapters executed
+    - [ ] Verify: Results merged correctly
+    - [ ] Verify: Summary statistics correct
+  - [ ] Test: Adapter timeout doesn't block others
+    - [ ] Adapter A sleeps 10s (timeout 1s)
+    - [ ] Adapters B+C fast (100ms)
+    - [ ] Verify: B+C complete in ~100ms
+    - [ ] Verify: A times out after 1s
+    - [ ] Verify: Partial success metadata
+  - [ ] Test: Circuit breaker prevents cascading failures
+    - [ ] Adapter A always fails
+    - [ ] Execute 10 times
+    - [ ] Verify: First 5 execute, next 5 are instant rejections
+    - [ ] Verify: Total time < 1s for last 5 (no retry overhead)
+  - [ ] Test: Retry recovers from transient errors
+    - [ ] Adapter A fails first 2 attempts, succeeds on 3rd
+    - [ ] Verify: Final result is success
+    - [ ] Verify: Retry count = 2
+  - [ ] Test: Metrics recorded end-to-end
+    - [ ] Execute full workflow
+    - [ ] Query prom-client metrics
+    - [ ] Verify all expected metrics exist
+  - [ ] Test: Logs written end-to-end
+    - [ ] Execute full workflow
+    - [ ] Capture pino logs
+    - [ ] Verify log sequence correct
+- [ ] Minimum 10+ E2E tests total
+- [ ] All E2E tests pass
+- [ ] All existing tests pass (327+ tests)
+- [ ] Code review: Verify tests use full stack (no shortcuts)
+- [ ] Git commit: "test(e2e): Add Layer 4 end-to-end tests"
+
+**Success Criteria:**
+- ✅ 10+ E2E tests passing
+- ✅ Full workflow verified
+- ✅ No test shortcuts (real components only)
+
+---
+
+### ✅ REFACTOR-8: Add ResilienceFactory (LOW)
+
+**Problem:** Manual component creation, no Factory Pattern
+**Impact:** Hard to configure, error-prone
+**Effort:** 1-2 hours
+
+**Definition of Done:**
+- [ ] Create src/core/resilience/resilience-factory.ts
+  - [ ] ResilienceFactory class
+  - [ ] createCircuitBreaker(options): CircuitBreaker
+  - [ ] createRetryStrategy(type, options): RetryStrategy
+  - [ ] createResilienceCoordinator(options): ResilienceCoordinator
+  - [ ] Validates options
+  - [ ] Applies defaults
+- [ ] Update resilience.ts to use ResilienceFactory
+- [ ] Create test/core/resilience/resilience-factory.test.ts (8+ tests)
+- [ ] All existing tests pass (327+ tests)
+- [ ] Code review: Verify Factory Pattern correct
+- [ ] Git commit: "feat(resilience): Add ResilienceFactory for component creation"
+
+**Success Criteria:**
+- ✅ Factory Pattern implemented
+- ✅ 8+ new tests passing
+- ✅ All existing tests passing
+
+---
+
+### ✅ REFACTOR-9: Fix CircuitBreakerRegistry Memory Leak (LOW)
+
+**Problem:** CircuitBreakerRegistry never cleans up breakers
+**Impact:** Memory grows unbounded in long-running processes
+**Effort:** 2-3 hours
+
+**Definition of Done:**
+- [ ] Add CircuitBreakerRegistry.cleanup() method
+  - [ ] Removes breakers unused for > ttl (default 1h)
+  - [ ] Tracks lastAccessTime for each breaker
+- [ ] Add periodic cleanup timer (optional)
+- [ ] Create test/core/circuit-breaker-registry.test.ts (6+ tests)
+  - [ ] Test: Breakers cleaned up after TTL
+  - [ ] Test: Active breakers not cleaned
+  - [ ] Test: cleanup() can be called manually
+- [ ] All existing tests pass (327+ tests)
+- [ ] Code review: Verify memory leak fixed
+- [ ] Git commit: "fix(circuit-breaker): Fix memory leak in registry"
+
+**Success Criteria:**
+- ✅ Memory leak fixed
+- ✅ 6+ new tests passing
+- ✅ All existing tests passing
+
+---
+
+### ✅ REFACTOR-10: Document ADRs (LOW)
+
+**Problem:** Architectural decisions not documented
+**Impact:** Hard to understand "why" behind design choices
+**Effort:** 2-3 hours
+
+**Definition of Done:**
+- [ ] Create docs/adr/ directory
+- [ ] Create docs/adr/001-circuit-breaker-pattern.md
+- [ ] Create docs/adr/002-retry-strategy-pattern.md
+- [ ] Create docs/adr/003-adapter-execution-strategy.md
+- [ ] Create docs/adr/004-error-classification.md
+- [ ] Create docs/adr/005-resilience-composition.md
+- [ ] Each ADR includes:
+  - [ ] Context (problem)
+  - [ ] Decision (solution)
+  - [ ] Consequences (tradeoffs)
+  - [ ] Alternatives considered
+- [ ] Update README.md to link to ADR docs
+- [ ] Code review: Verify ADRs comprehensive
+- [ ] Git commit: "docs(adr): Document architectural decisions"
+
+**Success Criteria:**
+- ✅ 5+ ADR documents
+- ✅ Clear context + decision + consequences
+- ✅ Linked from README
+
+---
+
+## 📊 REFACTORING PROGRESS TRACKING
+
+**Total Effort:** 28-44 hours
+**Total DoD Items:** 150+ individual checkboxes
+**Target Rating:** 9/10 architectural
+
+**Priority Breakdown:**
+- **P1 CRITICAL** (4 issues): 14-20h
+  - REFACTOR-1: 1-2h, 15+ tests
+  - REFACTOR-2: 4-6h, 31+ tests
+  - REFACTOR-3: 3-4h, 22+ tests
+  - REFACTOR-4: 6-8h, 20+ tests
+  
+- **P2 MEDIUM** (3 issues): 9-13h
+  - REFACTOR-5: 2-3h, 14+ tests
+  - REFACTOR-6: 3-4h, 16+ tests
+  - REFACTOR-7: 4-5h, 10+ tests
+  
+- **P3 LOW** (3 issues): 5-11h
+  - REFACTOR-8: 1-2h, 8+ tests
+  - REFACTOR-9: 2-3h, 6+ tests
+  - REFACTOR-10: 2-3h, 5 docs
+
+**Execution Rules:**
+- ✅ **NIGDY NA SKRÓTY** - każdy checkbox musi być ✅
+- ✅ Jeden REFACTOR = jeden commit
+- ✅ Każdy commit mergeable standalone
+- ✅ Wszystkie testy muszą przejść przed commitem
+- ✅ Code review po każdym REFACTOR
+- ✅ Definition of Done = 100% albo FAIL
+
+---
 
 **Czas naprawy:** ~40h senior dev work (3 tygodnie przy 2-3h/dzień)
 

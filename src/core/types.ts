@@ -27,6 +27,35 @@ export interface OrchestratorRunOptions {
   
   /** Timeout per adapter in milliseconds (default: 30000) */
   timeout?: number;
+  
+  /**
+   * Enable resilience features (P2: Resilience)
+   * - Circuit breaker: Fail fast for known-failing adapters
+   * - Retry: Automatic retry on transient failures
+   * - Timeout: Per-adapter timeout enforcement
+   * - Partial success: Adapter A fails → B+C continue
+   * 
+   * @default false (for backward compatibility)
+   */
+  resilience?: {
+    /** Enable circuit breaker (default: true) */
+    circuitBreaker?: boolean;
+    
+    /** Enable retry logic (default: true) */
+    retry?: boolean;
+    
+    /** Enable timeout enforcement (default: true) */
+    timeout?: boolean;
+    
+    /** Circuit breaker failure threshold (default: 5) */
+    failureThreshold?: number;
+    
+    /** Max retry attempts (default: 3) */
+    maxRetries?: number;
+    
+    /** Per-adapter timeout in ms (default: 60000 = 1 min) */
+    adapterTimeout?: number;
+  };
 }
 
 /**

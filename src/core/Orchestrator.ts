@@ -11,6 +11,7 @@ import { ActionlintAdapter } from '../adapters/actionlint/ActionlintAdapter.js';
 import type { Adapter, AdapterResult } from '../adapters/types.js';
 import { ZizmorAdapter } from '../adapters/zizmor/ZizmorAdapter.js';
 import type { Violation } from '../types.js';
+import { ErrorClassifier } from './error-classifier.js';
 import { createChildLogger, generateRequestId, logError } from './logger.js';
 import { metrics } from './metrics.js';
 import { sanitizePathArray, validateAdapterName, validateProfileName } from './security.js';
@@ -204,11 +205,26 @@ export class Orchestrator {
   /**
    * Run adapters in parallel
    * @rule Per AGENTS.md §6 - Graceful: one adapter fails → others continue
+   * @rule Per PRODUCTION HARDENING - P2: Resilience with circuit breaker + retry + timeout
    */
   private async runParallel(
     adapters: Array<{ name: string; adapter: Adapter }>,
     options: OrchestratorRunOptions
   ): Promise<AdapterResult[]> {
+    // Check if resilience is enabled
+    if (options.resilience) {
+      const { executeResilientAdapters, convertToLegacyResults } = await import('./resilience.js');
+      
+      const resilientResults = await executeResilientAdapters(
+        adapters,
+        options,
+        options.resilience
+      );
+      
+      return convertToLegacyResults(resilientResults);
+    }
+    
+    // Legacy path (no resilience)
     const promises = adapters.map(async ({ adapter }) => {
       try {
         // Clone options to prevent adapter mutations affecting others
@@ -219,31 +235,13 @@ export class Orchestrator {
         });
       } catch (error) {
         // Graceful: adapter crashes → create error result with proper classification
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        let exitCode = 3;  // Default: crash
-        let reason = 'Adapter crashed';
-        let errorType = 'crash';
-
-        // Classify error type
-        if (errorMessage.includes('ENOENT') || errorMessage.includes('not found')) {
-          exitCode = 127;
-          reason = 'Tool not found';
-          errorType = 'not_found';
-        } else if (errorMessage.includes('timeout') || errorMessage.includes('ETIMEDOUT')) {
-          exitCode = 124;
-          reason = 'Execution timeout';
-          errorType = 'timeout';
-        } else if (errorMessage.includes('EACCES') || errorMessage.includes('permission denied')) {
-          exitCode = 126;
-          reason = 'Permission denied';
-          errorType = 'permission';
-        }
+        const classification = ErrorClassifier.classify(error);
         
         // Log error with full context
         logError('Adapter execution failed', error, {
           adapter: adapter.name,
-          exitCode,
-          errorType,
+          exitCode: classification.exitCode,
+          errorType: classification.type,
           options: {
             filesCount: options.files.length,
             cwd: options.cwd,
@@ -254,17 +252,17 @@ export class Orchestrator {
         // Record error metric
         metrics.adapterErrors.inc({ 
           adapter: adapter.name, 
-          error_type: errorType 
+          error_type: classification.type
         });
 
         return {
           tool: adapter.name,
           version: 'unknown',
-          exitCode,
+          exitCode: classification.exitCode,
           violations: [],
           executionTime: 0,
           skipped: true,
-          skipReason: `${reason}: ${errorMessage}`,
+          skipReason: `${classification.reason}: ${classification.message}`,
         };
       }
     });
@@ -274,11 +272,26 @@ export class Orchestrator {
 
   /**
    * Run adapters sequentially
+   * @rule Per PRODUCTION HARDENING - P2: Sequential execution with resilience
    */
   private async runSequential(
     adapters: Array<{ name: string; adapter: Adapter }>,
     options: OrchestratorRunOptions
   ): Promise<AdapterResult[]> {
+    // Check if resilience is enabled
+    if (options.resilience) {
+      const { executeResilientAdapter, convertToLegacyResults } = await import('./resilience.js');
+      
+      const results = [];
+      for (const { adapter } of adapters) {
+        const result = await executeResilientAdapter(adapter, options, options.resilience);
+        results.push(result);
+      }
+      
+      return convertToLegacyResults(results);
+    }
+    
+    // Legacy path (no resilience)
     const results: AdapterResult[] = [];
 
     for (const { adapter } of adapters) {
@@ -292,31 +305,13 @@ export class Orchestrator {
         results.push(result);
       } catch (error) {
         // Graceful: adapter crashes → create error result, continue
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        let exitCode = 3;
-        let reason = 'Adapter crashed';
-        let errorType = 'crash';
-
-        // Classify error type
-        if (errorMessage.includes('ENOENT') || errorMessage.includes('not found')) {
-          exitCode = 127;
-          reason = 'Tool not found';
-          errorType = 'not_found';
-        } else if (errorMessage.includes('timeout') || errorMessage.includes('ETIMEDOUT')) {
-          exitCode = 124;
-          reason = 'Execution timeout';
-          errorType = 'timeout';
-        } else if (errorMessage.includes('EACCES') || errorMessage.includes('permission denied')) {
-          exitCode = 126;
-          reason = 'Permission denied';
-          errorType = 'permission';
-        }
+        const classification = ErrorClassifier.classify(error);
         
         // Log error with full context
         logError('Adapter execution failed', error, {
           adapter: adapter.name,
-          exitCode,
-          errorType,
+          exitCode: classification.exitCode,
+          errorType: classification.type,
           options: {
             filesCount: options.files.length,
             cwd: options.cwd,
@@ -327,17 +322,17 @@ export class Orchestrator {
         // Record error metric
         metrics.adapterErrors.inc({ 
           adapter: adapter.name, 
-          error_type: errorType 
+          error_type: classification.type
         });
 
         results.push({
           tool: adapter.name,
           version: 'unknown',
-          exitCode,
+          exitCode: classification.exitCode,
           violations: [],
           executionTime: 0,
           skipped: true,
-          skipReason: `${reason}: ${errorMessage}`,
+          skipReason: `${classification.reason}: ${classification.message}`,
         });
       }
     }

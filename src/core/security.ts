@@ -11,11 +11,12 @@ const log = createLogger({ name: 'security' });
 
 /**
  * Dangerous path patterns that indicate potential security issues
+ * NOTE: Colon (:) is allowed for Windows drive letters (C:\)
  */
 const DANGEROUS_PATTERNS = [
   /\.\./,           // Directory traversal
   /\0/,             // Null byte injection
-  /[<>:"|?*]/,      // Invalid filename chars (Windows)
+  /[<>"|?*]/,       // Invalid filename chars (REMOVED : for Windows drives)
   /^[~]/,           // Shell expansion
   /\$\{/,           // Variable expansion
   /`/,              // Command substitution
