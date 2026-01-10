@@ -40,6 +40,25 @@ V2.0 = solid foundation bez przedwczesnych fajerwerków.
 
 ---
 
+## 🔴 CRITICAL PRODUCTION AUDIT - JANUARY 2026
+
+**System Rating: 4/10** (Senior Dev Assessment)
+
+Przeprowadzono dogłębny audyt architektury pod kątem wymagań produkcyjnych.
+Znaleziono **12 KRYTYCZNYCH problemów** blokujących deployment do produkcji.
+
+### Kategorie problemów:
+- ❌ **Observability:** 0/10 - zero visibility
+- ❌ **Resilience:** 2/10 - brak circuit breaker, retry, rate limiting  
+- ❌ **Security:** 3/10 - brak input validation, injection risk
+- ❌ **Performance:** 4/10 - sync I/O, memory leaks, unlimited parallelism
+- ❌ **Testability:** 5/10 - brak stress tests, edge cases
+- ✅ **Functionality:** 9/10 - core logic działa dobrze
+
+**Szczegółowy plan naprawy:** Zobacz sekcję "PRODUCTION HARDENING PLAN" poniżej.
+
+**Czas naprawy:** ~40h senior dev work (3 tygodnie przy 2-3h/dzień)
+
 ---
 
 ## 🎯 PLAN: 10 COMMITÓW (Idealna Kolejność)
@@ -5585,8 +5604,1233 @@ output:
 
 ---
 
+## 🔥 PRODUCTION HARDENING PLAN (40h)
+
+**Na podstawie audytu z Stycznia 2026 - 12 krytycznych problemów produkcyjnych**
+
+Przed wdrożeniem V2.0 do produkcji MUSZĄ zostać naprawione następujące problemy:
+
+---
+
+### 📊 PHASE P0: OBSERVABILITY & MONITORING (8-10h) - CRITICAL
+
+**Problem 1: ZERO OBSERVABILITY - ŚLEPA PRODUKCJA**
+- **Status:** 1 console.warn w całym systemie
+- **Ryzyko:** Nie widzisz co się dzieje w produkcji, zero debug capability
+- **Priorytet:** P0 - przed pierwszym deployem
+
+**Implementacja:**
+
+1. **Structured Logging (4h)**
+   ```typescript
+   // src/core/logger.ts
+   import { pino } from 'pino';
+   
+   export const logger = pino({
+     level: process.env.LOG_LEVEL || 'info',
+     transport: {
+       target: 'pino-pretty',
+       options: { colorize: true }
+     }
+   });
+   
+   // W Orchestrator.ts:
+   async run(options: OrchestratorRunOptions): Promise<OrchestratorResult> {
+     const runId = crypto.randomUUID();
+     const log = logger.child({ operation: 'orchestrator.run', runId });
+     
+     log.info('Starting orchestration', { 
+       tools: adapterNames, 
+       filesCount: options.files.length,
+       profile: options.profile
+     });
+     
+     const startTime = Date.now();
+     try {
+       const result = await this._runInternal(options);
+       log.info('Orchestration complete', {
+         violations: result.violations.length,
+         deduped: allViolations.length - uniqueViolations.length,
+         duration: Date.now() - startTime
+       });
+       return result;
+     } catch (error) {
+       log.error('Orchestration failed', { error });
+       throw error;
+     }
+   }
+   ```
+
+2. **Metrics Instrumentation (4h)**
+   ```typescript
+   // src/core/metrics.ts
+   import { Counter, Histogram, Gauge, register } from 'prom-client';
+   
+   export const metrics = {
+     orchestratorRuns: new Counter({
+       name: 'cerber_orchestrator_runs_total',
+       help: 'Total orchestrator runs',
+       labelNames: ['profile', 'status']
+     }),
+     
+     orchestratorDuration: new Histogram({
+       name: 'cerber_orchestrator_duration_seconds',
+       help: 'Orchestrator execution duration',
+       labelNames: ['profile'],
+       buckets: [0.1, 0.5, 1, 2, 5, 10, 30]
+     }),
+     
+     adapterErrors: new Counter({
+       name: 'cerber_adapter_errors_total',
+       help: 'Total adapter errors',
+       labelNames: ['adapter', 'error_type']
+     }),
+     
+     violations: new Counter({
+       name: 'cerber_violations_total',
+       help: 'Total violations found',
+       labelNames: ['adapter', 'severity']
+     }),
+     
+     cacheHitRate: new Gauge({
+       name: 'cerber_adapter_cache_hit_rate',
+       help: 'Adapter cache hit rate',
+       labelNames: ['adapter']
+     }),
+     
+     deduplicationRate: new Histogram({
+       name: 'cerber_deduplication_rate',
+       help: 'Percentage of violations deduplicated',
+       buckets: [0, 10, 25, 50, 75, 90, 100]
+     })
+   };
+   
+   // Endpoint dla Prometheus
+   // GET /metrics → register.metrics()
+   ```
+
+3. **Tests (2h)**
+   ```typescript
+   describe('Observability', () => {
+     it('should log orchestration start/end', async () => {
+       // Capture logs
+       const logs = captureLogger();
+       await orchestrator.run(options);
+       expect(logs).toContainEqual(expect.objectContaining({
+         msg: 'Starting orchestration',
+         filesCount: 5
+       }));
+     });
+     
+     it('should increment metrics on run', async () => {
+       const before = await register.getSingleMetric('cerber_orchestrator_runs_total');
+       await orchestrator.run(options);
+       const after = await register.getSingleMetric('cerber_orchestrator_runs_total');
+       expect(after.values[0].value).toBe(before.values[0].value + 1);
+     });
+   });
+   ```
+
+**Deliverables:**
+- ✅ Structured logging (pino) w całym systemie
+- ✅ Prometheus metrics endpoint
+- ✅ Tests dla logging & metrics
+- ✅ Dokumentacja: docs/observability.md
+
+---
+
+### 🔒 PHASE P1: INPUT VALIDATION & SECURITY (6-8h) - CRITICAL
+
+**Problem 7: BRAK INPUT VALIDATION - INJECTION RISK**
+- **Status:** Zero walidacji options.files, options.cwd, options.tools
+- **Ryzyko:** Path traversal, command injection, resource exhaustion
+- **Priorytet:** P0 - security critical
+
+**Implementacja:**
+
+1. **Runtime Validation (3h)**
+   ```typescript
+   // src/core/validation.ts
+   import { z } from 'zod';
+   import path from 'node:path';
+   
+   const RunOptionsSchema = z.object({
+     files: z.array(
+       z.string()
+         .max(1000, 'File path too long')
+         .refine(p => !p.includes('..'), 'Path traversal not allowed')
+         .refine(p => !/[;<>|&$`]/.test(p), 'Invalid characters')
+     ).max(10000, 'Too many files'),
+     
+     cwd: z.string()
+       .refine(path.isAbsolute, 'cwd must be absolute path')
+       .refine(p => !p.includes('..'), 'Path traversal not allowed'),
+     
+     tools: z.array(
+       z.string().regex(/^[a-z0-9-]+$/, 'Tool name must be alphanumeric')
+     ).max(100, 'Too many tools').optional(),
+     
+     timeout: z.number()
+       .positive('Timeout must be positive')
+       .max(600000, 'Timeout too large (max 10min)')
+       .optional(),
+     
+     parallel: z.boolean().optional(),
+     profile: z.string().max(50).optional(),
+     maxConcurrency: z.number().positive().max(20).optional()
+   });
+   
+   export function validateRunOptions(options: unknown): OrchestratorRunOptions {
+     return RunOptionsSchema.parse(options);
+   }
+   
+   // W Orchestrator.run():
+   async run(options: OrchestratorRunOptions): Promise<OrchestratorResult> {
+     const validated = validateRunOptions(options);
+     // ... use validated ...
+   }
+   ```
+
+2. **Path Safety (2h)**
+   ```typescript
+   // src/security/path-safety.ts
+   import path from 'node:path';
+   
+   export class PathSafety {
+     static sanitizePath(filePath: string, cwd: string): string {
+       const resolved = path.resolve(cwd, filePath);
+       
+       // Check if resolved path is within cwd
+       if (!resolved.startsWith(cwd)) {
+         throw new Error(`Path traversal detected: ${filePath}`);
+       }
+       
+       return resolved;
+     }
+     
+     static validateGlob(glob: string): void {
+       if (glob.includes('..')) {
+         throw new Error('Path traversal in glob pattern');
+       }
+       if (!/^[a-zA-Z0-9/*._-]+$/.test(glob)) {
+         throw new Error('Invalid glob pattern');
+       }
+     }
+   }
+   ```
+
+3. **Tests (2h)**
+   ```typescript
+   describe('Input Validation', () => {
+     it('should reject path traversal in files', () => {
+       expect(() => orchestrator.run({
+         files: ['../../../etc/passwd'],
+         cwd: '/tmp'
+       })).rejects.toThrow('Path traversal');
+     });
+     
+     it('should reject command injection characters', () => {
+       expect(() => orchestrator.run({
+         files: ['file.yml; rm -rf /'],
+         cwd: '/tmp'
+       })).rejects.toThrow('Invalid characters');
+     });
+     
+     it('should limit files array size', () => {
+       expect(() => orchestrator.run({
+         files: Array(100000).fill('file.yml'),
+         cwd: '/tmp'
+       })).rejects.toThrow('Too many files');
+     });
+   });
+   ```
+
+**Deliverables:**
+- ✅ Runtime validation z Zod
+- ✅ Path safety checks
+- ✅ Security tests
+- ✅ Dokumentacja: docs/security.md
+
+---
+
+### 🚦 PHASE P2: RESILIENCE & PERFORMANCE (12-14h) - HIGH
+
+**Problem 2: BRAK RATE LIMITING - DOS VULNERABILITY**
+- **Status:** Unlimited parallelism w runParallel()
+- **Ryzyko:** OOM kill, thrashing, DOS na shared runners
+- **Priorytet:** P1
+
+**Problem 3: MEMORY LEAK - UNBOUNDED ADAPTER CACHE**
+- **Status:** Map<string, Adapter> nigdy nie czyszczona
+- **Ryzyko:** Memory leak w długo działających procesach
+- **Priorytet:** P1
+
+**Problem 4: BRAK CIRCUIT BREAKER - CASCADING FAILURES**
+- **Status:** Failujący adapter uruchamiany w kółko
+- **Ryzyko:** Zmarnowany czas (50 plików × 30s timeout = 25 min)
+- **Priorytet:** P1
+
+**Implementacja:**
+
+1. **Concurrency Limiting (3h)**
+   ```typescript
+   // src/core/Orchestrator.ts
+   import pLimit from 'p-limit';
+   
+   private async runParallel(
+     adapters: Array<{ name: string; adapter: Adapter }>,
+     options: OrchestratorRunOptions
+   ): Promise<AdapterResult[]> {
+     const concurrency = options.maxConcurrency || 4;
+     const limit = pLimit(concurrency);
+     
+     logger.info('Running adapters in parallel', { 
+       adapters: adapters.length, 
+       concurrency 
+     });
+     
+     const promises = adapters.map(({ name, adapter }) =>
+       limit(async () => {
+         logger.debug('Starting adapter', { adapter: name });
+         try {
+           return await adapter.run({
+             files: [...options.files],
+             cwd: options.cwd,
+             timeout: options.timeout
+           });
+         } catch (error) {
+           logger.error('Adapter failed', { adapter: name, error });
+           return this.createErrorResult(adapter, error);
+         } finally {
+           logger.debug('Adapter completed', { adapter: name });
+         }
+       })
+     );
+     
+     return Promise.all(promises);
+   }
+   ```
+
+2. **LRU Cache for Adapters (3h)**
+   ```typescript
+   import { LRUCache } from 'lru-cache';
+   
+   export class Orchestrator {
+     private adapterCache: LRUCache<string, Adapter>;
+     
+     constructor() {
+       this.adapters = new Map();
+       this.adapterCache = new LRUCache({
+         max: 100,  // Max 100 adapter instances
+         ttl: 1000 * 60 * 5,  // 5 min TTL
+         dispose: (adapter, key) => {
+           logger.debug('Evicting adapter from cache', { adapter: key });
+           // Cleanup adapter resources if needed
+           if (adapter.cleanup) adapter.cleanup();
+         },
+         updateAgeOnGet: true,
+         updateAgeOnHas: false
+       });
+       
+       this.registerDefaultAdapters();
+     }
+     
+     getAdapter(name: string): Adapter | null {
+       const entry = this.adapters.get(name);
+       if (!entry?.enabled) return null;
+       
+       // Check cache first
+       let adapter = this.adapterCache.get(name);
+       if (adapter) {
+         metrics.cacheHitRate.set({ adapter: name }, 1);
+         logger.debug('Adapter cache hit', { adapter: name });
+         return adapter;
+       }
+       
+       // Create new instance
+       metrics.cacheHitRate.set({ adapter: name }, 0);
+       logger.debug('Adapter cache miss', { adapter: name });
+       adapter = entry.factory();
+       this.adapterCache.set(name, adapter);
+       
+       return adapter;
+     }
+   }
+   ```
+
+3. **Circuit Breaker (4h)**
+   ```typescript
+   import CircuitBreaker from 'opossum';
+   
+   export class Orchestrator {
+     private circuitBreakers: Map<string, CircuitBreaker>;
+     
+     constructor() {
+       this.circuitBreakers = new Map();
+       // ... rest ...
+     }
+     
+     private getOrCreateCircuitBreaker(
+       name: string, 
+       factory: () => Adapter
+     ): CircuitBreaker {
+       let breaker = this.circuitBreakers.get(name);
+       
+       if (!breaker) {
+         breaker = new CircuitBreaker(factory, {
+           timeout: 30000,
+           errorThresholdPercentage: 50,  // Open after 50% failures
+           resetTimeout: 60000,  // Try again after 1 min
+           name: `adapter-${name}`
+         });
+         
+         breaker.on('open', () => {
+           logger.warn('Circuit breaker OPEN', { adapter: name });
+           metrics.adapterErrors.inc({ adapter: name, error_type: 'circuit_open' });
+         });
+         
+         breaker.on('halfOpen', () => {
+           logger.info('Circuit breaker HALF-OPEN', { adapter: name });
+         });
+         
+         breaker.on('close', () => {
+           logger.info('Circuit breaker CLOSED', { adapter: name });
+         });
+         
+         this.circuitBreakers.set(name, breaker);
+       }
+       
+       return breaker;
+     }
+     
+     getAdapter(name: string): Adapter | null {
+       const entry = this.adapters.get(name);
+       if (!entry?.enabled) return null;
+       
+       const breaker = this.getOrCreateCircuitBreaker(name, entry.factory);
+       
+       if (breaker.opened) {
+         logger.warn('Skipping adapter (circuit open)', { adapter: name });
+         return null;
+       }
+       
+       // Cache check within circuit breaker
+       let adapter = this.adapterCache.get(name);
+       if (!adapter) {
+         try {
+           adapter = breaker.fire();  // Will auto-open on repeated failures
+           this.adapterCache.set(name, adapter);
+         } catch (error) {
+           logger.error('Circuit breaker prevented execution', { adapter: name, error });
+           return null;
+         }
+       }
+       
+       return adapter;
+     }
+   }
+   ```
+
+4. **Global Timeout (2h)**
+   ```typescript
+   async run(options: OrchestratorRunOptions): Promise<OrchestratorResult> {
+     const globalTimeout = options.globalTimeout || 300000; // 5 min default
+     
+     const timeoutPromise = new Promise<never>((_, reject) => {
+       setTimeout(() => {
+         reject(new Error(`Global timeout exceeded (${globalTimeout}ms)`));
+       }, globalTimeout);
+     });
+     
+     return Promise.race([
+       this._runInternal(options),
+       timeoutPromise
+     ]);
+   }
+   
+   private async _runInternal(options: OrchestratorRunOptions): Promise<OrchestratorResult> {
+     // ... existing implementation ...
+   }
+   ```
+
+5. **Tests (4h)**
+   ```typescript
+   describe('Resilience', () => {
+     it('should limit concurrent adapter execution', async () => {
+       let concurrent = 0;
+       let maxConcurrent = 0;
+       
+       const slowAdapter = {
+         async run() {
+           concurrent++;
+           maxConcurrent = Math.max(maxConcurrent, concurrent);
+           await sleep(100);
+           concurrent--;
+           return { violations: [] };
+         }
+       };
+       
+       // Register 10 adapters
+       for (let i = 0; i < 10; i++) {
+         orchestrator.register({
+           name: `slow-${i}`,
+           enabled: true,
+           factory: () => slowAdapter as any
+         });
+       }
+       
+       await orchestrator.run({ 
+         files: ['test.yml'], 
+         cwd: '/tmp',
+         maxConcurrency: 3
+       });
+       
+       expect(maxConcurrent).toBe(3);
+     });
+     
+     it('should evict old adapters from LRU cache', () => {
+       // Fill cache with 101 adapters
+       for (let i = 0; i < 101; i++) {
+         orchestrator.register({
+           name: `adapter-${i}`,
+           enabled: true,
+           factory: () => new MockAdapter(`adapter-${i}`)
+         });
+         orchestrator.getAdapter(`adapter-${i}`);
+       }
+       
+       // First adapter should be evicted
+       const stats = orchestrator.getCacheStats();
+       expect(stats.size).toBe(100);
+     });
+     
+     it('should open circuit after repeated failures', async () => {
+       let attempts = 0;
+       
+       orchestrator.register({
+         name: 'failing-adapter',
+         enabled: true,
+         factory: () => ({
+           async run() {
+             attempts++;
+             throw new Error('Always fails');
+           }
+         } as any)
+       });
+       
+       // Fail 5 times
+       for (let i = 0; i < 5; i++) {
+         await orchestrator.run({
+           files: ['test.yml'],
+           cwd: '/tmp',
+           tools: ['failing-adapter']
+         });
+       }
+       
+       expect(attempts).toBeLessThan(10); // Circuit should open before 10 attempts
+     });
+     
+     it('should timeout on global timeout', async () => {
+       const slowAdapter = {
+         async run() {
+           await sleep(10000); // 10s
+           return { violations: [] };
+         }
+       };
+       
+       orchestrator.register({
+         name: 'slow',
+         enabled: true,
+         factory: () => slowAdapter as any
+       });
+       
+       await expect(orchestrator.run({
+         files: ['test.yml'],
+         cwd: '/tmp',
+         tools: ['slow'],
+         globalTimeout: 1000  // 1s
+       })).rejects.toThrow('Global timeout');
+     });
+   });
+   ```
+
+**Deliverables:**
+- ✅ Concurrency limiting (p-limit)
+- ✅ LRU cache for adapters
+- ✅ Circuit breaker (opossum)
+- ✅ Global timeout protection
+- ✅ Resilience tests
+- ✅ Dokumentacja: docs/resilience.md
+
+---
+
+### 🐛 PHASE P3: ERROR HANDLING & DEBUGGING (6-8h) - HIGH
+
+**Problem 5: SYNCHRONICZNY FILE I/O - BLOKUJE EVENT LOOP**
+- **Status:** fs.readFileSync() w ContractValidator
+- **Ryzyko:** Blocked event loop, poor performance
+- **Priorytet:** P1
+
+**Problem 8: ERROR SWALLOWING - SILENT FAILURES**
+- **Status:** Stack traces gubione w catch blocks
+- **Ryzyko:** Niemożność debug'owania problemów
+- **Priorytet:** P1
+
+**Implementacja:**
+
+1. **Async File I/O (2h)**
+   ```typescript
+   // src/contracts/ContractValidator.ts
+   async loadContract(filePath: string): Promise<Contract> {
+     const content = await fs.promises.readFile(filePath, 'utf-8');  // ASYNC!
+     const ext = path.extname(filePath).toLowerCase();
+     
+     let parsed: unknown;
+     if (ext === '.json') {
+       parsed = JSON.parse(content);
+     } else if (ext === '.yml' || ext === '.yaml') {
+       parsed = yaml.parse(content);
+     } else {
+       throw new Error(`Unsupported format: ${ext}`);
+     }
+     
+     const result = this.validate(parsed);
+     if (!result.valid) {
+       throw new Error(`Validation failed:\n${result.errors.join('\n')}`);
+     }
+     
+     return parsed as Contract;
+   }
+   
+   // Schema compilation cache
+   private schemaCache = new Map<string, ValidateFunction>();
+   
+   private getValidateFunction(schemaPath: string): ValidateFunction {
+     let fn = this.schemaCache.get(schemaPath);
+     if (!fn) {
+       const schema = JSON.parse(fs.readFileSync(schemaPath, 'utf-8'));
+       fn = this.ajv.compile(schema);
+       this.schemaCache.set(schemaPath, fn);
+     }
+     return fn;
+   }
+   ```
+
+2. **Error Context Preservation (3h)**
+   ```typescript
+   // src/core/Orchestrator.ts
+   private async runParallel(
+     adapters: Array<{ name: string; adapter: Adapter }>,
+     options: OrchestratorRunOptions
+   ): Promise<AdapterResult[]> {
+     const limit = pLimit(options.maxConcurrency || 4);
+     
+     const promises = adapters.map(({ name, adapter }) =>
+       limit(async () => {
+         try {
+           return await adapter.run({
+             files: [...options.files],
+             cwd: options.cwd,
+             timeout: options.timeout
+           });
+         } catch (error) {
+           // PRESERVE FULL ERROR CONTEXT
+           const errorContext = {
+             adapter: name,
+             error: error instanceof Error ? {
+               name: error.name,
+               message: error.message,
+               stack: error.stack,
+               code: (error as any).code,
+               errno: (error as any).errno,
+               syscall: (error as any).syscall
+             } : String(error),
+             options: {
+               files: options.files,
+               cwd: options.cwd,
+               timeout: options.timeout
+             },
+             timestamp: new Date().toISOString()
+           };
+           
+           logger.error('Adapter execution failed', errorContext);
+           metrics.adapterErrors.inc({ 
+             adapter: name, 
+             error_type: error instanceof Error ? error.name : 'Unknown'
+           });
+           
+           return {
+             tool: adapter.name,
+             version: 'unknown',
+             exitCode: this.classifyErrorExitCode(error),
+             violations: [],
+             executionTime: 0,
+             skipped: true,
+             skipReason: `Crashed: ${error.message}`,
+             metadata: {
+               error: errorContext.error  // ERROR CONTEXT W OUTPUT!
+             }
+           };
+         }
+       })
+     );
+     
+     return Promise.all(promises);
+   }
+   
+   private classifyErrorExitCode(error: unknown): number {
+     if (!(error instanceof Error)) return 3;
+     
+     const msg = error.message.toLowerCase();
+     const code = (error as any).code;
+     
+     if (code === 'ENOENT' || msg.includes('not found')) return 127;
+     if (code === 'ETIMEDOUT' || msg.includes('timeout')) return 124;
+     if (code === 'EACCES' || msg.includes('permission')) return 126;
+     
+     return 3;  // Generic crash
+   }
+   ```
+
+3. **Tests (2h)**
+   ```typescript
+   describe('Error Handling', () => {
+     it('should use async file I/O', async () => {
+       const spy = jest.spyOn(fs.promises, 'readFile');
+       await validator.loadContract('contract.yml');
+       expect(spy).toHaveBeenCalled();
+       expect(fs.readFileSync).not.toHaveBeenCalled();
+     });
+     
+     it('should preserve error stack trace', async () => {
+       const error = new Error('Test error');
+       error.stack = 'Error: Test error\n  at line 123';
+       
+       orchestrator.register({
+         name: 'failing',
+         enabled: true,
+         factory: () => ({
+           async run() { throw error; }
+         } as any)
+       });
+       
+       const result = await orchestrator.run({
+         files: ['test.yml'],
+         cwd: '/tmp',
+         tools: ['failing']
+       });
+       
+       expect(result.metadata.tools[0].metadata.error.stack).toContain('line 123');
+     });
+   });
+   ```
+
+**Deliverables:**
+- ✅ Async file I/O w całym systemie
+- ✅ Error context preservation
+- ✅ Structured error logging
+- ✅ Tests dla error handling
+
+---
+
+### ✅ PHASE P4: TESTING & VALIDATION (8-10h) - MEDIUM
+
+**Problem 10: TESTY NIE TESTUJĄ EDGE CASES**
+- **Status:** Brak stress tests, memory tests, concurrency tests
+- **Ryzyko:** Production issues nie są wykrywane w CI
+- **Priorytet:** P2
+
+**Implementacja:**
+
+1. **Stress Tests (3h)**
+   ```typescript
+   // test/stress/orchestrator.stress.test.ts
+   describe('Orchestrator Stress Tests', () => {
+     it('should handle 10k violations without OOM', async () => {
+       const violations: Violation[] = Array(10000).fill(null).map((_, i) => ({
+         id: `rule-${i % 100}`,
+         severity: 'error' as const,
+         message: `Violation ${i}`,
+         source: 'test-adapter',
+         path: `file-${i % 50}.yml`,
+         line: i % 1000
+       }));
+       
+       orchestrator.register({
+         name: 'stress-adapter',
+         enabled: true,
+         factory: () => ({
+           async run() {
+             return {
+               tool: 'stress-adapter',
+               version: '1.0.0',
+               exitCode: 1,
+               violations,
+               executionTime: 100
+             };
+           }
+         } as any)
+       });
+       
+       const memBefore = process.memoryUsage().heapUsed;
+       const result = await orchestrator.run({
+         files: ['test.yml'],
+         cwd: '/tmp',
+         tools: ['stress-adapter']
+       });
+       const memAfter = process.memoryUsage().heapUsed;
+       
+       expect(result.violations.length).toBeLessThanOrEqual(10000);
+       expect(memAfter - memBefore).toBeLessThan(100 * 1024 * 1024); // <100MB
+     });
+     
+     it('should deduplicate efficiently at scale', async () => {
+       // 5k duplicates + 5k unique = should dedupe to 5k
+       const violations: Violation[] = [
+         ...Array(5000).fill(null).map(() => ({
+           id: 'duplicate-rule',
+           severity: 'error' as const,
+           message: 'Same message',
+           source: 'test',
+           path: 'file.yml',
+           line: 10
+         })),
+         ...Array(5000).fill(null).map((_, i) => ({
+           id: `unique-${i}`,
+           severity: 'error' as const,
+           message: `Unique ${i}`,
+           source: 'test',
+           path: 'file.yml',
+           line: i
+         }))
+       ];
+       
+       const start = Date.now();
+       const result = await orchestrator.run({
+         files: ['test.yml'],
+         cwd: '/tmp',
+         tools: ['stress-adapter']
+       });
+       const duration = Date.now() - start;
+       
+       expect(result.violations.length).toBe(5001); // 1 duplicate + 5000 unique
+       expect(duration).toBeLessThan(5000); // <5s
+     });
+   });
+   ```
+
+2. **Concurrency Tests (2h)**
+   ```typescript
+   describe('Concurrency Tests', () => {
+     it('should prevent race conditions in parallel mode', async () => {
+       let sharedState = 0;
+       
+       orchestrator.register({
+         name: 'racy-adapter',
+         enabled: true,
+         factory: () => ({
+           async run(options) {
+             // Simulate race condition
+             const current = sharedState;
+             await sleep(10);
+             sharedState = current + 1;
+             
+             // Options should not be shared
+             options.files.push('mutated.yml');
+             
+             return {
+               tool: 'racy-adapter',
+               version: '1.0.0',
+               exitCode: 0,
+               violations: [],
+               executionTime: 10
+             };
+           }
+         } as any)
+       });
+       
+       const originalFiles = ['file1.yml', 'file2.yml'];
+       
+       await orchestrator.run({
+         files: [...originalFiles],
+         cwd: '/tmp',
+         tools: Array(10).fill('racy-adapter'),
+         parallel: true
+       });
+       
+       // Files should not be mutated
+       expect(originalFiles).toEqual(['file1.yml', 'file2.yml']);
+     });
+   });
+   ```
+
+3. **Memory Leak Tests (2h)**
+   ```typescript
+   describe('Memory Leak Tests', () => {
+     it('should not leak memory in long-running process', async () => {
+       const memSnapshots: number[] = [];
+       
+       for (let i = 0; i < 100; i++) {
+         await orchestrator.run({
+           files: ['test.yml'],
+           cwd: '/tmp'
+         });
+         
+         if (i % 10 === 0) {
+           global.gc?.();  // Force GC if available
+           memSnapshots.push(process.memoryUsage().heapUsed);
+         }
+       }
+       
+       // Memory should stabilize, not grow linearly
+       const firstQuarter = memSnapshots.slice(0, 3).reduce((a, b) => a + b) / 3;
+       const lastQuarter = memSnapshots.slice(-3).reduce((a, b) => a + b) / 3;
+       
+       expect(lastQuarter).toBeLessThan(firstQuarter * 2); // <2x growth
+     });
+   });
+   ```
+
+4. **Timeout Tests (1h)**
+   ```typescript
+   describe('Timeout Tests', () => {
+     it('should respect global timeout', async () => {
+       orchestrator.register({
+         name: 'slow-adapter',
+         enabled: true,
+         factory: () => ({
+           async run() {
+             await sleep(10000); // 10s
+             return { violations: [] };
+           }
+         } as any)
+       });
+       
+       const start = Date.now();
+       
+       await expect(orchestrator.run({
+         files: ['test.yml'],
+         cwd: '/tmp',
+         tools: ['slow-adapter'],
+         globalTimeout: 1000  // 1s
+       })).rejects.toThrow('Global timeout');
+       
+       const duration = Date.now() - start;
+       expect(duration).toBeLessThan(1500); // ~1s (with tolerance)
+     });
+   });
+   ```
+
+**Deliverables:**
+- ✅ Stress tests (10k violations)
+- ✅ Concurrency tests (race conditions)
+- ✅ Memory leak tests
+- ✅ Timeout tests
+- ✅ CI pipeline updated z stress tests
+
+---
+
+### 🔄 PHASE P5: RETRY LOGIC & GRACEFUL SHUTDOWN (6-8h) - MEDIUM
+
+**Problem 9: BRAK RETRIES - FLAKY FAILURES**
+- **Status:** 1 próba, brak retry dla transient errors
+- **Ryzyko:** Flaky CI failures
+- **Priorytet:** P2
+
+**Problem 11: BRAK GRACEFUL SHUTDOWN**
+- **Status:** SIGTERM nie handled, orphaned processes
+- **Ryzyko:** Zombie adapters w Kubernetes
+- **Priorytet:** P2
+
+**Implementacja:**
+
+1. **Retry Logic (3h)**
+   ```typescript
+   // src/adapters/_shared/exec.ts
+   import pRetry from 'p-retry';
+   
+   export async function executeCommand(
+     command: string,
+     args: string[],
+     options: ExecOptions = {}
+   ): Promise<ExecResult> {
+     const startTime = Date.now();
+     const retries = options.retries || 3;
+     
+     return pRetry(
+       async () => {
+         const result = await execa(command, args, {
+           cwd: options.cwd || process.cwd(),
+           timeout: options.timeout || 30000,
+           env: { ...process.env, ...options.env },
+           reject: false,
+           shell: platform() === 'win32' ? 'cmd.exe' : '/bin/sh',
+           windowsHide: true
+         });
+         
+         return {
+           exitCode: result.exitCode || 0,
+           stdout: String(result.stdout || ''),
+           stderr: String(result.stderr || ''),
+           executionTime: Date.now() - startTime,
+           command: `${command} ${args.join(' ')}`,
+           failed: (result.exitCode || 0) !== 0
+         };
+       },
+       {
+         retries,
+         onFailedAttempt: (error) => {
+           logger.warn('Command failed, retrying', {
+             command,
+             attempt: error.attemptNumber,
+             retriesLeft: error.retriesLeft,
+             error: error.message
+           });
+         },
+         shouldRetry: (error) => {
+           // Retry only transient errors
+           const code = (error as any).code;
+           const isTransient = 
+             code === 'ETIMEDOUT' ||
+             code === 'ECONNRESET' ||
+             code === 'ENOTFOUND' ||
+             code === 'EAI_AGAIN';
+           
+           return isTransient;
+         },
+         minTimeout: 1000,  // 1s
+         maxTimeout: 5000   // 5s
+       }
+     );
+   }
+   ```
+
+2. **Graceful Shutdown (3h)**
+   ```typescript
+   // src/core/Orchestrator.ts
+   export class Orchestrator {
+     private shuttingDown = false;
+     private runningAdapters: Set<Promise<AdapterResult>> = new Set();
+     private shutdownHandlers: Array<() => Promise<void>> = [];
+     
+     async shutdown(options: { timeout?: number } = {}): Promise<void> {
+       if (this.shuttingDown) {
+         logger.warn('Shutdown already in progress');
+         return;
+       }
+       
+       this.shuttingDown = true;
+       logger.info('Starting graceful shutdown', {
+         runningAdapters: this.runningAdapters.size,
+         timeout: options.timeout || 30000
+       });
+       
+       const shutdownTimeout = options.timeout || 30000;
+       
+       try {
+         // Wait for running adapters or timeout
+         await Promise.race([
+           Promise.all(this.runningAdapters),
+           new Promise(resolve => setTimeout(resolve, shutdownTimeout))
+         ]);
+         
+         logger.info('All adapters completed');
+       } catch (error) {
+         logger.error('Error during adapter completion', { error });
+       }
+       
+       // Run shutdown handlers
+       for (const handler of this.shutdownHandlers) {
+         try {
+           await handler();
+         } catch (error) {
+           logger.error('Shutdown handler failed', { error });
+         }
+       }
+       
+       // Cleanup
+       this.adapterCache.clear();
+       this.circuitBreakers.clear();
+       
+       logger.info('Graceful shutdown complete');
+     }
+     
+     registerShutdownHandler(handler: () => Promise<void>): void {
+       this.shutdownHandlers.push(handler);
+     }
+     
+     async run(options: OrchestratorRunOptions): Promise<OrchestratorResult> {
+       if (this.shuttingDown) {
+         throw new Error('Orchestrator is shutting down');
+       }
+       
+       const validated = validateRunOptions(options);
+       const runPromise = this._runInternal(validated);
+       
+       this.runningAdapters.add(runPromise);
+       
+       try {
+         return await runPromise;
+       } finally {
+         this.runningAdapters.delete(runPromise);
+       }
+     }
+   }
+   
+   // In CLI/server
+   let orchestrator: Orchestrator;
+   
+   async function handleShutdown(signal: string) {
+     logger.info(`Received ${signal}, shutting down gracefully`);
+     
+     if (orchestrator) {
+       await orchestrator.shutdown({ timeout: 30000 });
+     }
+     
+     process.exit(0);
+   }
+   
+   process.on('SIGTERM', () => handleShutdown('SIGTERM'));
+   process.on('SIGINT', () => handleShutdown('SIGINT'));
+   ```
+
+3. **Tests (2h)**
+   ```typescript
+   describe('Retry & Shutdown', () => {
+     it('should retry transient failures', async () => {
+       let attempts = 0;
+       
+       orchestrator.register({
+         name: 'flaky-adapter',
+         enabled: true,
+         factory: () => ({
+           async run() {
+             attempts++;
+             if (attempts < 3) {
+               const error: any = new Error('Timeout');
+               error.code = 'ETIMEDOUT';
+               throw error;
+             }
+             return { violations: [] };
+           }
+         } as any)
+       });
+       
+       const result = await orchestrator.run({
+         files: ['test.yml'],
+         cwd: '/tmp',
+         tools: ['flaky-adapter']
+       });
+       
+       expect(attempts).toBe(3);
+       expect(result.violations).toEqual([]);
+     });
+     
+     it('should shutdown gracefully', async () => {
+       const cleanupCalled = jest.fn();
+       orchestrator.registerShutdownHandler(async () => {
+         cleanupCalled();
+       });
+       
+       // Start long-running operation
+       const runPromise = orchestrator.run({
+         files: ['test.yml'],
+         cwd: '/tmp'
+       });
+       
+       // Trigger shutdown
+       await orchestrator.shutdown({ timeout: 5000 });
+       
+       await expect(orchestrator.run({
+         files: ['test.yml'],
+         cwd: '/tmp'
+       })).rejects.toThrow('shutting down');
+       
+       expect(cleanupCalled).toHaveBeenCalled();
+     });
+   });
+   ```
+
+**Deliverables:**
+- ✅ Retry logic z p-retry
+- ✅ Graceful shutdown handling
+- ✅ SIGTERM/SIGINT handlers
+- ✅ Tests dla retry & shutdown
+
+---
+
+## 📊 PRODUCTION HARDENING SUMMARY
+
+### Dependencies to Add:
+```json
+{
+  "dependencies": {
+    "pino": "^8.17.2",
+    "prom-client": "^15.1.0",
+    "zod": "^3.22.4",
+    "lru-cache": "^10.2.0",
+    "opossum": "^8.1.1",
+    "p-limit": "^5.0.0",
+    "p-retry": "^6.2.0"
+  },
+  "devDependencies": {
+    "pino-pretty": "^10.3.1",
+    "@types/node": "^20.10.0"
+  }
+}
+```
+
+### Timeline & Effort:
+
+| Phase | Priority | Effort | Timeline |
+|-------|----------|--------|----------|
+| P0: Observability | CRITICAL | 8-10h | Week 1 (Days 1-2) |
+| P1: Input Validation | CRITICAL | 6-8h | Week 1 (Days 2-3) |
+| P2: Resilience | HIGH | 12-14h | Week 2 (Days 1-3) |
+| P3: Error Handling | HIGH | 6-8h | Week 2 (Days 3-4) |
+| P4: Testing | MEDIUM | 8-10h | Week 3 (Days 1-2) |
+| P5: Retry & Shutdown | MEDIUM | 6-8h | Week 3 (Days 2-3) |
+| **TOTAL** | | **46-58h** | **3 weeks** |
+
+### Deployment Readiness Checklist:
+
+**P0 (Must Have Before Production):**
+- [ ] Structured logging (pino) implemented
+- [ ] Prometheus metrics endpoint
+- [ ] Input validation (Zod) on all entry points
+- [ ] Path safety checks
+- [ ] Async file I/O (no sync operations)
+
+**P1 (Should Have in First Sprint):**
+- [ ] Concurrency limiting (p-limit)
+- [ ] LRU cache for adapters
+- [ ] Circuit breaker (opossum)
+- [ ] Global timeout protection
+- [ ] Error context preservation
+
+**P2 (Nice to Have, Can Ship Later):**
+- [ ] Retry logic for transient failures
+- [ ] Graceful shutdown (SIGTERM/SIGINT)
+- [ ] Stress tests (10k violations)
+- [ ] Memory leak tests
+- [ ] Concurrency tests
+
+### Monitoring Dashboard (Grafana):
+
+**Key Metrics to Track:**
+1. **Throughput:** cerber_orchestrator_runs_total (by profile, status)
+2. **Latency:** cerber_orchestrator_duration_seconds (P50, P95, P99)
+3. **Error Rate:** cerber_adapter_errors_total (by adapter, error_type)
+4. **Violations:** cerber_violations_total (by adapter, severity)
+5. **Cache Performance:** cerber_adapter_cache_hit_rate
+6. **Circuit Breakers:** opossum_circuit_opened_total (by adapter)
+
+**Alerts to Configure:**
+- Error rate > 5% for 5 minutes → PagerDuty
+- P95 latency > 30s → Slack warning
+- Circuit breaker open > 10 minutes → Investigate
+- Memory usage > 1GB → Check for leak
+
+---
+
 **END OF ROADMAP**
-
-🛡️ **Cerber Core V2.0 - "One Truth, Many Tools"**
-
-*Przygotowane do akceptacji - czekam na Twoje GO!*
