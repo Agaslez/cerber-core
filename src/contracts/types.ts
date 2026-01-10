@@ -12,6 +12,7 @@ export interface Contract {
   extends?: string;
   defaults?: ContractDefaults;
   rules?: RuleConfig;
+  profiles?: ProfileConfig;
   requiredActions?: RequiredAction[];
   requiredSteps?: RequiredStep[];
   allowedTriggers?: string[];
@@ -32,7 +33,22 @@ export interface ContractDefaults {
 }
 
 export interface RuleConfig {
-  [ruleId: string]: 'error' | 'warning' | 'info' | 'off';
+  [ruleId: string]: RuleSetting;
+}
+
+export interface RuleSetting {
+  severity: 'error' | 'warning' | 'info' | 'off';
+  gate?: boolean; // Per-rule override for failOn
+}
+
+export interface ProfileConfig {
+  [profileName: string]: Profile;
+}
+
+export interface Profile {
+  tools: string[]; // Array of tool names (e.g., ['actionlint', 'zizmor'])
+  failOn: Array<'error' | 'warning' | 'info'>; // Severities that cause non-zero exit
+  description?: string;
 }
 
 export interface RequiredAction {

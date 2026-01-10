@@ -29,20 +29,60 @@ defaults:
 
 rules:
   # Security rules
-  security/no-hardcoded-secrets: error
-  security/require-action-pinning: error
-  security/limit-permissions: error
-  security/no-wildcard-triggers: warning
-  security/checkout-persist-credentials: warning
+  security/no-hardcoded-secrets:
+    severity: error
+    gate: true  # Always block merge
+  security/require-action-pinning:
+    severity: error
+    gate: true
+  security/limit-permissions:
+    severity: error
+    gate: false  # Warn but don't block
+  security/no-wildcard-triggers:
+    severity: warning
+  security/checkout-persist-credentials:
+    severity: warning
   
   # Best practices
-  best-practices/cache-dependencies: warning
-  best-practices/setup-node-with-version: error
-  best-practices/parallelize-matrix: warning
+  best-practices/cache-dependencies:
+    severity: warning
+  best-practices/setup-node-with-version:
+    severity: error
+  best-practices/parallelize-matrix:
+    severity: warning
   
   # Performance
-  performance/avoid-unnecessary-checkout: warning
-  performance/use-composite-actions: info
+  performance/avoid-unnecessary-checkout:
+    severity: warning
+  performance/use-composite-actions:
+    severity: info
+
+profiles:
+  dev-fast:
+    tools:
+      - actionlint
+    failOn:
+      - error
+    description: 'Fast pre-commit check (<2s)'
+  
+  dev:
+    tools:
+      - actionlint
+      - zizmor
+    failOn:
+      - error
+      - warning
+    description: 'Full development check'
+  
+  team:
+    tools:
+      - actionlint
+      - zizmor
+      - gitleaks
+    failOn:
+      - error
+      - warning
+    description: 'Team CI with secrets scanning'
 
 requiredActions:
   - action: actions/checkout@v4
