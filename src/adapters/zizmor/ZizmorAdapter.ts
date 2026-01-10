@@ -118,17 +118,15 @@ export class ZizmorAdapter extends BaseAdapter {
       }
 
       const violations: Violation[] = findings.map((finding) => {
-        // Make path relative if cwd provided
-        const relativePath = options?.cwd
-          ? relative(options.cwd, finding.workflowPath).replace(/\\/g, '/')
-          : finding.workflowPath;
+        // Normalize path (handle Windows absolute paths)
+        const normalizedPath = this.normalizePath(finding.workflowPath, options?.cwd);
 
         return {
           id: `zizmor/${finding.rule}`,
           severity: this.mapSeverity(finding.severity),
           message: finding.message,
           source: 'zizmor',
-          path: relativePath,
+          path: normalizedPath,
           line: finding.line,
           column: finding.column,
           toolOutput: {
@@ -144,6 +142,35 @@ export class ZizmorAdapter extends BaseAdapter {
       // If JSON parsing fails, return empty (graceful degradation)
       return [];
     }
+  }
+
+  /**
+   * Normalize file path - converts Windows backslashes and makes relative to cwd
+   * @param filePath Path from zizmor output
+   * @param cwd Current working directory
+   * @returns Normalized path (forward slashes, relative to cwd)
+   */
+  private normalizePath(filePath: string, cwd?: string): string {
+    // 1. Convert backslashes to forward slashes
+    let normalized = filePath.replace(/\\/g, '/');
+    
+    if (cwd) {
+      // 2. Remove drive letters (e.g., D:, C:)
+      normalized = normalized.replace(/^[A-Za-z]:/, '');
+      const cwdWithoutDrive = cwd.replace(/\\/g, '/').replace(/^[A-Za-z]:/, '');
+      
+      // 3. Make relative to cwd if path starts with cwd
+      if (normalized.startsWith(cwdWithoutDrive)) {
+        normalized = normalized.slice(cwdWithoutDrive.length).replace(/^\//, '');
+      }
+      // 4. Clean up ../ prefix if present
+      else if (normalized.startsWith('../')) {
+        // Remove leading ../ segments
+        normalized = normalized.split('../').pop() || normalized;
+      }
+    }
+    
+    return normalized;
   }
 
   /**
