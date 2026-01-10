@@ -17,7 +17,7 @@ export const FilePathSchema = z
   .min(1, 'File path cannot be empty')
   .max(4096, 'File path too long (max 4096 chars)')
   .refine(
-    (path) => !path.includes('\0'),
+    (path: string) => !path.includes('\0'),
     'File path cannot contain null bytes'
   );
 
@@ -161,7 +161,7 @@ export function safeValidate<T>(
  */
 export function formatValidationError(error: z.ZodError): string {
   return error.errors
-    .map((err) => {
+    .map((err: z.ZodIssue) => {
       const path = err.path.join('.');
       return `${path ? `${path}: ` : ''}${err.message}`;
     })
