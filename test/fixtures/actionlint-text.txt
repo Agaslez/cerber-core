@@ -1,0 +1,3 @@
+.github/workflows/ci.yml:42:28: undefined step output "steps.setup.outputs.version". "setup" is not defined [expression]
+.github/workflows/ci.yml:15:3: property "runs-on" is not defined in job "build" [syntax-check]
+.github/workflows/ci.yml:16:15: label "ubuntu-latest" is unknown. available labels are "windows-latest", "macos-latest" [runner-label]
