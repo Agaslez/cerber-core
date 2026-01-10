@@ -1,6 +1,6 @@
-# 🛡️ CERBER CORE V2.0 - PROFESSIONAL ROADMAP
+# 🛡️ CERBER CORE V2.0 - RELIABLE ORCHESTRATOR MVP
 
-**"Contract-Driven DevOps Orchestrator"**
+**"Ma działać, nie wyglądać"**
 
 ---
 
@@ -14,20 +14,433 @@
 - ⚠️ Custom rule implementation (nie skaluje się)
 - ⚠️ No tool orchestration
 
-**Cel V2.0:**
-- 🎯 **Orchestrator** - run proven tools (actionlint, zizmor, ratchet)
-- 🎯 **One Truth** - .cerber/contract.yml + deterministic output
-- 🎯 **Profiles** - solo/dev/team (business model)
-- 🎯 **Guardian** - pre-commit (fast) + CI (complete)
-- 🎯 **Doctor** - auto-detect + generate contract
-- 🎯 **Universal** - not just GitHub Actions
-- 🎯 **Production-Ready** - reliability, observability, lifecycle management
+**Cel V2.0 - Reliable MVP:**
+- 🎯 **Orchestrator** - run proven tools (actionlint + zizmor/gitleaks)
+- 🎯 **One Truth** - .cerber/contract.yml zgodny z rzeczywistością
+- 🎯 **Deterministic** - snapshot tests, zero race conditions
+- 🎯 **Profiles** - solo/dev/team (tools + failOn)
+- 🎯 **Guardian** - dev-fast <2s (pre-commit)
+- 🎯 **Doctor** - diagnozuje + alarmuje (NIE auto-fix)
+- 🎯 **Windows OK** - cross-platform bez hacków
 
-**Timeline:** 6.5 tygodni (162h total)
-- Phase 1 Extended: 90h (orchestrator + reliability + state machine)
-- Phase 2 Extended: 50h (observability + configuration + persistence)
-- Phase 3 Extended: 30h (lifecycle + resources + cache + plugins)
-- Phase 4: 12h (guardian pre-commit)
+**Timeline:** 2-3 tygodnie (90h MVP)
+- 10 Commits: spec → core → adapters → UX → guardian
+- V2.1+: auto-install, SARIF, history/replay, universal targets
+
+**Filozofia:** Wywalamy "NASA mode" (state machine, retry, observability, persistence) do V2.1+. 
+V2.0 = solid foundation bez przedwczesnych fajerwerków.
+
+---
+
+---
+
+## 🎯 PLAN: 10 COMMITÓW (Idealna Kolejność)
+
+**Zasada:** Każdy commit = 1 PR, max 8h pracy, mergeable standalone.
+
+---
+
+### COMMIT 1 — "One Truth: naprawiamy spójność schematu vs output"
+
+**Cel:** Koniec rozjazdów typu `contractVersion` vs `version`, `metadata.tools` array vs object.
+
+**Zmiany:**
+
+1. Ustal **jedną definicję CerberOutput**:
+   ```typescript
+   interface CerberOutput {
+     schemaVersion: 1;           // Schema version
+     contractVersion: 1;         // Contract version
+     deterministic: true;
+     summary: {
+       total: number;
+       errors: number;
+       warnings: number;
+       info: number;
+     };
+     violations: Violation[];
+     metadata: {
+       tools: Array<{           // ARRAY (prościej niż object)
+         name: string;
+         version: string;
+         exitCode: number;
+         skipped?: boolean;
+         reason?: string;
+       }>;
+     };
+     runMetadata?: {            // Opcjonalne
+       generatedAt?: string;    // ISO 8601
+       executionTime?: number;
+       profile?: string;
+     };
+   }
+   ```
+
+2. Aktualizacja:
+   - `.cerber/output.schema.json`
+   - `src/reporting/types.ts`
+   - `src/core/types.ts`
+
+**Testy:**
+- `output.schema.test.ts`: walidacja przykładowego outputu pod JSON Schema
+- Snapshot test: output musi być deterministyczny
+
+**Deliverables:**
+- ✅ `.cerber/output.schema.json` zgodny z rzeczywistością
+- ✅ TypeScript types synchronized
+- ✅ Git committed
+
+---
+
+### COMMIT 2 — "Contract schema + profile fields (tools, failOn) — bez 'enable'"
+
+**Cel:** Profil i contract mają być identyczne w definicji i użyciu.
+
+**Zmiany:**
+
+1. `.cerber/contract.schema.json`: profil ma `tools: string[]` i `failOn: Severity[]`
+   ```yaml
+   profiles:
+     dev:
+       tools: [actionlint, zizmor]  # NIE "enable"
+       failOn: [error, warning]
+   ```
+
+2. Wyrzuć `profile.enable` z całego kodu, wszędzie `profile.tools`
+
+3. Aktualizacja:
+   - `src/contract/types.ts`
+   - `src/contract/loader.ts`
+   - `src/contract/resolver.ts`
+
+**Testy:**
+- `contract.schema.test.ts`: kontrakt OK / kontrakt z błędem → exit code 2
+- Unit: resolver merges profiles correctly
+
+**Deliverables:**
+- ✅ `.cerber/contract.schema.json` zgodny z użyciem
+- ✅ Brak `profile.enable` w kodzie
+- ✅ Git committed
+
+---
+
+### COMMIT 3 — "Tool detection cross-platform: żadnego 'which'"
+
+**Cel:** Windows przestaje być obywatelem drugiej kategorii.
+
+**Zmiany:**
+
+1. `ToolManager.detectTool()` wykrywa tool przez próbę uruchomienia `--version` / `-version`
+   ```typescript
+   async detectTool(name: string): Promise<ToolDetection> {
+     try {
+       const result = await execa(name, ['--version']);
+       const version = this.parseVersion(result.stdout);
+       return { installed: true, version };
+     } catch {
+       return { installed: false };
+     }
+   }
+   ```
+
+2. **Nie używamy** `which` / `where` w ogóle
+
+3. `parseVersion()` obsługuje różne formaty:
+   - `actionlint 1.6.27`
+   - `v1.6.27`
+   - `version 1.6.27`
+
+**Testy:**
+- Unit: `parseVersion()` różne formaty
+- Unit: `detectTool()` na mock execa (bez realnych tooli)
+
+**Deliverables:**
+- ✅ Cross-platform tool detection
+- ✅ Zero `which` / `where` dependencies
+- ✅ Git committed
+
+---
+
+### COMMIT 4 — "Actionlint parser: obsługa NDJSON / line-by-line JSON"
+
+**Cel:** Koniec z padaniem na realnych outputach actionlinta.
+
+**Zmiany:**
+
+1. `ActionlintAdapter.parseOutput(raw)`:
+   ```typescript
+   parseOutput(raw: string): Violation[] {
+     // 1. Try JSON array
+     if (raw.trim().startsWith('[')) {
+       return this.parseJsonArray(raw);
+     }
+     
+     // 2. Try NDJSON (line-by-line)
+     const lines = raw.trim().split('\n').filter(l => l.trim());
+     const parsed = lines.map(line => {
+       try { return JSON.parse(line); } catch { return null; }
+     }).filter(x => x !== null);
+     
+     if (parsed.length > 0) {
+       return this.normalizeActionlintJson(parsed);
+     }
+     
+     // 3. Fallback: text parser
+     return this.parseTextFormat(raw);
+   }
+   ```
+
+2. Fixtures:
+   - `fixtures/tool-outputs/actionlint/ndjson.txt`
+   - `fixtures/tool-outputs/actionlint/array.json`
+   - `fixtures/tool-outputs/actionlint/text.txt`
+
+**Testy:**
+- Snapshoty z fixtures (zero zależności od zainstalowanego actionlinta)
+- Unit: każdy format parsuje się poprawnie
+
+**Deliverables:**
+- ✅ Actionlint parser obsługuje wszystkie formaty
+- ✅ Fixtures dla testów
+- ✅ Git committed
+
+---
+
+### COMMIT 5 — "Orchestrator minimalny: run tools → parse → merge → deterministic sort"
+
+**Cel:** Działa pipeline E2E na fixtures.
+
+**Zmiany:**
+
+1. `src/core/orchestrator.ts` (minimalny, **bez state machine**):
+   ```typescript
+   class Orchestrator {
+     async run(options: RunOptions): Promise<CerberOutput> {
+       // 1. Discover files
+       const files = await this.fileDiscovery.discover(options);
+       
+       // 2. Run adapters
+       const results = await this.runAdapters(files, options);
+       
+       // 3. Merge + normalize
+       const violations = this.merge.mergeResults(results);
+       
+       // 4. Deterministic sort
+       const sorted = this.sort(violations);
+       
+       // 5. Build output
+       return this.buildOutput(sorted, results);
+     }
+   }
+   ```
+
+2. `src/reporting/merge.ts`:
+   - Normalizacja ścieżek (`\` → `/`, trim `./`)
+   - Deterministic sort: `path, line, column, source, id, message`
+   - Dedupe: klucz `source|id|path|line|column|hash(message)`
+
+**Testy:**
+- Orchestrator unit na mock adapterach
+- Determinism snapshot: ten sam input → identyczny JSON
+
+**Deliverables:**
+- ✅ Orchestrator pipeline działa E2E
+- ✅ Deterministic output (snapshot test)
+- ✅ Git committed
+
+---
+
+### COMMIT 6 — "Rules & gating: per-rule override + fallback severity"
+
+**Cel:** "Contract-driven" naprawdę znaczy contract-driven.
+
+**Zmiany:**
+
+1. Contract ma `rules`:
+   ```yaml
+   rules:
+     ci/pin-versions:
+       severity: warning
+       gate: false        # Don't block on this
+       source: ratchet
+   ```
+
+2. Orchestrator:
+   - Mapuje tool findings do `id = tool/<rule>` zawsze
+   - Jeśli istnieje mapping do canonical cerber rule → `cerberId` (opcjonalne)
+   - **Gating:** najpierw `rules[ruleId].gate`, dopiero fallback `profile.failOn`
+
+**Testy:**
+- Unit: reguła `gate=false` mimo `severity=error` → nie failuje
+- Unit: brak rule config → fallback na severity
+
+**Deliverables:**
+- ✅ Per-rule gating
+- ✅ Contract rules override profile
+- ✅ Git committed
+
+---
+
+### COMMIT 7 — "File discovery: staged/changed/all z sensownym fallbackiem CI"
+
+**Cel:** Żeby PR-y nie padały przez brak `origin/main`.
+
+**Zmiany:**
+
+1. `src/scm/git.ts`:
+   ```typescript
+   async getChangedFiles(base?: string): Promise<string[]> {
+     // 1. Jeśli env GITHUB_BASE_REF / GITHUB_SHA → użyj ich
+     if (process.env.GITHUB_BASE_REF) {
+       return this.diffAgainstRef(process.env.GITHUB_BASE_REF);
+     }
+     
+     // 2. Spróbuj git merge-base HEAD origin/<base>
+     try {
+       const mergeBase = await this.getMergeBase(base || 'main');
+       return this.diffAgainstCommit(mergeBase);
+     } catch {
+       // 3. Fallback: git ls-files (all)
+       return this.getAllFiles();
+     }
+   }
+   ```
+
+2. `staged`: `git diff --name-only --cached`
+3. `FileDiscovery` filtruje pliki po target globs
+
+**Testy:**
+- Unit z mock execa: scenariusze "brak origin", "shallow clone"
+- Integration na fixtures repo (symulacja)
+
+**Deliverables:**
+- ✅ File discovery z fallbackami CI
+- ✅ Windows paths OK
+- ✅ Git committed
+
+---
+
+### COMMIT 8 — "Reporting: text + github annotations (bez SARIF na V2.0)"
+
+**Cel:** Natychmiastowa wartość w CI (komentarze w PR).
+
+**Zmiany:**
+
+1. `format-text.ts` - human-readable output
+2. `format-github.ts`:
+   ```typescript
+   function formatGitHub(output: CerberOutput): string {
+     let result = '';
+     for (const v of output.violations) {
+       const level = v.severity === 'error' ? 'error' : 'warning';
+       result += `::${level} file=${v.path},line=${v.line || 1}::${v.id}: ${v.message}\n`;
+     }
+     return result;
+   }
+   ```
+3. `ReportFormatter` dispatcher
+
+**Testy:**
+- Snapshoty formatterów
+- E2E: GitHub Actions pokazuje annotations
+
+**Deliverables:**
+- ✅ Text + GitHub annotations format
+- ✅ CI pokazuje adnotacje w PR
+- ✅ Git committed
+
+---
+
+### COMMIT 9 — "CLI: validate + doctor (doctor = diagnoza i alarm, nie 'magiczna naprawa')"
+
+**Cel:** Doctor odpowiada na pytanie: co nie gra? (NIE "naprawiam po cichu")
+
+**Zmiany:**
+
+1. `cerber validate`:
+   ```bash
+   cerber validate --profile dev --target github-actions --staged
+   cerber validate --format github  # GitHub annotations
+   ```
+   - Exit codes: `0` ok / `1` violations / `2` config error / `3` tool error
+
+2. `cerber doctor`:
+   ```bash
+   cerber doctor
+   ```
+   - **Wykrywa:**
+     - Targety (.github/workflows/)
+     - Contract exists?
+     - Tool status (installed/version)
+   - **Raport:**
+     ```
+     🏥 CERBER DOCTOR
+     
+     📦 Project: nodejs
+     📁 Workflows: 3 found
+     📄 Contract: ✅ .cerber/contract.yml
+     
+     🔧 Tool Status:
+     ✅ actionlint (1.6.27)
+     ❌ zizmor - not installed
+        Install: cargo install zizmor
+     
+     ⚠️  Issues:
+     - zizmor required for 'dev' profile but not installed
+     
+     💡 Suggested fixes:
+     cargo install zizmor
+     ```
+   - **Smoke validate** (jeśli może)
+   - **NIE** auto-instaluje, NIE naprawia po cichu
+
+**Testy:**
+- E2E: validate na fixtures
+- E2E: doctor na fixtures (bez tooli → ma nie wywalać)
+
+**Deliverables:**
+- ✅ CLI: validate + doctor
+- ✅ Doctor diagnozuje + alarmuje (nie auto-fix)
+- ✅ Exit codes: 0/1/2/3
+- ✅ Git committed
+
+---
+
+### COMMIT 10 — "Guardian pre-commit: dev-fast <2s (tylko actionlint)"
+
+**Cel:** Szybki feedback bez zabijania commitów.
+
+**Zmiany:**
+
+1. Template contract dodaje `dev-fast`:
+   ```yaml
+   profiles:
+     dev-fast:
+       tools: [actionlint]  # Tylko najszybszy tool
+       failOn: [error]      # Warnings allowed
+   ```
+
+2. Docs: husky/lint-staged (opcjonalnie):
+   ```json
+   // package.json
+   "lint-staged": {
+     ".github/workflows/*.{yml,yaml}": [
+       "cerber guard --staged"
+     ]
+   }
+   ```
+
+3. `cerber guard --staged` jako alias do `validate --staged --profile dev-fast`
+
+**Testy:**
+- Smoke: skrypt e2e "fails on obvious error" (fixtures)
+- Performance: <2s na typowym workflow
+
+**Deliverables:**
+- ✅ Guardian pre-commit <2s
+- ✅ Template z dev-fast profile
+- ✅ Docs: husky setup
+- ✅ Git committed
 
 ---
 
@@ -4145,6 +4558,441 @@ GitHub: github.com/Agaslez/cerber-core
 - [ ] Dev.to article
 - [ ] Twitter thread
 - [ ] LinkedIn post
+
+---
+
+## 🚀 V2.1 — "Ops & Auto-install (Bezpiecznie)"
+
+**Prerequisites:** V2.0 released, userzy używają, feedback collected.
+
+### Features (Postponed from V2.0):
+
+#### 1. Auto-install Tooli (12h) - **BEZPIECZNIE**
+
+**Warunki wejścia:**
+- ✅ Checksums realne (SHA256 dla każdego binary)
+- ✅ Lock na cache (równoległość prevented)
+- ✅ Wybór arch/platform (darwin-arm64, linux-amd64, win-x64)
+- ✅ Opcja OFF domyślnie (bez zaskoczeń)
+
+**Implementacja:**
+```typescript
+// src/tools/AutoInstaller.ts
+class AutoInstaller {
+  async install(tool: string, version: string): Promise<void> {
+    // 1. Check cache ~/.cerber/tools/<tool>-<version>-<platform>
+    if (await this.isCached(tool, version)) {
+      return;
+    }
+    
+    // 2. Lock (prevent race conditions)
+    await this.acquireLock(tool, version);
+    
+    try {
+      // 3. Download + verify checksum
+      const binary = await this.download(tool, version);
+      await this.verifyChecksum(binary, tool, version);
+      
+      // 4. Install to cache
+      await this.installToCache(binary, tool, version);
+    } finally {
+      await this.releaseLock(tool, version);
+    }
+  }
+}
+```
+
+**Contract:**
+```yaml
+tools:
+  actionlint:
+    autoInstall: true  # Opt-in
+    version: "1.6.27"
+    checksum: "sha256:abc123..."
+```
+
+**Tests:**
+- Unit: download + verify checksum
+- Unit: lock mechanism (concurrent installs)
+- Integration: install real tool from fixtures
+
+---
+
+#### 2. Execution State Machine (8h)
+
+**Implementacja:**
+```typescript
+enum ExecutionState {
+  PENDING = 'pending',
+  RUNNING = 'running',
+  COMPLETED = 'completed',
+  FAILED = 'failed',
+  CANCELLED = 'cancelled'
+}
+
+interface ExecutionContext {
+  id: string;
+  state: ExecutionState;
+  startTime: Date;
+  endTime?: Date;
+  checkpoints: Array<{
+    state: ExecutionState;
+    timestamp: Date;
+    data?: any;
+  }>;
+}
+```
+
+**Use case:** Progress tracking, debugging long runs
+
+---
+
+#### 3. Retry Logic dla Network Failures (6h)
+
+**Implementacja:**
+```typescript
+class RetryExecutor {
+  async executeWithRetry<T>(
+    fn: () => Promise<T>,
+    policy: { maxAttempts: 3, initialDelay: 1000, backoffMultiplier: 2 }
+  ): Promise<T> {
+    for (let attempt = 1; attempt <= policy.maxAttempts; attempt++) {
+      try {
+        return await fn();
+      } catch (error) {
+        if (!this.isRetryable(error) || attempt === policy.maxAttempts) {
+          throw error;
+        }
+        await this.sleep(this.calculateDelay(attempt, policy));
+      }
+    }
+  }
+}
+```
+
+**Use case:** Auto-install network timeouts, flaky downloads
+
+---
+
+#### 4. SARIF Format (6h)
+
+**Implementacja:**
+```typescript
+// src/reporting/format-sarif.ts
+function formatSARIF(output: CerberOutput): string {
+  const sarif = {
+    version: '2.1.0',
+    runs: [{
+      tool: { driver: { name: 'Cerber', version: '2.1.0' } },
+      results: output.violations.map(v => ({
+        ruleId: v.id,
+        level: v.severity === 'error' ? 'error' : 'warning',
+        message: { text: v.message },
+        locations: [{
+          physicalLocation: {
+            artifactLocation: { uri: v.path },
+            region: { startLine: v.line || 1 }
+          }
+        }]
+      }))
+    }]
+  };
+  return JSON.stringify(sarif, null, 2);
+}
+```
+
+**Use case:** GitHub Code Scanning integration
+
+---
+
+#### 5. Execution History + Replay (10h) - **Opt-in, Redaction**
+
+**Warunki wejścia:**
+- ✅ Redaction secrets (regex patterns)
+- ✅ Allowlist paths (nie zapisujemy wrażliwych plików)
+- ✅ Opt-in explicit (OFF domyślnie)
+
+**Implementacja:**
+```typescript
+// src/persistence/ExecutionStore.ts
+interface ExecutionRecord {
+  id: string;
+  startTime: Date;
+  endTime?: Date;
+  input: {
+    options: RunOptions;
+    files: string[];  // Allowlisted paths only
+  };
+  output: CerberOutput;
+  // ❌ NO secrets, ❌ NO file contents
+}
+
+class ExecutionStore {
+  async save(execution: ExecutionRecord): Promise<void> {
+    // Redact secrets before saving
+    const redacted = this.redactSecrets(execution);
+    await fs.writeFile(`~/.cerber/history/${execution.id}.json`, JSON.stringify(redacted));
+  }
+  
+  async replay(id: string): Promise<CerberOutput> {
+    const record = await this.load(id);
+    return this.orchestrator.run(record.input.options);
+  }
+}
+```
+
+**Contract:**
+```yaml
+history:
+  enabled: false  # Opt-in
+  retention: 30   # Days
+  redactPatterns:
+    - "ghp_[a-zA-Z0-9]{36}"
+    - "sk-[a-zA-Z0-9]{48}"
+```
+
+**CLI:**
+```bash
+cerber history --enable
+cerber history list
+cerber replay <execution-id>
+```
+
+---
+
+**Timeline V2.1:** ~50h (2 weeks)
+
+**Priority:**
+1. Auto-install (12h) - największa user value
+2. SARIF (6h) - security flow
+3. State machine (8h) - debugging
+4. Retry (6h) - reliability
+5. History/replay (10h) - advanced debugging
+
+---
+
+## 🌍 V2.2 — "Universal Targets"
+
+**Prerequisites:** V2.1 released, auto-install stable, userzy zadowoleni.
+
+### Features:
+
+#### 1. GitLab CI Target (12h)
+
+**Implementacja:**
+```typescript
+// src/targets/gitlab-ci/discover.ts
+export class GitLabCITarget implements Target {
+  async discoverFiles(cwd: string): Promise<string[]> {
+    const files = ['.gitlab-ci.yml'];
+    
+    // Include external files
+    const mainConfig = await this.parseConfig('.gitlab-ci.yml');
+    if (mainConfig.include) {
+      files.push(...mainConfig.include);
+    }
+    
+    return files;
+  }
+}
+```
+
+**Adapters:**
+- gitlab-ci-lint (built-in GitLab validator)
+- yamllint (generic YAML validator)
+
+---
+
+#### 2. Generic YAML Target (8h)
+
+**Implementacja:**
+```typescript
+// src/targets/generic-yaml/discover.ts
+export class GenericYAMLTarget implements Target {
+  async discoverFiles(cwd: string, globs: string[]): Promise<string[]> {
+    // Contract defines globs
+    return await glob(globs, { cwd });
+  }
+}
+```
+
+**Contract:**
+```yaml
+target: generic-yaml
+globs:
+  - "k8s/**/*.yml"
+  - "config/**/*.yaml"
+```
+
+**Adapters:**
+- yamllint
+- kubeval (Kubernetes)
+- helm lint
+
+---
+
+#### 3. Observability Stack (10h) - **Opt-in**
+
+**Implementacja:**
+```typescript
+// src/observability/TracingCollector.ts
+class TracingCollector {
+  startSpan(name: string): Span {
+    return { id: uuid(), name, startTime: Date.now() };
+  }
+  
+  endSpan(span: Span): void {
+    span.endTime = Date.now();
+    span.duration = span.endTime - span.startTime;
+    this.spans.push(span);
+  }
+  
+  exportTraces(): Span[] {
+    return this.spans;
+  }
+}
+```
+
+**CLI:**
+```bash
+cerber validate --tracing
+cerber traces show <execution-id>
+```
+
+---
+
+#### 4. Configuration Hot Reload (6h)
+
+**Implementacja:**
+```typescript
+// src/config/ConfigurationManager.ts
+class ConfigurationManager {
+  private watchers: Array<(config: Contract) => void> = [];
+  
+  async watch(contractPath: string): Promise<void> {
+    const watcher = chokidar.watch(contractPath);
+    watcher.on('change', async () => {
+      const newConfig = await this.load(contractPath);
+      this.watchers.forEach(cb => cb(newConfig));
+    });
+  }
+}
+```
+
+**Use case:** Long-running CI agents
+
+---
+
+**Timeline V2.2:** ~40h (2 weeks)
+
+**Priority:**
+1. GitLab CI (12h) - expand user base
+2. Generic YAML (8h) - flexibility
+3. Observability (10h) - debugging advanced
+4. Hot reload (6h) - ops convenience
+
+---
+
+## 📊 ROADMAP SUMMARY - ALL VERSIONS
+
+| Version | Timeline | Hours | Focus |
+|---------|----------|-------|-------|
+| **V2.0 - Reliable MVP** | 2-3 weeks | 74h | Core orchestrator, 10 commits, deterministic, doctor |
+| **V2.1 - Ops & Auto-install** | 2 weeks | 50h | Auto-install (safe), SARIF, retry, history (opt-in) |
+| **V2.2 - Universal Targets** | 2 weeks | 40h | GitLab CI, generic YAML, observability, hot reload |
+| **TOTAL** | 6-7 weeks | 164h | Production-ready multi-target orchestrator |
+
+**Filozofia zmian:**
+- V2.0: **"Ma działać, nie wyglądać"** - solid foundation bez fajerwerków
+- V2.1: **"Ops done right"** - auto-install z bezpieczeństwem, advanced debugging
+- V2.2: **"Universal"** - support for all CI platforms
+
+**Wywalono "NASA mode" z V2.0:**
+- ❌ Circuit breaker (overkill dla tool execution)
+- ❌ Resource manager (premature optimization)
+- ❌ Caching layer (complexity > value)
+- ❌ Plugin system (YAGNI)
+- ❌ Dependency resolution (tools są independent)
+
+**Dodano pragmatyzm:**
+- ✅ Fixtures dla testów (bez real tools)
+- ✅ Windows paths OK (normalizacja)
+- ✅ Doctor diagnozuje, NIE naprawia
+- ✅ dev-fast <2s (pre-commit usable)
+- ✅ Exit codes 0/1/2/3 (clear semantics)
+
+---
+
+## 🎯 KLUCZOWA ZMIANA FILOZOFII
+
+### Doctor = Mechanic, NIE Autopilot
+
+**Przed (błędne założenie):**
+```bash
+cerber doctor
+# Auto-instaluje tools, auto-generuje contract, auto-naprawia CI
+```
+
+**Po (pragmatyczne):**
+```bash
+cerber doctor
+# Output:
+🏥 CERBER DOCTOR
+
+📦 Project: nodejs
+📁 Workflows: 3 found
+📄 Contract: ✅ .cerber/contract.yml
+
+🔧 Tool Status:
+✅ actionlint (1.6.27)
+❌ zizmor - not installed
+
+⚠️  Issues:
+- zizmor required for 'dev' profile but not installed
+
+💡 Suggested fixes:
+cargo install zizmor
+
+# User runs: cargo install zizmor
+# Doctor NIGDY nie instaluje po cichu
+```
+
+**Dlaczego:**
+- Auto-naprawa CI = większe ryzyko niż korzyść
+- Community grilluje tools które "robią za dużo"
+- User musi wiedzieć co się dzieje (transparency)
+
+**Auto-fix TYLKO jako jawna komenda (V2.2+):**
+```bash
+cerber fix install-tools  # Explicit action
+cerber fix generate-contract  # Explicit action
+```
+
+---
+
+## ✅ KONKLUZJA
+
+**V2.0 = Reliable MVP**
+- 10 commitów w 2-3 tygodnie
+- Zero "NASA mode" features
+- Solid foundation dla V2.1+
+- Windows OK, deterministic, tested on fixtures
+
+**User dostaje:**
+- Orchestrator który działa (nie "sp… się" po tygodniu)
+- Doctor który monitoruje (nie "naprawia" po cichu)
+- Guardian <2s (używalny w pre-commit)
+- GitHub annotations (natychmiastowa wartość)
+
+**Co odkładamy (V2.1+):**
+- Auto-install (z checksums + lock)
+- SARIF (security flow)
+- History/replay (opt-in, redaction)
+- Retry (network failures)
+- Observability (tracing, metrics)
+- Universal targets (GitLab, generic YAML)
+
+**Filozofia:** "Zrób to dobrze, nie rób wszystkiego". MVP najpierw, fajerwerki później.
 
 **Enterprise Readiness Criteria:**
 - [ ] Solo mode: Auto-recovery + simple monitoring
