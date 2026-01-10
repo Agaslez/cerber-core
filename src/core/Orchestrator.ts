@@ -4,6 +4,7 @@
  * @rule Per AGENTS.md §3 - Deterministic output (sorted, stable)
  * @rule Per AGENTS.md §6 - Graceful degradation
  * @rule Per PRODUCTION HARDENING - P0: Full observability
+ * @rule Per REFACTOR-3 - DIP: Orchestrator → AdapterExecutionStrategy abstraction
  */
 
 import crypto from 'crypto';
@@ -11,10 +12,12 @@ import { ActionlintAdapter } from '../adapters/actionlint/ActionlintAdapter.js';
 import type { Adapter, AdapterResult } from '../adapters/types.js';
 import { ZizmorAdapter } from '../adapters/zizmor/ZizmorAdapter.js';
 import type { Violation } from '../types.js';
-import { ErrorClassifier } from './error-classifier.js';
-import { createChildLogger, generateRequestId, logError } from './logger.js';
+import { createChildLogger, generateRequestId } from './logger.js';
 import { metrics } from './metrics.js';
 import { sanitizePathArray, validateAdapterName, validateProfileName } from './security.js';
+import type { AdapterExecutionStrategy } from './strategies/adapter-execution-strategy.js';
+import { LegacyExecutionStrategy } from './strategies/legacy-execution-strategy.js';
+import { ResilientExecutionStrategy } from './strategies/resilient-execution-strategy.js';
 import type {
     AdapterRegistryEntry,
     OrchestratorResult,
@@ -25,14 +28,23 @@ import { validateOrchestratorOptions } from './validation.js';
 /**
  * Orchestrator - coordinates multiple adapters
  * @rule Per AGENTS.md §0 - Dyrygent, nie orkiestra
+ * @rule Per REFACTOR-3 - Uses Strategy Pattern for DIP compliance
  */
 export class Orchestrator {
   private adapters: Map<string, AdapterRegistryEntry>;
   private adapterCache: Map<string, Adapter>;
+  private strategy: AdapterExecutionStrategy;
 
-  constructor() {
+  /**
+   * Constructor with Dependency Injection
+   * @param strategy - Execution strategy (default: LegacyExecutionStrategy for backward compatibility)
+   * @rule Per REFACTOR-3 - DIP: Inject strategy to eliminate tight coupling
+   */
+  constructor(strategy?: AdapterExecutionStrategy) {
     this.adapters = new Map();
     this.adapterCache = new Map();
+    // Default: LegacyExecutionStrategy (backward compatible)
+    this.strategy = strategy ?? new LegacyExecutionStrategy();
     this.registerDefaultAdapters();
   }
 
@@ -205,139 +217,40 @@ export class Orchestrator {
   /**
    * Run adapters in parallel
    * @rule Per AGENTS.md §6 - Graceful: one adapter fails → others continue
-   * @rule Per PRODUCTION HARDENING - P2: Resilience with circuit breaker + retry + timeout
+   * @rule Per PRODUCTION HARDENING - P2: Resilience delegated to strategy
+   * @rule Per REFACTOR-3 - DIP: Delegate to AdapterExecutionStrategy
    */
   private async runParallel(
     adapters: Array<{ name: string; adapter: Adapter }>,
     options: OrchestratorRunOptions
   ): Promise<AdapterResult[]> {
-    // Check if resilience is enabled
+    // Check if resilience is enabled → use ResilientExecutionStrategy
     if (options.resilience) {
-      const { executeResilientAdapters, convertToLegacyResults } = await import('./resilience.js');
-      
-      const resilientResults = await executeResilientAdapters(
-        adapters,
-        options,
-        options.resilience
-      );
-      
-      return convertToLegacyResults(resilientResults);
+      const resilientStrategy = new ResilientExecutionStrategy();
+      return resilientStrategy.executeParallel(adapters, options);
     }
     
-    // Legacy path (no resilience)
-    const promises = adapters.map(async ({ adapter }) => {
-      try {
-        // Clone options to prevent adapter mutations affecting others
-        return await adapter.run({
-          files: [...options.files],  // Clone array
-          cwd: options.cwd,
-          timeout: options.timeout,
-        });
-      } catch (error) {
-        // Graceful: adapter crashes → create error result with proper classification
-        const classification = ErrorClassifier.classify(error);
-        
-        // Log error with full context
-        logError('Adapter execution failed', error, {
-          adapter: adapter.name,
-          exitCode: classification.exitCode,
-          errorType: classification.type,
-          options: {
-            filesCount: options.files.length,
-            cwd: options.cwd,
-            timeout: options.timeout
-          }
-        });
-        
-        // Record error metric
-        metrics.adapterErrors.inc({ 
-          adapter: adapter.name, 
-          error_type: classification.type
-        });
-
-        return {
-          tool: adapter.name,
-          version: 'unknown',
-          exitCode: classification.exitCode,
-          violations: [],
-          executionTime: 0,
-          skipped: true,
-          skipReason: `${classification.reason}: ${classification.message}`,
-        };
-      }
-    });
-
-    return Promise.all(promises);
+    // Delegate to injected strategy
+    return this.strategy.executeParallel(adapters, options);
   }
 
   /**
    * Run adapters sequentially
-   * @rule Per PRODUCTION HARDENING - P2: Sequential execution with resilience
+   * @rule Per PRODUCTION HARDENING - P2: Sequential execution via strategy
+   * @rule Per REFACTOR-3 - DIP: Delegate to AdapterExecutionStrategy
    */
   private async runSequential(
     adapters: Array<{ name: string; adapter: Adapter }>,
     options: OrchestratorRunOptions
   ): Promise<AdapterResult[]> {
-    // Check if resilience is enabled
+    // Check if resilience is enabled → use ResilientExecutionStrategy
     if (options.resilience) {
-      const { executeResilientAdapter, convertToLegacyResults } = await import('./resilience.js');
-      
-      const results = [];
-      for (const { adapter } of adapters) {
-        const result = await executeResilientAdapter(adapter, options, options.resilience);
-        results.push(result);
-      }
-      
-      return convertToLegacyResults(results);
+      const resilientStrategy = new ResilientExecutionStrategy();
+      return resilientStrategy.executeSequential(adapters, options);
     }
     
-    // Legacy path (no resilience)
-    const results: AdapterResult[] = [];
-
-    for (const { adapter } of adapters) {
-      try {
-        // Clone options to prevent adapter mutations
-        const result = await adapter.run({
-          files: [...options.files],  // Clone array
-          cwd: options.cwd,
-          timeout: options.timeout,
-        });
-        results.push(result);
-      } catch (error) {
-        // Graceful: adapter crashes → create error result, continue
-        const classification = ErrorClassifier.classify(error);
-        
-        // Log error with full context
-        logError('Adapter execution failed', error, {
-          adapter: adapter.name,
-          exitCode: classification.exitCode,
-          errorType: classification.type,
-          options: {
-            filesCount: options.files.length,
-            cwd: options.cwd,
-            timeout: options.timeout
-          }
-        });
-        
-        // Record error metric
-        metrics.adapterErrors.inc({ 
-          adapter: adapter.name, 
-          error_type: classification.type
-        });
-
-        results.push({
-          tool: adapter.name,
-          version: 'unknown',
-          exitCode: classification.exitCode,
-          violations: [],
-          executionTime: 0,
-          skipped: true,
-          skipReason: `${classification.reason}: ${classification.message}`,
-        });
-      }
-    }
-
-    return results;
+    // Delegate to injected strategy
+    return this.strategy.executeSequential(adapters, options);
   }
 
   /**

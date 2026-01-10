@@ -62,7 +62,7 @@ export class ErrorClassifier {
     }
 
     // Priority 2: Timeout errors
-    if (messageLower.includes('timeout') || messageLower.includes('etimedout')) {
+    if (messageLower.includes('timeout') || messageLower.includes('etimedout') || messageLower.includes('timed out')) {
       return {
         type: 'timeout',
         exitCode: 124,  // POSIX: timeout
