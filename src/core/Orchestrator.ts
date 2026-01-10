@@ -3,6 +3,7 @@
  * @rule Per AGENTS.md §0 - ONE TRUTH: Orchestrator coordinates, doesn't implement
  * @rule Per AGENTS.md §3 - Deterministic output (sorted, stable)
  * @rule Per AGENTS.md §6 - Graceful degradation
+ * @rule Per PRODUCTION HARDENING - P0: Full observability
  */
 
 import crypto from 'crypto';
@@ -10,6 +11,8 @@ import { ActionlintAdapter } from '../adapters/actionlint/ActionlintAdapter.js';
 import type { Adapter, AdapterResult } from '../adapters/types.js';
 import { ZizmorAdapter } from '../adapters/zizmor/ZizmorAdapter.js';
 import type { Violation } from '../types.js';
+import { createChildLogger, generateRequestId, logError } from './logger.js';
+import { metrics } from './metrics.js';
 import type {
     AdapterRegistryEntry,
     OrchestratorResult,
@@ -69,12 +72,15 @@ export class Orchestrator {
 
     // Return cached instance if available
     if (this.adapterCache.has(name)) {
+      metrics.cacheHits.inc({ adapter: name });
       return this.adapterCache.get(name)!;
     }
 
     // Create and cache new instance
+    metrics.cacheMisses.inc({ adapter: name });
     const adapter = entry.factory();
     this.adapterCache.set(name, adapter);
+    metrics.cacheSize.set(this.adapterCache.size);
     return adapter;
   }
 
@@ -92,15 +98,33 @@ export class Orchestrator {
    * Run adapters and merge results
    * @rule Per AGENTS.md §3 - Deterministic output
    * @rule Per AGENTS.md §6 - Graceful: adapter fails → continue with others
+   * @rule Per PRODUCTION HARDENING - P0: Full observability
    */
   async run(options: OrchestratorRunOptions): Promise<OrchestratorResult> {
+    const runId = generateRequestId();
+    const log = createChildLogger({ 
+      operation: 'orchestrator.run', 
+      runId,
+      profile: options.profile 
+    });
+    
     const startTime = Date.now();
+    const timer = metrics.orchestratorDuration.startTimer({ 
+      profile: options.profile || 'default' 
+    });
 
     // Determine which adapters to run (support both 'tools' and 'adapters')
     const adapterNames =
       options.tools && options.tools.length > 0
         ? options.tools
         : this.listAdapters();
+    
+    log.info({
+      tools: adapterNames,
+      filesCount: options.files.length,
+      parallel: options.parallel ?? true,
+      timeout: options.timeout
+    }, 'Starting orchestration');
 
     // Get adapter instances
     const adapters = adapterNames
@@ -120,7 +144,31 @@ export class Orchestrator {
       : await this.runSequential(adapters, options);
 
     // Merge results
-    return this.mergeResults(results, adapters.map((a) => a.name), startTime, options.profile);
+    const result = this.mergeResults(results, adapters.map((a) => a.name), startTime, options.profile);
+    
+    // Log completion & record metrics
+    const duration = Date.now() - startTime;
+    timer();
+    
+    metrics.orchestratorRuns.inc({ 
+      profile: options.profile || 'default', 
+      status: 'success' 
+    });
+    
+    metrics.filesProcessed.inc(
+      { profile: options.profile || 'default' },
+      options.files.length
+    );
+    
+    log.info({
+      violations: result.violations.length,
+      errors: result.summary.errors,
+      warnings: result.summary.warnings,
+      duration,
+      toolsRun: adapters.length
+    }, 'Orchestration complete');
+    
+    return result;
   }
 
   /**
@@ -144,18 +192,40 @@ export class Orchestrator {
         const errorMessage = error instanceof Error ? error.message : String(error);
         let exitCode = 3;  // Default: crash
         let reason = 'Adapter crashed';
+        let errorType = 'crash';
 
         // Classify error type
         if (errorMessage.includes('ENOENT') || errorMessage.includes('not found')) {
           exitCode = 127;
           reason = 'Tool not found';
+          errorType = 'not_found';
         } else if (errorMessage.includes('timeout') || errorMessage.includes('ETIMEDOUT')) {
           exitCode = 124;
           reason = 'Execution timeout';
+          errorType = 'timeout';
         } else if (errorMessage.includes('EACCES') || errorMessage.includes('permission denied')) {
           exitCode = 126;
           reason = 'Permission denied';
+          errorType = 'permission';
         }
+        
+        // Log error with full context
+        logError('Adapter execution failed', error, {
+          adapter: adapter.name,
+          exitCode,
+          errorType,
+          options: {
+            filesCount: options.files.length,
+            cwd: options.cwd,
+            timeout: options.timeout
+          }
+        });
+        
+        // Record error metric
+        metrics.adapterErrors.inc({ 
+          adapter: adapter.name, 
+          error_type: errorType 
+        });
 
         return {
           tool: adapter.name,
@@ -195,18 +265,40 @@ export class Orchestrator {
         const errorMessage = error instanceof Error ? error.message : String(error);
         let exitCode = 3;
         let reason = 'Adapter crashed';
+        let errorType = 'crash';
 
         // Classify error type
         if (errorMessage.includes('ENOENT') || errorMessage.includes('not found')) {
           exitCode = 127;
           reason = 'Tool not found';
+          errorType = 'not_found';
         } else if (errorMessage.includes('timeout') || errorMessage.includes('ETIMEDOUT')) {
           exitCode = 124;
           reason = 'Execution timeout';
+          errorType = 'timeout';
         } else if (errorMessage.includes('EACCES') || errorMessage.includes('permission denied')) {
           exitCode = 126;
           reason = 'Permission denied';
+          errorType = 'permission';
         }
+        
+        // Log error with full context
+        logError('Adapter execution failed', error, {
+          adapter: adapter.name,
+          exitCode,
+          errorType,
+          options: {
+            filesCount: options.files.length,
+            cwd: options.cwd,
+            timeout: options.timeout
+          }
+        });
+        
+        // Record error metric
+        metrics.adapterErrors.inc({ 
+          adapter: adapter.name, 
+          error_type: errorType 
+        });
 
         results.push({
           tool: adapter.name,
@@ -281,6 +373,7 @@ export class Orchestrator {
     const MAX_DEDUP_SIZE = 50000; // ~3MB for Set
     const seen = new Set<string>();
     const unique: Violation[] = [];
+    const totalViolations = violations.length;
 
     for (const violation of violations) {
       const key = this.getDedupeKey(violation);
@@ -291,10 +384,18 @@ export class Orchestrator {
 
         // Safety: if we hit limit, stop deduplication and log warning
         if (seen.size >= MAX_DEDUP_SIZE) {
-          console.warn(`Deduplication limit reached (${MAX_DEDUP_SIZE}). Some duplicates may remain.`);
+          const log = createChildLogger({ operation: 'orchestrator.deduplicate' });
+          log.warn(`Deduplication limit reached (${MAX_DEDUP_SIZE}). Some duplicates may remain.`);
           break;
         }
       }
+    }
+    
+    // Record deduplication efficiency
+    if (totalViolations > 0) {
+      const dedupedCount = totalViolations - unique.length;
+      const dedupRate = (dedupedCount / totalViolations) * 100;
+      metrics.deduplicationRate.observe(dedupRate);
     }
 
     return unique;
