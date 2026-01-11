@@ -1,0 +1,192 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://cerber-core.dev/schemas/contract.v1.json",
+  "title": "Cerber Contract",
+  "description": "Contract defines validation rules, profiles, and tool configuration. ONE TRUTH: contract.yml is source of truth for all validation.",
+  "type": "object",
+  "required": [
+    "contractVersion",
+    "profiles"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "contractVersion": {
+      "type": "integer",
+      "const": 1,
+      "description": "Contract version (current: 1). Increment on breaking changes."
+    },
+    "name": {
+      "type": "string",
+      "description": "Project name (optional)",
+      "examples": ["my-project", "nodejs-app"]
+    },
+    "description": {
+      "type": "string",
+      "description": "Contract description (optional)"
+    },
+    "extends": {
+      "type": "string",
+      "description": "Base template to extend (e.g., 'nodejs-base', 'python-base')",
+      "examples": ["nodejs-base"]
+    },
+    "activeProfile": {
+      "type": "string",
+      "description": "Default profile to use when --profile not specified",
+      "enum": ["solo", "dev", "team"]
+    },
+    "targets": {
+      "type": "array",
+      "description": "What to validate (defaults to github-actions if not specified)",
+      "items": {
+        "type": "object",
+        "required": ["id"],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Target ID (github-actions, gitlab-ci, generic-yaml)",
+            "enum": ["github-actions", "gitlab-ci", "generic-yaml"]
+          },
+          "globs": {
+            "type": "array",
+            "description": "File patterns to scan",
+            "items": {
+              "type": "string"
+            },
+            "examples": [
+              [".github/workflows/**/*.{yml,yaml}"],
+              ["k8s/**/*.yaml"]
+            ]
+          }
+        }
+      }
+    },
+    "tools": {
+      "type": "object",
+      "description": "Tool execution configuration (per-tool settings)",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "description": "Whether tool is available for use",
+            "default": true
+          },
+          "version": {
+            "type": "string",
+            "description": "Pin to specific version (optional, e.g., '1.6.27')",
+            "examples": ["1.6.27", "latest"]
+          },
+          "autoInstall": {
+            "type": "boolean",
+            "description": "Auto-download binary if not found (default: false)",
+            "default": false
+          },
+          "args": {
+            "type": "array",
+            "description": "Additional tool-specific arguments",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "rules": {
+      "type": "object",
+      "description": "Per-rule configuration (severity overrides, gating)",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "severity": {
+            "type": "string",
+            "description": "Override rule severity",
+            "enum": ["error", "warning", "info"]
+          },
+          "gate": {
+            "type": "boolean",
+            "description": "Whether this rule fails CI (gating)",
+            "default": true
+          },
+          "source": {
+            "type": "string",
+            "description": "Tool that provides this rule",
+            "enum": ["actionlint", "zizmor", "gitleaks", "ratchet", "cerber-semantic"]
+          }
+        }
+      }
+    },
+    "profiles": {
+      "type": "object",
+      "description": "Validation profiles (solo/dev/team business model)",
+      "additionalProperties": false,
+      "properties": {
+        "solo": {
+          "$ref": "#/definitions/profile"
+        },
+        "dev": {
+          "$ref": "#/definitions/profile"
+        },
+        "team": {
+          "$ref": "#/definitions/profile"
+        }
+      },
+      "required": ["solo"]
+    }
+  },
+  "definitions": {
+    "profile": {
+      "type": "object",
+      "description": "Validation profile (set of enabled tools + severity rules)",
+      "required": [
+        "tools",
+        "failOn"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "tools": {
+          "type": "array",
+          "description": "Which tools to enable for this profile",
+          "items": {
+            "type": "string"
+          },
+          "examples": [
+            ["actionlint"],
+            ["actionlint", "zizmor"],
+            ["actionlint", "zizmor", "gitleaks"]
+          ]
+        },
+        "failOn": {
+          "type": "array",
+          "description": "Which severity levels cause CI failure",
+          "items": {
+            "type": "string",
+            "enum": ["error", "warning", "info"]
+          },
+          "examples": [
+            ["error"],
+            ["error", "warning"]
+          ]
+        },
+        "timeout": {
+          "type": "integer",
+          "description": "Max execution time per tool (milliseconds)",
+          "minimum": 1000,
+          "examples": [30000, 60000]
+        },
+        "continueOnError": {
+          "type": "boolean",
+          "description": "Continue validation if tool crashes (graceful degradation)",
+          "default": false
+        },
+        "requireDeterministicOutput": {
+          "type": "boolean",
+          "description": "Enforce deterministic output (team profiles only)",
+          "default": false
+        }
+      }
+    }
+  }
+}
