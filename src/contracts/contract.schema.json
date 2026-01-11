@@ -75,8 +75,48 @@
       "type": "object",
       "description": "Rule configurations (overrides defaults)",
       "additionalProperties": {
-        "type": "string",
-        "enum": ["error", "warning", "info", "off"]
+        "type": "object",
+        "properties": {
+          "severity": {
+            "type": "string",
+            "enum": ["error", "warning", "info", "off"]
+          },
+          "gate": {
+            "type": "boolean",
+            "description": "Block merge if this rule fails (overrides profile.failOn)"
+          }
+        }
+      }
+    },
+    "profiles": {
+      "type": "object",
+      "description": "Execution profiles (solo/dev/team)",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["tools", "failOn"],
+        "properties": {
+          "tools": {
+            "type": "array",
+            "description": "Tools to run in this profile (e.g., ['actionlint', 'zizmor'])",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "failOn": {
+            "type": "array",
+            "description": "Severities that cause non-zero exit (e.g., ['error', 'warning'])",
+            "items": {
+              "type": "string",
+              "enum": ["error", "warning", "info"]
+            }
+          },
+          "description": {
+            "type": "string",
+            "description": "Profile description"
+          }
+        },
+        "additionalProperties": false
       }
     },
     "requiredActions": {

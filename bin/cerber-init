@@ -1,0 +1,131 @@
+#!/usr/bin/env node
+/**
+ * cerber init - Initialize Cerber contract in project
+ * 
+ * Usage:
+ *   cerber init [--template <name>] [--force]
+ * 
+ * Templates: nodejs, docker, react, python, terraform
+ * 
+ * @package cerber-core
+ * @version 2.0.0
+ */
+
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+function parseArgs() {
+  const args = process.argv.slice(2);
+  const options = {};
+
+  for (let i = 0; i < args.length; i++) {
+    if (args[i] === '--template' && args[i + 1]) {
+      options.template = args[i + 1];
+      i++;
+    } else if (args[i] === '--dir' && args[i + 1]) {
+      options.dir = args[i + 1];
+      i++;
+    } else if (args[i] === '--force') {
+      options.force = true;
+    }
+  }
+
+  return options;
+}
+
+function detectProjectType(cwd) {
+  if (fs.existsSync(path.join(cwd, 'package.json'))) {
+    const pkg = JSON.parse(fs.readFileSync(path.join(cwd, 'package.json'), 'utf-8'));
+    if (pkg.dependencies?.react || pkg.devDependencies?.react) {
+      return 'react';
+    }
+    return 'nodejs';
+  }
+  if (fs.existsSync(path.join(cwd, 'Dockerfile'))) {
+    return 'docker';
+  }
+  if (fs.existsSync(path.join(cwd, 'requirements.txt')) || fs.existsSync(path.join(cwd, 'setup.py'))) {
+    return 'python';
+  }
+  if (fs.existsSync(path.join(cwd, 'main.tf')) || fs.existsSync(path.join(cwd, '*.tf'))) {
+    return 'terraform';
+  }
+  return null;
+}
+
+function copyTemplate(templateName, targetDir, force) {
+  const templatesDir = path.join(__dirname, '..', 'templates');
+  const templatePath = path.join(templatesDir, templateName);
+
+  if (!fs.existsSync(templatePath)) {
+    console.error(`❌ Template '${templateName}' not found.`);
+    console.error(`\nAvailable templates: nodejs, docker, react, python, terraform`);
+    process.exit(1);
+  }
+
+  const cerberDir = path.join(targetDir, '.cerber');
+  const contractPath = path.join(cerberDir, 'contract.yml');
+
+  // Check if contract already exists
+  if (fs.existsSync(contractPath) && !force) {
+    console.error(`❌ Contract already exists at ${contractPath}`);
+    console.error(`\nUse --force to overwrite`);
+    process.exit(1);
+  }
+
+  // Create .cerber directory
+  if (!fs.existsSync(cerberDir)) {
+    fs.mkdirSync(cerberDir, { recursive: true });
+  }
+
+  // Copy contract.yml
+  const templateContract = path.join(templatePath, 'contract.yml');
+  fs.copyFileSync(templateContract, contractPath);
+
+  // Copy README.md
+  const templateReadme = path.join(templatePath, 'README.md');
+  const targetReadme = path.join(cerberDir, 'README.md');
+  if (fs.existsSync(templateReadme)) {
+    fs.copyFileSync(templateReadme, targetReadme);
+  }
+
+  console.log(`✅ Created Cerber contract from '${templateName}' template`);
+  console.log(`\n📁 Files created:`);
+  console.log(`   ${path.relative(targetDir, contractPath)}`);
+  if (fs.existsSync(targetReadme)) {
+    console.log(`   ${path.relative(targetDir, targetReadme)}`);
+  }
+
+  // Show next steps
+  console.log(`\n📝 Next steps:`);
+  console.log(`   1. Review contract: cat .cerber/contract.yml`);
+  console.log(`   2. Validate workflows: npx cerber-core validate`);
+  console.log(`   3. Commit: git add .cerber/ && git commit -m "Add Cerber contract"`);
+}
+
+function main() {
+  const options = parseArgs();
+  const cwd = options.dir || process.cwd();
+
+  // Auto-detect if no template specified
+  let template = options.template;
+  if (!template) {
+    template = detectProjectType(cwd);
+    if (template) {
+      console.log(`🔍 Auto-detected project type: ${template}`);
+    } else {
+      console.error(`❌ Could not auto-detect project type.`);
+      console.error(`\nPlease specify template: cerber init --template <name>`);
+      console.error(`\nAvailable templates: nodejs, docker, react, python, terraform`);
+      process.exit(1);
+    }
+  }
+
+  copyTemplate(template, cwd, options.force || false);
+}
+
+main();

@@ -1,0 +1,22 @@
+[
+  {
+    "workflowPath": ".github/workflows/ci.yml",
+    "job": "build",
+    "step": 3,
+    "rule": "dangerous-triggers",
+    "severity": "high",
+    "message": "workflow can be triggered by pull_request_target which may allow code execution from forks",
+    "line": 5,
+    "column": 1
+  },
+  {
+    "workflowPath": ".github/workflows/ci.yml",
+    "job": "build",
+    "step": 5,
+    "rule": "hardcoded-credentials",
+    "severity": "critical",
+    "message": "hardcoded credential found in environment variable",
+    "line": 15,
+    "column": 9
+  }
+]

@@ -1,0 +1,3 @@
+{"message":"undefined step output \"steps.setup.outputs.version\". \"setup\" is not defined [expression]","filepath":".github/workflows/ci.yml","line":42,"column":28,"kind":"expression"}
+{"message":"property \"runs-on\" is not defined in job \"build\" [syntax-check]","filepath":".github/workflows/ci.yml","line":15,"column":3,"kind":"syntax-check"}
+{"message":"label \"ubuntu-latest\" is unknown. available labels are \"windows-latest\", \"macos-latest\" [runner-label]","filepath":".github/workflows/ci.yml","line":16,"column":15,"kind":"runner-label"}

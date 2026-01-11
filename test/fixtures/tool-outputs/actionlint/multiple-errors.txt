@@ -1,0 +1,12 @@
+.github/workflows/deploy.yml:10:7: label "ubuntu-20.04" is marked as deprecated [deprecated-commands]
+  |
+10 |     runs-on: ubuntu-20.04
+  |       ^~~~~~~~~~~
+.github/workflows/deploy.yml:15:9: invalid CRON format "* * * *" in schedule event: expected exactly 5 fields, got 4 [syntax-check]
+  |
+15 |         - cron: "* * * *"
+  |           ^~~~
+.github/workflows/deploy.yml:22:15: "actions/checkout@v2" is using deprecated Node.js 12. the action should update to use Node.js 16 or later [action-version]
+  |
+22 |       - uses: actions/checkout@v2
+  |               ^~~~~~~~~~~~~~~~~~~

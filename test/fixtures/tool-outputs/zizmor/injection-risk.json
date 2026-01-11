@@ -1,0 +1,12 @@
+[
+  {
+    "workflowPath": ".github/workflows/deploy.yml",
+    "job": "deploy",
+    "step": 2,
+    "rule": "injection-risk",
+    "severity": "high",
+    "message": "potential command injection via ${{ github.event.issue.title }}",
+    "line": 22,
+    "column": 15
+  }
+]

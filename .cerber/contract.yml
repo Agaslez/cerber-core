@@ -1,0 +1,102 @@
+# Node.js CI Contract
+# Base contract for Node.js projects with npm/yarn
+contractVersion: 1
+name: nodejs-ci-contract
+version: 1.0.0
+
+metadata:
+  description: 'Base contract for Node.js CI/CD workflows'
+  author: 'Cerber Core'
+  tags:
+    - nodejs
+    - npm
+    - ci
+
+# Extend base nodejs contract
+extends: '@cerber-core/contracts/nodejs-base'
+
+defaults:
+  permissionsPolicy:
+    maxLevel: read
+    allowedScopes:
+      - contents
+      - pull-requests
+  actionPinning: required
+  secretsPolicy: no-hardcoded
+  nodeVersion:
+    required: true
+    minVersion: '18.0.0'
+
+rules:
+  # Security rules
+  security/no-hardcoded-secrets:
+    severity: error
+    gate: true  # Always block merge
+  security/require-action-pinning:
+    severity: error
+    gate: true
+  security/limit-permissions:
+    severity: error
+    gate: false  # Warn but don't block
+  security/no-wildcard-triggers:
+    severity: warning
+  security/checkout-persist-credentials:
+    severity: warning
+  
+  # Best practices
+  best-practices/cache-dependencies:
+    severity: warning
+  best-practices/setup-node-with-version:
+    severity: error
+  best-practices/parallelize-matrix:
+    severity: warning
+  
+  # Performance
+  performance/avoid-unnecessary-checkout:
+    severity: warning
+  performance/use-composite-actions:
+    severity: info
+
+profiles:
+  dev-fast:
+    tools:
+      - actionlint
+    failOn:
+      - error
+    description: 'Fast pre-commit check (<2s)'
+  
+  dev:
+    tools:
+      - actionlint
+      - zizmor
+    failOn:
+      - error
+      - warning
+    description: 'Full development check'
+  
+  team:
+    tools:
+      - actionlint
+      - zizmor
+      - gitleaks
+    failOn:
+      - error
+      - warning
+    description: 'Team CI with secrets scanning'
+
+requiredActions:
+  - action: actions/checkout@v4
+    minVersion: '4'
+  - action: actions/setup-node@v4
+    minVersion: '4'
+
+requiredSteps:
+  - name: Install dependencies
+    command: npm ci
+  - name: Run tests
+    command: npm test
+
+allowedTriggers:
+  - push
+  - pull_request
+  - workflow_dispatch

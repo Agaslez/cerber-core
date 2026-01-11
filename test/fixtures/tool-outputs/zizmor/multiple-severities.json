@@ -1,0 +1,32 @@
+[
+  {
+    "workflowPath": ".github/workflows/release.yml",
+    "job": "release",
+    "step": 1,
+    "rule": "privileged-permissions",
+    "severity": "medium",
+    "message": "workflow uses write-all permissions which may be excessive",
+    "line": 8,
+    "column": 3
+  },
+  {
+    "workflowPath": ".github/workflows/release.yml",
+    "job": "release",
+    "step": 4,
+    "rule": "unverified-action",
+    "severity": "medium",
+    "message": "action is not pinned to a specific commit SHA",
+    "line": 25,
+    "column": 9
+  },
+  {
+    "workflowPath": ".github/workflows/release.yml",
+    "job": "release",
+    "step": 6,
+    "rule": "secrets-in-logs",
+    "severity": "low",
+    "message": "secret may be exposed in workflow logs",
+    "line": 35,
+    "column": 11
+  }
+]

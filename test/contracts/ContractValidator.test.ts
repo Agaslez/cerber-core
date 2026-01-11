@@ -23,7 +23,7 @@ describe('ContractValidator', () => {
         name: 'test-contract',
         version: '1.0.0',
         rules: {
-          'security/no-hardcoded-secrets': 'error'
+          'security/no-hardcoded-secrets': { severity: 'error', gate: true }
         }
       };
 
@@ -211,8 +211,8 @@ describe('ContractValidator', () => {
           actionPinning: 'required'
         },
         rules: {
-          'security/no-hardcoded-secrets': 'error',
-          'best-practices/cache-dependencies': 'warning'
+          'security/no-hardcoded-secrets': { severity: 'error', gate: true },
+          'best-practices/cache-dependencies': { severity: 'warning' }
         }
       };
 
@@ -224,7 +224,7 @@ describe('ContractValidator', () => {
           actionPinning: 'recommended'  // Override parent
         },
         rules: {
-          'best-practices/cache-dependencies': 'error'  // Override parent
+          'best-practices/cache-dependencies': { severity: 'error' }  // Override parent
         }
       };
 
@@ -232,11 +232,11 @@ describe('ContractValidator', () => {
 
       // Child overrides parent
       expect(merged.defaults?.actionPinning).toBe('recommended');
-      expect(merged.rules?.['best-practices/cache-dependencies']).toBe('error');
+      expect(merged.rules?.['best-practices/cache-dependencies']).toMatchObject({ severity: 'error' });
       
       // Parent values preserved
       expect(merged.defaults?.permissionsPolicy?.maxLevel).toBe('read');
-      expect(merged.rules?.['security/no-hardcoded-secrets']).toBe('error');
+      expect(merged.rules?.['security/no-hardcoded-secrets']).toMatchObject({ severity: 'error' });
     });
 
     it('combines requiredActions from parent and child', () => {
@@ -285,9 +285,9 @@ describe('ContractValidator', () => {
           }
         },
         rules: {
-          'security/no-hardcoded-secrets': 'error',
-          'security/require-action-pinning': 'error',
-          'best-practices/cache-dependencies': 'warning'
+          'security/no-hardcoded-secrets': { severity: 'error', gate: true },
+          'security/require-action-pinning': { severity: 'error' },
+          'best-practices/cache-dependencies': { severity: 'warning' }
         },
         requiredActions: [
           { action: 'actions/checkout@v4', minVersion: '4' },

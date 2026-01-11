@@ -1,0 +1,62 @@
+# Node.js CI Contract
+# Base contract for Node.js projects with npm/yarn
+contractVersion: 1
+name: nodejs-ci-contract
+version: 1.0.0
+
+metadata:
+  description: 'Base contract for Node.js CI/CD workflows'
+  author: 'Cerber Core'
+  tags:
+    - nodejs
+    - npm
+    - ci
+
+# Extend base nodejs contract
+extends: '@cerber-core/contracts/nodejs-base'
+
+defaults:
+  permissionsPolicy:
+    maxLevel: read
+    allowedScopes:
+      - contents
+      - pull-requests
+  actionPinning: required
+  secretsPolicy: no-hardcoded
+  nodeVersion:
+    required: true
+    minVersion: '18.0.0'
+
+rules:
+  # Security rules
+  security/no-hardcoded-secrets: error
+  security/require-action-pinning: error
+  security/limit-permissions: error
+  security/no-wildcard-triggers: warning
+  security/checkout-persist-credentials: warning
+  
+  # Best practices
+  best-practices/cache-dependencies: warning
+  best-practices/setup-node-with-version: error
+  best-practices/parallelize-matrix: warning
+  
+  # Performance
+  performance/avoid-unnecessary-checkout: warning
+  performance/use-composite-actions: info
+
+requiredActions:
+  - action: actions/checkout@v4
+    minVersion: '4'
+  - action: actions/setup-node@v4
+    minVersion: '4'
+
+requiredSteps:
+  - name: Install dependencies
+    command: npm ci
+  - name: Run tests
+    command: npm test
+
+allowedTriggers:
+  - push
+  - pull_request
+  - workflow_dispatch
