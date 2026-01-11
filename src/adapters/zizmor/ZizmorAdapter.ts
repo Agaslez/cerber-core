@@ -4,7 +4,6 @@
  * @rule Per AGENTS.md §2 - Uses fixtures for testing
  */
 
-import { relative } from 'node:path';
 import type { Violation } from '../../types.js';
 import { BaseAdapter } from '../_shared/BaseAdapter.js';
 import { buildInstallHint, executeCommand } from '../_shared/exec.js';

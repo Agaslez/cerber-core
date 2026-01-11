@@ -4,7 +4,6 @@
  * @rule Per AGENTS.md §2 - Uses fixtures for testing
  */
 
-import { relative } from 'node:path';
 import type { Violation } from '../../types.js';
 import { BaseAdapter } from '../_shared/BaseAdapter.js';
 import { buildInstallHint, executeCommand } from '../_shared/exec.js';
@@ -117,17 +116,15 @@ export class ActionlintAdapter extends BaseAdapter {
       if (match) {
         const [, filePath, lineNum, colNum, message, ruleId] = match;
         
-        // Make path relative if cwd provided
-        const relativePath = options?.cwd
-          ? relative(options.cwd, filePath).replace(/\\/g, '/')
-          : filePath;
+        // Normalize path (handle Windows absolute paths)
+        const normalizedPath = this.normalizePath(filePath, options?.cwd);
 
         violations.push({
           id: `actionlint/${ruleId}`,
           severity: this.mapSeverity(ruleId),
           message: message.trim(),
           source: 'actionlint',
-          path: relativePath,
+          path: normalizedPath,
           line: parseInt(lineNum, 10),
           column: parseInt(colNum, 10),
           toolOutput: { ruleId, rawLine: line },
@@ -136,6 +133,35 @@ export class ActionlintAdapter extends BaseAdapter {
     }
 
     return this.sortViolations(violations);
+  }
+
+  /**
+   * Normalize file path - converts Windows backslashes and makes relative to cwd
+   * @param filePath Path from actionlint output
+   * @param cwd Current working directory
+   * @returns Normalized path (forward slashes, relative to cwd)
+   */
+  private normalizePath(filePath: string, cwd?: string): string {
+    // 1. Convert backslashes to forward slashes
+    let normalized = filePath.replace(/\\/g, '/');
+    
+    if (cwd) {
+      // 2. Remove drive letters (e.g., D:, C:)
+      normalized = normalized.replace(/^[A-Za-z]:/, '');
+      const cwdWithoutDrive = cwd.replace(/\\/g, '/').replace(/^[A-Za-z]:/, '');
+      
+      // 3. Make relative to cwd if path starts with cwd
+      if (normalized.startsWith(cwdWithoutDrive)) {
+        normalized = normalized.slice(cwdWithoutDrive.length).replace(/^\//, '');
+      }
+      // 4. Clean up ../ prefix if present
+      else if (normalized.startsWith('../')) {
+        // Remove leading ../ segments
+        normalized = normalized.split('../').pop() || normalized;
+      }
+    }
+    
+    return normalized;
   }
 
   /**
