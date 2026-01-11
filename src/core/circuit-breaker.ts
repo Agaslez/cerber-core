@@ -1,6 +1,6 @@
 /**
- * @file Circuit Breaker - Resilience Pattern
- * @rule Per PRODUCTION HARDENING - P2: Resilience
+ * @file Circuit Breaker - Resilience Pattern (REFACTORED)
+ * @rule Per PRODUCTION HARDENING - P2: Resilience + REFACTOR-5 SRP
  * @description Prevents cascading failures by stopping calls to failing adapters
  * 
  * Circuit Breaker States:
@@ -8,23 +8,23 @@
  * - OPEN: Failure threshold exceeded, all requests fail fast
  * - HALF_OPEN: Testing if service recovered, limited requests allowed
  * 
- * Production Use:
- * - Protects against flaky adapters
- * - Prevents resource exhaustion
- * - Enables graceful degradation
- * - Auto-recovery when adapter stabilizes
+ * REFACTOR-5 Changes:
+ * - Extracted FailureWindow: Time-based failure tracking
+ * - Extracted StatsTracker: Statistics computation
+ * - CircuitBreaker: Pure state machine logic only
  */
 
+import { CircuitState } from './circuit-breaker/circuit-state.js';
+import { FailureWindow } from './circuit-breaker/failure-window.js';
+import type { CircuitBreakerStats } from './circuit-breaker/stats-tracker.js';
+import { StatsTracker } from './circuit-breaker/stats-tracker.js';
 import { createLogger } from './logger.js';
 import { metrics } from './metrics.js';
 
 const log = createLogger({ name: 'circuit-breaker' });
 
-export enum CircuitState {
-  CLOSED = 'CLOSED',         // Normal operation
-  OPEN = 'OPEN',             // Circuit is open, failing fast
-  HALF_OPEN = 'HALF_OPEN'    // Testing recovery
-}
+export { CircuitState };
+export type { CircuitBreakerStats };
 
 export interface CircuitBreakerOptions {
   /** Threshold: number of failures before opening circuit */
@@ -43,74 +43,48 @@ export interface CircuitBreakerOptions {
   name: string;
 }
 
-export interface CircuitBreakerStats {
-  state: CircuitState;
-  failures: number;
-  successes: number;
-  consecutiveSuccesses: number;
-  lastFailureTime: number | null;
-  lastStateChange: number;
-  totalCalls: number;
-  totalFailures: number;
-  totalSuccesses: number;
-}
-
 /**
- * Circuit Breaker implementation
+ * Circuit Breaker - State machine only
  * 
- * Prevents cascading failures by:
- * 1. Tracking failure rate of protected function
- * 2. Opening circuit when threshold exceeded
- * 3. Failing fast when circuit is open
- * 4. Testing recovery periodically
- * 5. Closing circuit when service stabilizes
+ * SRP: Manages circuit state transitions based on failure/success patterns
+ * Delegates: FailureWindow (time tracking), StatsTracker (counters)
  */
 export class CircuitBreaker {
   private state: CircuitState = CircuitState.CLOSED;
-  private failures: number = 0;
-  private successes: number = 0;
-  private consecutiveSuccesses: number = 0;
-  private lastFailureTime: number | null = null;
   private lastStateChange: number = Date.now();
-  private failureTimestamps: number[] = [];
   
-  // Statistics
-  private totalCalls: number = 0;
-  private totalFailures: number = 0;
-  private totalSuccesses: number = 0;
+  // Delegated responsibilities
+  private readonly failureWindow: FailureWindow;
+  private readonly stats: StatsTracker;
   
   // Configuration
   private readonly failureThreshold: number;
-  private readonly failureWindow: number;
   private readonly resetTimeout: number;
   private readonly successThreshold: number;
   private readonly name: string;
   
   constructor(options: CircuitBreakerOptions) {
     this.failureThreshold = options.failureThreshold ?? 5;
-    this.failureWindow = options.failureWindow ?? 60000; // 1 minute
-    this.resetTimeout = options.resetTimeout ?? 30000; // 30 seconds
+    this.resetTimeout = options.resetTimeout ?? 30000;
     this.successThreshold = options.successThreshold ?? 2;
     this.name = options.name;
+    
+    this.failureWindow = new FailureWindow(options.failureWindow ?? 60000);
+    this.stats = new StatsTracker();
     
     log.info({
       name: this.name,
       failureThreshold: this.failureThreshold,
-      failureWindow: this.failureWindow,
       resetTimeout: this.resetTimeout
     }, 'Circuit breaker initialized');
   }
   
   /**
    * Execute function with circuit breaker protection
-   * 
-   * @param fn - Function to protect
-   * @returns Result of function or throws CircuitBreakerOpenError
    */
   async execute<T>(fn: () => Promise<T>): Promise<T> {
-    this.totalCalls++;
+    this.stats.recordCall();
     
-    // Check if circuit should move to HALF_OPEN
     if (this.state === CircuitState.OPEN) {
       const now = Date.now();
       const timeSinceOpen = now - this.lastStateChange;
@@ -118,7 +92,6 @@ export class CircuitBreaker {
       if (timeSinceOpen >= this.resetTimeout) {
         this.transitionTo(CircuitState.HALF_OPEN);
       } else {
-        // Circuit is open, fail fast
         log.warn({
           name: this.name,
           state: this.state,
@@ -131,7 +104,6 @@ export class CircuitBreaker {
       }
     }
     
-    // Execute function and handle result
     try {
       const result = await fn();
       this.onSuccess();
@@ -142,20 +114,14 @@ export class CircuitBreaker {
     }
   }
   
-  /**
-   * Handle successful execution
-   */
   private onSuccess(): void {
-    this.totalSuccesses++;
-    this.successes++;
-    this.consecutiveSuccesses++;
+    this.stats.recordSuccess();
     
-    // If in HALF_OPEN and enough successes, close circuit
     if (this.state === CircuitState.HALF_OPEN) {
-      if (this.consecutiveSuccesses >= this.successThreshold) {
+      if (this.stats.getConsecutiveSuccesses() >= this.successThreshold) {
         log.info({
           name: this.name,
-          consecutiveSuccesses: this.consecutiveSuccesses,
+          consecutiveSuccesses: this.stats.getConsecutiveSuccesses(),
           successThreshold: this.successThreshold
         }, 'Circuit breaker closing - service recovered');
         
@@ -165,23 +131,11 @@ export class CircuitBreaker {
     }
   }
   
-  /**
-   * Handle failed execution
-   */
   private onFailure(error: unknown): void {
-    this.totalFailures++;
-    this.failures++;
-    this.consecutiveSuccesses = 0;
-    this.lastFailureTime = Date.now();
-    this.failureTimestamps.push(this.lastFailureTime);
+    this.stats.recordFailure();
+    this.failureWindow.recordFailure();
     
-    // Remove old failures outside the window
-    const windowStart = this.lastFailureTime - this.failureWindow;
-    this.failureTimestamps = this.failureTimestamps.filter(
-      ts => ts > windowStart
-    );
-    
-    const recentFailures = this.failureTimestamps.length;
+    const recentFailures = this.failureWindow.getRecentCount();
     
     log.error({
       name: this.name,
@@ -191,7 +145,6 @@ export class CircuitBreaker {
       error: error instanceof Error ? error.message : String(error)
     }, 'Circuit breaker recorded failure');
     
-    // Open circuit if threshold exceeded
     if (this.state === CircuitState.CLOSED || this.state === CircuitState.HALF_OPEN) {
       if (recentFailures >= this.failureThreshold) {
         this.transitionTo(CircuitState.OPEN);
@@ -204,9 +157,6 @@ export class CircuitBreaker {
     }
   }
   
-  /**
-   * Transition to new circuit state
-   */
   private transitionTo(newState: CircuitState): void {
     const oldState = this.state;
     this.state = newState;
@@ -215,50 +165,34 @@ export class CircuitBreaker {
     log.info({
       name: this.name,
       from: oldState,
-      to: newState,
-      failures: this.failures,
-      successes: this.successes
+      to: newState
     }, 'Circuit breaker state transition');
   }
   
-  /**
-   * Reset circuit breaker statistics
-   */
   private reset(): void {
-    this.failures = 0;
-    this.successes = 0;
-    this.consecutiveSuccesses = 0;
-    this.failureTimestamps = [];
+    this.failureWindow.reset();
+    this.stats.resetConsecutive();
   }
   
-  /**
-   * Get current circuit breaker statistics
-   */
   getStats(): CircuitBreakerStats {
     return {
       state: this.state,
-      failures: this.failures,
-      successes: this.successes,
-      consecutiveSuccesses: this.consecutiveSuccesses,
-      lastFailureTime: this.lastFailureTime,
+      failures: this.failureWindow.getRecentCount(),
+      successes: this.stats.getTotalSuccesses(),
+      consecutiveSuccesses: this.stats.getConsecutiveSuccesses(),
+      lastFailureTime: this.stats.getLastFailureTime(),
       lastStateChange: this.lastStateChange,
-      totalCalls: this.totalCalls,
-      totalFailures: this.totalFailures,
-      totalSuccesses: this.totalSuccesses
+      totalCalls: this.stats.getTotalCalls(),
+      totalFailures: this.stats.getTotalFailures(),
+      totalSuccesses: this.stats.getTotalSuccesses()
     };
   }
   
-  /**
-   * Force circuit to open (for testing/emergency)
-   */
   forceOpen(): void {
     log.warn({ name: this.name }, 'Circuit breaker forced OPEN');
     this.transitionTo(CircuitState.OPEN);
   }
   
-  /**
-   * Force circuit to close (for testing/recovery)
-   */
   forceClose(): void {
     log.warn({ name: this.name }, 'Circuit breaker forced CLOSED');
     this.transitionTo(CircuitState.CLOSED);
