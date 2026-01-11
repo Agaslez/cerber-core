@@ -18,6 +18,7 @@
 
 import { ErrorClassifier } from './error-classifier.js';
 import { createLogger } from './logger.js';
+import { ExponentialBackoffStrategy, type RetryStrategy } from './retry-strategy.js';
 
 const log = createLogger({ name: 'retry' });
 
@@ -25,16 +26,19 @@ export interface RetryOptions {
   /** Maximum number of retry attempts (0 = no retries) */
   maxAttempts?: number;
   
-  /** Initial delay in milliseconds */
+  /** Retry strategy (defaults to ExponentialBackoffStrategy) */
+  strategy?: RetryStrategy;
+  
+  /** Legacy: Initial delay in milliseconds (used if no strategy provided) */
   initialDelay?: number;
   
-  /** Maximum delay in milliseconds */
+  /** Legacy: Maximum delay in milliseconds (used if no strategy provided) */
   maxDelay?: number;
   
-  /** Backoff multiplier (2 = exponential) */
+  /** Legacy: Backoff multiplier (used if no strategy provided) */
   backoffMultiplier?: number;
   
-  /** Add random jitter to prevent thundering herd (0-1) */
+  /** Legacy: Add random jitter (used if no strategy provided) */
   jitter?: number;
   
   /** Function to determine if error is retryable */
@@ -98,6 +102,7 @@ export async function retry<T>(
 ): Promise<T> {
   const {
     maxAttempts = 3,
+    strategy,
     initialDelay = 100,
     maxDelay = 30000,
     backoffMultiplier = 2,
@@ -106,6 +111,14 @@ export async function retry<T>(
     name = 'operation',
     onRetry
   } = options;
+  
+  // Create strategy if not provided (backward compatibility)
+  const backoffStrategy = strategy ?? new ExponentialBackoffStrategy(
+    initialDelay,
+    maxDelay,
+    backoffMultiplier,
+    jitter
+  );
   
   const stats: RetryStats = {
     attempts: 0,
@@ -121,12 +134,12 @@ export async function retry<T>(
     try {
       const result = await fn();
       
-      // Success - log if we retried
       if (attempt > 0) {
         log.info({
           name,
           attempts: stats.attempts,
-          totalDelay: stats.totalDelay
+          totalDelay: stats.totalDelay,
+          strategy: backoffStrategy.getName()
         }, 'Retry succeeded');
       }
       
@@ -136,11 +149,9 @@ export async function retry<T>(
       lastError = error;
       stats.errors.push(error);
       
-      // Check if we should retry
       const shouldRetry = attempt < maxAttempts - 1 && isRetryable(error);
       
       if (!shouldRetry) {
-        // No more retries or error is not retryable
         log.error({
           name,
           attempts: stats.attempts,
@@ -151,15 +162,7 @@ export async function retry<T>(
         throw error;
       }
       
-      // Calculate delay for next attempt
-      const delay = calculateDelay(
-        attempt,
-        initialDelay,
-        maxDelay,
-        backoffMultiplier,
-        jitter
-      );
-      
+      const delay = backoffStrategy.calculateDelay(attempt);
       stats.totalDelay += delay;
       
       log.warn({
@@ -167,6 +170,7 @@ export async function retry<T>(
         attempt: attempt + 1,
         maxAttempts,
         delay,
+        strategy: backoffStrategy.getName(),
         error: error instanceof Error ? error.message : String(error)
       }, 'Retry attempt failed, retrying...');
       
