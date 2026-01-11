@@ -129,3 +129,57 @@ export interface Violation {
   /** Original tool output (for debugging) */
   toolOutput?: unknown;
 }
+
+/**
+ * CerberOutput - Deterministic, schema-driven output
+ * @rule Per AGENTS.md §1 - ONE TRUTH: output schema defines all possible output structures
+ * @rule Per AGENTS.md §3 - Deterministic: same input → byte-identical output
+ * @rule Per AGENTS.md §4 - Tests FIRST: all behavior must be tested
+ * 
+ * KEY PROPERTIES:
+ * - schemaVersion: increment on breaking changes (NOT contractVersion - ONE TRUTH)
+ * - deterministic: always true (for snapshot testing)
+ * - summary: aggregate violation counts
+ * - violations: sorted by (path, line, column, id)
+ * - metadata.tools: sorted by tool name
+ * - runMetadata: NOT part of determinism (timestamp, executionTime, etc.)
+ */
+export interface CerberOutput {
+  /** Output schema version (increment on breaking changes) */
+  schemaVersion: number;
+  
+  /** True if output is deterministic (same input → identical JSON) */
+  deterministic: true;
+  
+  /** Violation summary */
+  summary: {
+    total: number;
+    errors: number;
+    warnings: number;
+    info: number;
+  };
+  
+  /** Violations sorted deterministically */
+  violations: Violation[];
+  
+  /** Tool execution metadata */
+  metadata: {
+    profile?: 'solo' | 'dev' | 'team' | 'custom';
+    target?: string;
+    tools: Record<string, {
+      enabled: boolean;
+      version?: string;
+      exitCode?: number;
+      skipped?: boolean;
+      reason?: string;
+    }>;
+  };
+  
+  /** Optional runtime metadata (NOT part of determinism) */
+  runMetadata?: {
+    profile?: string;
+    executionTime?: number;
+    cwd?: string;
+    generatedAt?: string; // ISO 8601 - EXCLUDED from determinism checks
+  };
+}

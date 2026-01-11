@@ -1,0 +1,144 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Output Schema Determinism should produce identical JSON for same input (no timestamps) 1`] = `
+"{
+  "schemaVersion": 1,
+  "deterministic": true,
+  "summary": {
+    "total": 2,
+    "errors": 1,
+    "warnings": 1,
+    "info": 0
+  },
+  "violations": [
+    {
+      "id": "test/rule-a",
+      "severity": "error",
+      "message": "Error message",
+      "source": "actionlint",
+      "path": ".github/workflows/ci.yml",
+      "line": 10,
+      "column": 5
+    },
+    {
+      "id": "test/rule-b",
+      "severity": "warning",
+      "message": "Warning message",
+      "source": "zizmor",
+      "path": ".github/workflows/ci.yml",
+      "line": 20,
+      "column": 1
+    }
+  ],
+  "metadata": {
+    "profile": "dev",
+    "target": "github-actions",
+    "tools": {
+      "actionlint": {
+        "enabled": true,
+        "version": "1.6.27",
+        "exitCode": 0
+      },
+      "zizmor": {
+        "enabled": true,
+        "version": "0.2.0",
+        "exitCode": 0
+      }
+    }
+  }
+}"
+`;
+
+exports[`Output Schema Real Output Examples should validate example: multiple violations 1`] = `
+{
+  "deterministic": true,
+  "metadata": {
+    "profile": "team",
+    "target": "github-actions",
+    "tools": {
+      "actionlint": {
+        "enabled": true,
+        "exitCode": 1,
+        "version": "1.6.27",
+      },
+      "zizmor": {
+        "enabled": true,
+        "exitCode": 1,
+        "version": "0.2.0",
+      },
+    },
+  },
+  "runMetadata": {
+    "cwd": "/workspace",
+    "executionTime": 1250,
+  },
+  "schemaVersion": 1,
+  "summary": {
+    "errors": 2,
+    "info": 0,
+    "total": 3,
+    "warnings": 1,
+  },
+  "violations": [
+    {
+      "column": 5,
+      "hint": "Check YAML indentation",
+      "id": "actionlint/syntax",
+      "line": 10,
+      "message": "Invalid workflow syntax",
+      "path": ".github/workflows/ci.yml",
+      "severity": "error",
+      "source": "actionlint",
+    },
+    {
+      "column": 3,
+      "hint": "Use: runs-on: ubuntu-latest",
+      "id": "zizmor/insecure-runner",
+      "line": 15,
+      "message": "Runner must be explicitly specified",
+      "path": ".github/workflows/ci.yml",
+      "severity": "error",
+      "source": "zizmor",
+    },
+    {
+      "column": 1,
+      "id": "actionlint/deprecated",
+      "line": 20,
+      "message": "Deprecated action version",
+      "path": ".github/workflows/deploy.yml",
+      "severity": "warning",
+      "source": "actionlint",
+    },
+  ],
+}
+`;
+
+exports[`Output Schema Real Output Examples should validate example: zero violations 1`] = `
+{
+  "deterministic": true,
+  "metadata": {
+    "profile": "dev",
+    "target": "github-actions",
+    "tools": {
+      "actionlint": {
+        "enabled": true,
+        "exitCode": 0,
+        "version": "1.6.27",
+      },
+      "zizmor": {
+        "enabled": true,
+        "exitCode": 0,
+        "version": "0.2.0",
+      },
+    },
+  },
+  "schemaVersion": 1,
+  "summary": {
+    "errors": 0,
+    "info": 0,
+    "total": 0,
+    "warnings": 0,
+  },
+  "violations": [],
+}
+`;
