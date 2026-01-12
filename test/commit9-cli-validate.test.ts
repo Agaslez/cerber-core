@@ -11,7 +11,7 @@
  * 6. Exit codes (0/1/2/3)
  */
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from '@jest/globals';
 
 describe('CLI Validate Command (COMMIT-9)', () => {
   // Note: Actual implementation tests would go here
