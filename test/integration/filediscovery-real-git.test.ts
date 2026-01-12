@@ -421,6 +421,6 @@ describe('FileDiscovery - Real Git Repo', () => {
       // Assert: Should complete quickly
       expect(files.length).toBeGreaterThanOrEqual(50);
       expect(duration).toBeLessThan(5000); // 5 seconds max
-    });
+    }, 15000); // 15s timeout for creating 50 files
   });
 });
