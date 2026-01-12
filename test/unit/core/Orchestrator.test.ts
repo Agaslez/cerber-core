@@ -67,8 +67,9 @@ describe('Orchestrator', () => {
       const adapters = orchestrator.listAdapters();
 
       expect(adapters).toContain('actionlint');
+      expect(adapters).toContain('gitleaks');
       expect(adapters).toContain('zizmor');
-      expect(adapters).toHaveLength(2);
+      expect(adapters).toHaveLength(3);
     });
 
     it('should register custom adapter', () => {
@@ -194,13 +195,13 @@ describe('Orchestrator', () => {
       expect(result.deterministic).toBe(true);
     });
 
-    it('should have contract version', async () => {
+    it('should have correct schema version', async () => {
       const result = await orchestrator.run({
         files: ['test.yml'],
         cwd: process.cwd(),
       });
 
-      expect(result.contractVersion).toBe(1);
+      expect(result.schemaVersion).toBe(1);
     });
 
     it('should sort violations deterministically', async () => {
@@ -232,11 +233,12 @@ describe('Orchestrator', () => {
         cwd: process.cwd(),
       });
 
-      // Schema V1: tools is an array
-      const mock1Tool = result.metadata.tools.find(t => t.name === 'mock1');
-      const mock2Tool = result.metadata.tools.find(t => t.name === 'mock2');
+      // Schema V1: tools is an object with tool names as keys
+      const mock1Tool = result.metadata.tools.mock1;
+      const mock2Tool = result.metadata.tools.mock2;
       
       expect(mock1Tool).toMatchObject({
+        enabled: true,
         version: '1.0.0',
         exitCode: 0,
       });
@@ -259,9 +261,10 @@ describe('Orchestrator', () => {
       expect(result.runMetadata?.generatedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
       
       // Verify tools were run
-      expect(result.metadata.tools).toHaveLength(2);
-      expect(result.metadata.tools.map(t => t.name)).toContain('mock1');
-      expect(result.metadata.tools.map(t => t.name)).toContain('mock2');
+      const toolNames = Object.keys(result.metadata.tools);
+      expect(toolNames).toContain('mock1');
+      expect(toolNames).toContain('mock2');
+      expect(toolNames).toHaveLength(2);
     });
 
     it('should run only specified adapters', async () => {
@@ -273,8 +276,8 @@ describe('Orchestrator', () => {
 
       expect(result.violations).toHaveLength(1);
       expect(result.violations[0].source).toBe('mock1');
-      expect(result.metadata.tools).toHaveLength(1);
-      expect(result.metadata.tools[0].name).toBe('mock1');
+      expect(result.metadata.tools.mock1).toBeDefined();
+      expect(Object.keys(result.metadata.tools)).toEqual(['mock1']);
     });
 
     it('should handle empty adapter list gracefully', async () => {
@@ -289,7 +292,7 @@ describe('Orchestrator', () => {
 
       expect(result.violations).toHaveLength(0);
       expect(result.summary.total).toBe(0);
-      expect(result.metadata.tools).toHaveLength(0);
+      expect(Object.keys(result.metadata.tools)).toHaveLength(0);
     });
   });
 
@@ -339,7 +342,7 @@ describe('Orchestrator', () => {
       expect(result.violations[0].source).toBe('working');
 
       // Should have error metadata for failing adapter
-      const failingTool = result.metadata.tools.find(t => t.name === 'failing');
+      const failingTool = result.metadata.tools.failing;
       expect(failingTool?.skipped).toBe(true);
       expect(failingTool?.reason).toContain('crashed');
     });
@@ -368,7 +371,7 @@ describe('Orchestrator', () => {
         cwd: process.cwd(),
       });
 
-      const toolNames = result.metadata.tools.map(t => t.name);
+      const toolNames = Object.keys(result.metadata.tools);
       expect(toolNames).toContain('mock1');
       expect(toolNames).toContain('mock2');
     });
@@ -380,7 +383,7 @@ describe('Orchestrator', () => {
         parallel: false,
       });
 
-      const toolNames = result.metadata.tools.map(t => t.name);
+      const toolNames = Object.keys(result.metadata.tools);
       expect(toolNames).toContain('mock1');
       expect(toolNames).toContain('mock2');
     });

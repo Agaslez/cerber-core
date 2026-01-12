@@ -1,0 +1,4 @@
+.github/workflows/ci.yml:5:10: deprecated command: 'run'
+.github/workflows/ci.yml:12:1: invalid property 'if'
+.github/workflows/ci.yml:18:5: insecure runner available: ubuntu-latest should be pinned
+.github/workflows/ci.yml:25:3: missing step id

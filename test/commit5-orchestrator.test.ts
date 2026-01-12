@@ -159,15 +159,15 @@ describe('COMMIT 5: Orchestrator Core', () => {
 
       // Schema V1 fields
       expect(result.schemaVersion).toBe(1);
-      expect(result.contractVersion).toBe(1);
       expect(result.deterministic).toBe(true);
 
-      // Metadata array format (not object!)
-      expect(Array.isArray(result.metadata.tools)).toBe(true);
-      expect(result.metadata.tools).toHaveLength(1);
-      expect(result.metadata.tools[0].name).toBe('test-adapter');
-      expect(result.metadata.tools[0].version).toBe('1.0.0');
-      expect(result.metadata.tools[0].exitCode).toBe(0);
+      // Metadata object format (tool names as keys)
+      expect(typeof result.metadata.tools).toBe('object');
+      expect(result.metadata.tools).not.toBeNull();
+      expect(result.metadata.tools['test-adapter']).toBeDefined();
+      expect(result.metadata.tools['test-adapter'].version).toBe('1.0.0');
+      expect(result.metadata.tools['test-adapter'].exitCode).toBe(0);
+      expect(result.metadata.tools['test-adapter'].enabled).toBe(true);
 
       // RunMetadata
       expect(result.runMetadata).toBeDefined();
@@ -193,10 +193,9 @@ describe('COMMIT 5: Orchestrator Core', () => {
       });
 
       expect(result.schemaVersion).toBe(1);
-      expect(result.contractVersion).toBe(1);
       expect(result.deterministic).toBe(true);
       expect(result.violations).toHaveLength(0);
-      expect(result.metadata.tools).toHaveLength(0); // No valid adapters
+      expect(Object.keys(result.metadata.tools)).toHaveLength(0); // No valid adapters
       expect(result.summary.total).toBe(0);
     });
   });

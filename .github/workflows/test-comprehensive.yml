@@ -108,6 +108,28 @@ jobs:
       - run: npm run build
       - run: npx jest test/e2e/cli.test.ts --testTimeout=30000
 
+  # Integration Tests - Real Adapters & Git
+  test-integration:
+    name: Integration - Real Adapters & Git Operations
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4.1.0
+        with:
+          persist-credentials: false
+      
+      - uses: actions/setup-node@v4.0.0
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - run: npm ci
+      - run: npm run build
+      - name: Run integration tests (real adapters)
+        run: npx jest test/integration/ --testTimeout=30000 --verbose
+        continue-on-error: false
+
   # Template Tests
   test-templates:
     name: Templates Validation
@@ -181,6 +203,7 @@ jobs:
       test-performance,
       test-semantic,
       test-e2e,
+      test-integration,
       test-templates,
       test-autofix,
       dogfood

@@ -1,0 +1,58 @@
+{
+  "schemaVersion": 1,
+  "deterministic": true,
+  "summary": {
+    "total": 3,
+    "errors": 2,
+    "warnings": 1,
+    "info": 0
+  },
+  "violations": [
+    {
+      "id": "actionlint/deprecated-github-actions",
+      "severity": "error",
+      "message": "deprecated runner 'ubuntu-latest' is no longer supported",
+      "source": "actionlint",
+      "path": ".github/workflows/ci.yml",
+      "line": 8,
+      "column": 5,
+      "hint": "Use: runs-on: ubuntu-22.04 or ubuntu-24.04"
+    },
+    {
+      "id": "zizmor/insecure-runner",
+      "severity": "error",
+      "message": "runner must be explicitly specified (not dynamically calculated)",
+      "source": "zizmor",
+      "path": ".github/workflows/ci.yml",
+      "line": 15,
+      "column": 3,
+      "hint": "Use: runs-on: ubuntu-latest"
+    },
+    {
+      "id": "actionlint/missing-step-id",
+      "severity": "warning",
+      "message": "step should have an id for referencing",
+      "source": "actionlint",
+      "path": ".github/workflows/deploy.yml",
+      "line": 20,
+      "column": 1,
+      "hint": "Add: id: checkout-code"
+    }
+  ],
+  "metadata": {
+    "profile": "team",
+    "target": "github-actions",
+    "tools": {
+      "actionlint": {
+        "enabled": true,
+        "version": "1.6.27",
+        "exitCode": 1
+      },
+      "zizmor": {
+        "enabled": true,
+        "version": "0.2.0",
+        "exitCode": 1
+      }
+    }
+  }
+}

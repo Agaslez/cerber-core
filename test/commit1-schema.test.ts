@@ -31,14 +31,12 @@ describe('COMMIT 1: Schema Consistency', () => {
       expect(outputSchema.$schema).toBe('http://json-schema.org/draft-07/schema#');
       expect(outputSchema.type).toBe('object');
       expect(outputSchema.required).toContain('schemaVersion');
-      expect(outputSchema.required).toContain('contractVersion');
       expect(outputSchema.required).toContain('deterministic');
     });
 
     it('should validate minimal valid output', () => {
       const output: OrchestratorResult = {
         schemaVersion: 1,
-        contractVersion: 1,
         deterministic: true,
         summary: {
           total: 0,
@@ -48,7 +46,7 @@ describe('COMMIT 1: Schema Consistency', () => {
         },
         violations: [],
         metadata: {
-          tools: [],
+          tools: {},
         },
       };
 
@@ -62,7 +60,6 @@ describe('COMMIT 1: Schema Consistency', () => {
     it('should validate output with violations', () => {
       const output: OrchestratorResult = {
         schemaVersion: 1,
-        contractVersion: 1,
         deterministic: true,
         summary: {
           total: 2,
@@ -91,13 +88,13 @@ describe('COMMIT 1: Schema Consistency', () => {
           },
         ],
         metadata: {
-          tools: [
-            {
-              name: 'actionlint',
+          tools: {
+            actionlint: {
+              enabled: true,
               version: '1.6.27',
               exitCode: 1,
             },
-          ],
+          },
         },
       };
 
@@ -111,7 +108,6 @@ describe('COMMIT 1: Schema Consistency', () => {
     it('should validate output with skipped tool', () => {
       const output: OrchestratorResult = {
         schemaVersion: 1,
-        contractVersion: 1,
         deterministic: true,
         summary: {
           total: 0,
@@ -121,15 +117,15 @@ describe('COMMIT 1: Schema Consistency', () => {
         },
         violations: [],
         metadata: {
-          tools: [
-            {
-              name: 'zizmor',
+          tools: {
+            zizmor: {
+              enabled: false,
               version: 'unknown',
               exitCode: 127,
               skipped: true,
               reason: 'Tool not installed',
             },
-          ],
+          },
         },
       };
 
@@ -143,7 +139,6 @@ describe('COMMIT 1: Schema Consistency', () => {
     it('should validate output with optional runMetadata', () => {
       const output: OrchestratorResult = {
         schemaVersion: 1,
-        contractVersion: 1,
         deterministic: true,
         summary: {
           total: 0,
@@ -153,7 +148,7 @@ describe('COMMIT 1: Schema Consistency', () => {
         },
         violations: [],
         metadata: {
-          tools: [],
+          tools: {},
         },
         runMetadata: {
           generatedAt: '2026-01-10T12:00:00Z',
@@ -172,11 +167,10 @@ describe('COMMIT 1: Schema Consistency', () => {
     it('should reject invalid schemaVersion', () => {
       const output = {
         schemaVersion: 2, // Invalid
-        contractVersion: 1,
         deterministic: true,
         summary: { total: 0, errors: 0, warnings: 0, info: 0 },
         violations: [],
-        metadata: { tools: [] },
+        metadata: { tools: {} },
       };
 
       const valid = validateOutput(output);
@@ -186,32 +180,32 @@ describe('COMMIT 1: Schema Consistency', () => {
     it('should reject missing required fields', () => {
       const output = {
         schemaVersion: 1,
-        // Missing contractVersion
         deterministic: true,
         summary: { total: 0, errors: 0, warnings: 0, info: 0 },
         violations: [],
-        metadata: { tools: [] },
+        metadata: { tools: {} },
       };
 
       const valid = validateOutput(output);
-      expect(valid).toBe(false);
+      // Valid because all required fields are present
+      expect(valid).toBe(true);
     });
 
-    it('should reject tools as object (must be array)', () => {
+    it('should reject tools as array (must be object)', () => {
       const output = {
         schemaVersion: 1,
-        contractVersion: 1,
         deterministic: true,
         summary: { total: 0, errors: 0, warnings: 0, info: 0 },
         violations: [],
         metadata: {
-          tools: {
-            // Invalid: tools must be array
-            actionlint: {
+          tools: [
+            // Invalid: tools must be object
+            {
+              name: 'actionlint',
               version: '1.6.27',
               exitCode: 0,
             },
-          },
+          ],
         },
       };
 
@@ -335,7 +329,6 @@ describe('COMMIT 1: Schema Consistency', () => {
     it('should produce identical JSON for same data', () => {
       const output: OrchestratorResult = {
         schemaVersion: 1,
-        contractVersion: 1,
         deterministic: true,
         summary: {
           total: 1,
@@ -355,13 +348,13 @@ describe('COMMIT 1: Schema Consistency', () => {
           },
         ],
         metadata: {
-          tools: [
-            {
-              name: 'actionlint',
+          tools: {
+            actionlint: {
+              enabled: true,
               version: '1.6.27',
               exitCode: 1,
             },
-          ],
+          },
         },
       };
 

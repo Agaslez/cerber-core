@@ -2,28 +2,31 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://cerber-core.dev/schemas/output.v1.json",
   "title": "Cerber Output",
-  "description": "Deterministic output format from Cerber orchestrator",
+  "description": "Deterministic output format from Cerber orchestrator. Same input → identical JSON (ONE TRUTH principle).",
   "type": "object",
-  "required": ["schemaVersion", "contractVersion", "deterministic", "summary", "violations", "metadata"],
+  "required": [
+    "schemaVersion",
+    "deterministic",
+    "summary",
+    "violations",
+    "metadata"
+  ],
+  "additionalProperties": false,
   "properties": {
     "schemaVersion": {
       "type": "integer",
       "const": 1,
-      "description": "Output schema version (current: 1)"
-    },
-    "contractVersion": {
-      "type": "integer",
-      "const": 1,
-      "description": "Contract version used for validation"
+      "description": "Output schema version (current: 1). Increment on breaking changes."
     },
     "deterministic": {
       "type": "boolean",
       "const": true,
-      "description": "Output is deterministic (snapshot-testable)"
+      "description": "Output is deterministic (snapshot-testable). Always true."
     },
     "summary": {
       "type": "object",
       "required": ["total", "errors", "warnings", "info"],
+      "additionalProperties": false,
       "properties": {
         "total": {
           "type": "integer",
@@ -45,122 +48,140 @@
           "minimum": 0,
           "description": "Number of info-level violations"
         }
-      },
-      "additionalProperties": false
+      }
     },
     "violations": {
       "type": "array",
-      "description": "All violations from all tools (deterministically sorted)",
+      "description": "All violations found, sorted deterministically: path, line, column, id",
       "items": {
-        "type": "object",
-        "required": ["id", "severity", "message", "source"],
-        "properties": {
-          "id": {
-            "type": "string",
-            "minLength": 1,
-            "description": "Stable rule ID (e.g., 'security/no-hardcoded-secrets')"
-          },
-          "severity": {
-            "type": "string",
-            "enum": ["error", "warning", "info"],
-            "description": "Severity level"
-          },
-          "message": {
-            "type": "string",
-            "minLength": 1,
-            "description": "Human-readable message"
-          },
-          "source": {
-            "type": "string",
-            "minLength": 1,
-            "description": "Tool that generated violation (e.g., 'actionlint', 'zizmor')"
-          },
-          "path": {
-            "type": "string",
-            "description": "File path (relative to repo root, forward slashes)"
-          },
-          "line": {
-            "type": "integer",
-            "minimum": 1,
-            "description": "Line number (1-indexed)"
-          },
-          "column": {
-            "type": "integer",
-            "minimum": 1,
-            "description": "Column number (1-indexed)"
-          },
-          "hint": {
-            "type": "string",
-            "description": "Fix suggestion"
-          },
-          "toolOutput": {
-            "description": "Original tool output (for debugging, NOT part of deterministic core)"
-          }
-        },
-        "additionalProperties": false
+        "$ref": "#/definitions/violation"
       }
     },
     "metadata": {
       "type": "object",
       "required": ["tools"],
+      "additionalProperties": false,
+      "description": "Tool execution metadata",
       "properties": {
+        "profile": {
+          "type": "string",
+          "description": "Profile used (solo/dev/team/custom)",
+          "enum": ["solo", "dev", "team", "custom"]
+        },
+        "target": {
+          "type": "string",
+          "description": "Target type (github-actions, gitlab-ci, generic-yaml)",
+          "examples": ["github-actions"]
+        },
         "tools": {
-          "type": "array",
-          "description": "Tools executed by orchestrator",
-          "items": {
+          "type": "object",
+          "description": "Tool execution results (keys sorted alphabetically)",
+          "additionalProperties": {
             "type": "object",
-            "required": ["name", "version", "exitCode"],
+            "required": ["enabled"],
+            "additionalProperties": false,
             "properties": {
-              "name": {
-                "type": "string",
-                "minLength": 1,
-                "description": "Tool name (e.g., 'actionlint', 'zizmor')"
+              "enabled": {
+                "type": "boolean",
+                "description": "Whether tool was enabled for this run"
               },
               "version": {
                 "type": "string",
-                "minLength": 1,
-                "description": "Tool version (e.g., '1.6.27')"
+                "description": "Tool version if detected"
               },
               "exitCode": {
                 "type": "integer",
-                "description": "Tool exit code (0 = success, >0 = failure)"
+                "description": "Tool exit code (0=success)"
               },
               "skipped": {
                 "type": "boolean",
-                "description": "Tool was skipped (e.g., not installed)"
+                "description": "Whether tool was skipped"
               },
               "reason": {
                 "type": "string",
-                "description": "Reason for skipping (if skipped=true)"
+                "description": "Reason for skipping",
+                "examples": ["not_installed", "not_applicable", "error"]
               }
-            },
-            "additionalProperties": false
+            }
           }
         }
-      },
-      "additionalProperties": false
+      }
     },
     "runMetadata": {
       "type": "object",
-      "description": "Optional runtime metadata (NOT part of deterministic core)",
+      "description": "Optional runtime metadata (NOT part of determinism)",
+      "additionalProperties": false,
       "properties": {
+        "profile": {
+          "type": "string",
+          "description": "Profile used"
+        },
+        "executionTime": {
+          "type": "integer",
+          "description": "Total execution time in milliseconds",
+          "minimum": 0
+        },
+        "cwd": {
+          "type": "string",
+          "description": "Working directory"
+        },
         "generatedAt": {
           "type": "string",
           "format": "date-time",
-          "description": "ISO 8601 timestamp (e.g., '2026-01-10T12:00:00Z')"
-        },
-        "executionTime": {
-          "type": "number",
-          "minimum": 0,
-          "description": "Total execution time in milliseconds"
-        },
-        "profile": {
-          "type": "string",
-          "description": "Profile used (e.g., 'solo', 'dev', 'team')"
+          "description": "ISO 8601 timestamp (EXCLUDED from determinism)"
         }
-      },
-      "additionalProperties": false
+      }
     }
   },
-  "additionalProperties": false
+  "definitions": {
+    "violation": {
+      "type": "object",
+      "description": "Single violation from a tool",
+      "required": ["id", "severity", "message", "source"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Stable rule ID",
+          "examples": ["actionlint/rule", "zizmor/insecure"]
+        },
+        "severity": {
+          "type": "string",
+          "enum": ["error", "warning", "info"]
+        },
+        "message": {
+          "type": "string",
+          "description": "Human-readable message"
+        },
+        "path": {
+          "type": "string",
+          "description": "File path (forward slashes only)",
+          "examples": [".github/workflows/ci.yml"]
+        },
+        "line": {
+          "type": "integer",
+          "description": "Line number (1-indexed)",
+          "minimum": 1
+        },
+        "column": {
+          "type": "integer",
+          "description": "Column number (1-indexed)",
+          "minimum": 1
+        },
+        "hint": {
+          "type": "string",
+          "description": "Fix suggestion"
+        },
+        "source": {
+          "type": "string",
+          "description": "Tool name",
+          "enum": ["actionlint", "zizmor", "gitleaks", "ratchet", "cerber-semantic"]
+        },
+        "toolOutput": {
+          "type": "object",
+          "description": "Original tool output (debugging only)"
+        }
+      }
+    }
+  }
 }
