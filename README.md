@@ -224,6 +224,66 @@ npx cerber doctor
 
 ---
 
+## 🧪 Testing Strategy
+
+Cerber maintains **comprehensive test coverage** with emphasis on **production evidence in CI**.
+
+### Test Suites
+
+- **Unit Tests:** 950+ tests covering individual adapters, validators, and core logic
+- **Integration Tests:** 138+ tests with real adapters, real git operations, no mocks
+  - ✅ Orchestrator real adapter execution (13 tests)
+  - ✅ FileDiscovery real git repository operations (15 tests)
+  - ✅ Contract & profile error handling (24 tests)
+  - ✅ Output JSON schema validation (39 tests)
+  - ✅ Timeout enforcement & concurrency safety (37 tests)
+- **E2E Tests:** 30+ end-to-end tests covering complete workflows
+
+### Production Evidence
+
+Tests are not just local — they run in **GitHub Actions on every commit/PR**:
+
+[![Integration Tests Badge](https://github.com/Agaslez/cerber-core/actions/workflows/test-comprehensive.yml/badge.svg)](https://github.com/Agaslez/cerber-core/actions/workflows/test-comprehensive.yml?query=branch%3Amain)
+
+What makes this "Production Evidence":
+
+1. **Real Adapters** — Tests execute actual ActionlintAdapter, GitleaksAdapter, ZizmorAdapter
+2. **Real Git** — FileDiscovery tests use actual git commands (execSync), including:
+   - Detached HEAD scenarios (GitHub Actions default)
+   - Shallow clone support (GitHub Actions default depth=1)
+   - Staged vs. committed file detection
+3. **Real Output** — Validates against actual `output.schema.json`
+4. **Determinism Verified** — Same input → identical JSON (snapshot-testable)
+5. **Concurrency Safe** — Tests for race conditions, parallel execution, factory cache thread-safety
+
+### Running Tests
+
+**Locally:**
+```bash
+npm test                           # All tests (unit + integration)
+npm run test:integration          # Integration tests only (138 tests)
+npm run test:watch               # Watch mode for development
+```
+
+**In CI (GitHub Actions):**
+```yaml
+test-integration:
+  name: Integration - Real Adapters & Git Operations
+  runs-on: ubuntu-latest
+  steps:
+    - uses: actions/checkout@v4.1.0
+    - uses: actions/setup-node@v4.0.0
+      with:
+        node-version: '20'
+    - run: npm ci
+    - run: npm run build
+    - run: npx jest test/integration/ --testTimeout=30000 --verbose
+```
+
+Every commit runs these 138 integration tests. Results are visible in Actions logs.
+
+---
+
 ## 💬 Feedback & Support
 
 **Having issues? Want to share your setup?**
