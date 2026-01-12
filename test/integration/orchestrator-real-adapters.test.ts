@@ -61,7 +61,7 @@ jobs:
       expect(Array.isArray(result.violations)).toBe(true);
       expect(result.summary).toBeDefined();
       expect(result.deterministic).toBe(true);
-      expect(result.metadata.tools).toBeInstanceOf(Array);
+      expect(typeof result.metadata.tools).toBe('object');
     });
 
     it('should handle adapters with different exit codes', async () => {
@@ -87,7 +87,7 @@ jobs:
 
       // Assert: Results collected even if adapters have errors
       expect(result.summary.total).toBeGreaterThanOrEqual(0);
-      expect((result.metadata.tools as any[]).length).toBeGreaterThan(0);
+      expect(Object.keys(result.metadata.tools).length).toBeGreaterThan(0);
     });
 
     it('should merge violations from adapters correctly', async () => {
@@ -187,12 +187,12 @@ jobs:
       });
 
       // Assert: All profiles have at least actionlint
-      expect((soloResult.metadata.tools as any[]).map((t: any) => t.name)).toContain('actionlint');
-      expect((devResult.metadata.tools as any[]).length).toBeGreaterThanOrEqual(
-        (soloResult.metadata.tools as any[]).length
+      expect(Object.keys(soloResult.metadata.tools)).toContain('actionlint');
+      expect(Object.keys(devResult.metadata.tools).length).toBeGreaterThanOrEqual(
+        Object.keys(soloResult.metadata.tools).length
       );
-      expect((teamResult.metadata.tools as any[]).length).toBeGreaterThanOrEqual(
-        (devResult.metadata.tools as any[]).length
+      expect(Object.keys(teamResult.metadata.tools).length).toBeGreaterThanOrEqual(
+        Object.keys(devResult.metadata.tools).length
       );
     });
   });
@@ -262,7 +262,7 @@ jobs:
       });
 
       // Assert: At least one adapter produced results
-      expect((result.metadata.tools as any[]).length).toBeGreaterThan(0);
+      expect(Object.keys(result.metadata.tools).length).toBeGreaterThan(0);
       expect(result.summary.total).toBeGreaterThanOrEqual(0);
     });
   });
@@ -329,16 +329,17 @@ jobs:
 
       // Assert: Metadata structure
       expect(result.metadata).toHaveProperty('tools');
-      expect(result.metadata.tools).toBeInstanceOf(Array);
+      expect(typeof result.metadata.tools).toBe('object');
 
-      // Tools should be sorted
-      const toolNames = (result.metadata.tools as any[]).map((t: any) => t.name);
+      // Tools should have names as keys (sorted)
+      const toolNames = Object.keys(result.metadata.tools);
       const sortedNames = [...toolNames].sort();
       expect(toolNames).toEqual(sortedNames);
 
       // Each tool should have required fields
-      for (const tool of result.metadata.tools as any[]) {
-        expect(tool).toHaveProperty('name');
+      for (const toolName of Object.keys(result.metadata.tools)) {
+        const tool = result.metadata.tools[toolName];
+        expect(tool).toHaveProperty('enabled');
         expect(tool).toHaveProperty('version');
         expect(tool).toHaveProperty('exitCode');
       }
@@ -410,8 +411,8 @@ jobs:
       expect(result).toHaveProperty('violations');
       expect(result).toHaveProperty('summary');
       expect(result).toHaveProperty('metadata');
+      expect(result).toHaveProperty('schemaVersion');
       expect(result).toHaveProperty('deterministic');
-      expect(result).toHaveProperty('contractVersion');
 
       // Violations must have required fields
       for (const v of result.violations) {

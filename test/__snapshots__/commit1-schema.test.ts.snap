@@ -3,7 +3,6 @@
 exports[`COMMIT 1: Schema Consistency Deterministic Output Snapshot should produce identical JSON for same data 1`] = `
 "{
   "schemaVersion": 1,
-  "contractVersion": 1,
   "deterministic": true,
   "summary": {
     "total": 1,
@@ -23,13 +22,13 @@ exports[`COMMIT 1: Schema Consistency Deterministic Output Snapshot should produ
     }
   ],
   "metadata": {
-    "tools": [
-      {
-        "name": "actionlint",
+    "tools": {
+      "actionlint": {
+        "enabled": true,
         "version": "1.6.27",
         "exitCode": 1
       }
-    ]
+    }
   }
 }"
 `;

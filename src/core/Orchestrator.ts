@@ -351,21 +351,23 @@ export class Orchestrator {
     // Sort violations deterministically
     const sortedViolations = this.sortViolations(uniqueViolations);
 
-    // Build metadata (array format per new schema)
-    const tools = results.map(result => ({
-      name: result.tool,
-      version: result.version,
-      exitCode: result.exitCode,
-      skipped: result.skipped,
-      reason: result.skipReason,
-    }));
+    // Build metadata (object format with tool names as keys)
+    const tools: { [toolName: string]: { enabled: boolean; version?: string; exitCode?: number; skipped?: boolean; reason?: string } } = {};
+    for (const result of results) {
+      tools[result.tool] = {
+        enabled: true,
+        version: result.version,
+        exitCode: result.exitCode,
+        skipped: result.skipped,
+        reason: result.skipReason,
+      };
+    }
 
     // Calculate summary
     const summary = this.calculateSummary(sortedViolations);
 
     return {
       schemaVersion: 1,
-      contractVersion: 1,
       deterministic: true,
       summary,
       violations: sortedViolations,
@@ -528,11 +530,10 @@ export class Orchestrator {
   private createEmptyResult(startTime: number, profile?: string): OrchestratorResult {
     return {
       schemaVersion: 1,
-      contractVersion: 1,
       deterministic: true,
       summary: { total: 0, errors: 0, warnings: 0, info: 0 },
       violations: [],
-      metadata: { tools: [] },
+      metadata: { tools: {} },
       runMetadata: {
         generatedAt: new Date().toISOString(),
         executionTime: Date.now() - startTime,

@@ -1,0 +1,55 @@
+��� INSTRUCTIONS TO CREATE PR
+
+1. PUSH TO GITHUB
+=================
+git push origin main
+
+(Or if creating feature branch:
+  git checkout -b feature/integration-tests
+  git push -u origin feature/integration-tests
+)
+
+2. CREATE PULL REQUEST ON GITHUB
+================================
+After push, go to: https://github.com/Agaslez/cerber-core/pulls
+
+Click "New Pull Request"
+
+Title: "feat: Add 138 integration tests with production evidence in CI/CD"
+
+Description: Copy content from PR_DESCRIPTION.md
+
+3. AUTOMATED CHECKS
+===================
+GitHub Actions will automatically run:
+  ✅ test-unit (950+ unit tests)
+  ✅ test-integration (138 integration tests) - NEW
+  ✅ lint
+  ✅ build
+
+All should pass ✅
+
+4. WHAT VISITORS WILL SEE
+=========================
+✅ PR description with 138 test summary
+✅ GitHub Actions logs showing all tests passing
+✅ Badge in README turning green
+✅ Can click badge → See real test execution
+
+5. MERGING
+==========
+Once approved:
+  - Squash and merge (optional)
+  - Or merge commit (preserves history)
+  - All 11 commits will be visible in history
+
+---
+
+CURRENT STATUS:
+✅ All 138 tests passing locally
+✅ All 11 commits created
+✅ README updated with testing strategy
+✅ Production readiness report updated
+✅ Build succeeds
+
+READY FOR PUSH! ���

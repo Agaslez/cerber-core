@@ -69,7 +69,6 @@ jobs:
       // Verify orchestration succeeded
       expect(result).toBeDefined();
       expect(result.schemaVersion).toBe(1);
-      expect(result.contractVersion).toBe(1);
       expect(Array.isArray(result.violations)).toBe(true);
     });
 
@@ -126,7 +125,7 @@ jobs:
       });
 
       // Both adapters should be attempted
-      expect(result.metadata.tools.length).toBeGreaterThanOrEqual(1);
+      expect(Object.keys(result.metadata.tools).length).toBeGreaterThanOrEqual(1);
       expect(result.summary.total).toBeGreaterThanOrEqual(0);
       expect(result.violations).toBeDefined();
     });
@@ -141,7 +140,6 @@ jobs:
 
       // Should return valid output even if adapter fails
       expect(result.schemaVersion).toBe(1);
-      expect(result.contractVersion).toBe(1);
       expect(result.deterministic).toBe(true);
       expect(Array.isArray(result.violations)).toBe(true);
     });
@@ -296,7 +294,6 @@ jobs:
 
       // Should return valid output even with nonexistent adapter
       expect(result.schemaVersion).toBe(1);
-      expect(result.contractVersion).toBe(1);
       expect(result.deterministic).toBe(true);
     });
 
@@ -316,7 +313,6 @@ jobs:
 
       // Should return valid output
       expect(result.schemaVersion).toBe(1);
-      expect(result.contractVersion).toBe(1);
     });
   });
 });

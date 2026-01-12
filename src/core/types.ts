@@ -67,9 +67,6 @@ export interface OrchestratorResult {
   /** Output schema version (current: 1) */
   schemaVersion: 1;
   
-  /** Contract version */
-  contractVersion: 1;
-  
   /** Is output deterministic? (always true) */
   deterministic: true;
   
@@ -86,14 +83,16 @@ export interface OrchestratorResult {
   
   /** Metadata about tool execution */
   metadata: {
-    /** Tools executed (array, NOT object) */
-    tools: Array<{
-      name: string;
-      version: string;
-      exitCode: number;
-      skipped?: boolean;
-      reason?: string;
-    }>;
+    /** Tools executed (object with tool names as keys) */
+    tools: {
+      [toolName: string]: {
+        enabled: boolean;
+        version?: string;
+        exitCode?: number;
+        skipped?: boolean;
+        reason?: string;
+      };
+    };
   };
   
   /** Optional runtime metadata (NOT part of deterministic core) */
