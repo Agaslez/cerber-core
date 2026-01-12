@@ -3,6 +3,7 @@ module.exports = {
   testEnvironment: 'node',
   roots: ['<rootDir>/test'],
   testMatch: ['**/*.test.ts'],
+  testTimeout: process.env.CI ? 20000 : 10000,
   collectCoverageFrom: [
     'src/**/*.ts',
     '!src/**/*.d.ts',
