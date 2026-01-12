@@ -67,8 +67,9 @@ describe('Orchestrator', () => {
       const adapters = orchestrator.listAdapters();
 
       expect(adapters).toContain('actionlint');
+      expect(adapters).toContain('gitleaks');
       expect(adapters).toContain('zizmor');
-      expect(adapters).toHaveLength(2);
+      expect(adapters).toHaveLength(3);
     });
 
     it('should register custom adapter', () => {

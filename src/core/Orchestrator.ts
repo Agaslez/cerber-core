@@ -9,6 +9,7 @@
 
 import crypto from 'crypto';
 import { ActionlintAdapter } from '../adapters/actionlint/ActionlintAdapter.js';
+import { GitleaksAdapter } from '../adapters/gitleaks/GitleaksAdapter.js';
 import type { Adapter, AdapterResult } from '../adapters/types.js';
 import { ZizmorAdapter } from '../adapters/zizmor/ZizmorAdapter.js';
 import type { Violation } from '../types.js';
@@ -58,6 +59,13 @@ export class Orchestrator {
       displayName: 'actionlint',
       enabled: true,
       factory: () => new ActionlintAdapter(),
+    });
+
+    this.register({
+      name: 'gitleaks',
+      displayName: 'gitleaks',
+      enabled: true,
+      factory: () => new GitleaksAdapter(),
     });
 
     this.register({
