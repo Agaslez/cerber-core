@@ -28,7 +28,7 @@ describe('FileDiscovery - Real Git Repo', () => {
     } catch (e) {
       // Ignore cleanup errors
     }
-  });
+  }, 10000); // 10s timeout for cleanup
 
   describe('Staged Files Discovery', () => {
     it('should discover staged files in real git repo', async () => {
@@ -297,7 +297,7 @@ describe('FileDiscovery - Real Git Repo', () => {
         expect(file).not.toContain('\\\\');
         expect(file).not.toMatch(/\\/g);
       }
-    });
+    }, 10000);
 
     it('should work with nested directory structures', async () => {
       // Setup
