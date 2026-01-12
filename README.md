@@ -548,7 +548,49 @@ npm test
 
 ---
 
-## 📄 License
+## � Development & Roadmap
+
+### Current Status (V2.0.0)
+- **Progress:** 60% complete (110 hours remaining)
+- **Test Coverage:** 97% (1105/1140 passing)
+- **Architecture Rating:** 7.2/10 (good foundation with known debt)
+- **ETA to Release:** 1.5 weeks (54 hours of focused work)
+
+### Planning & Documentation
+- 📊 **[ROADMAP_V2_ACTUAL.md](ROADMAP_V2_ACTUAL.md)** ← **USE THIS** - Real roadmap (110h remaining)
+- 📚 [ROADMAP_V2_PRO.md](ROADMAP_V2_PRO.md) - Theoretical planning (reference only)
+- 📖 [SENIOR_AUDIT_REPORT.md](SENIOR_AUDIT_REPORT.md) - Architecture analysis & code quality
+- 🎯 [ONE_TRUTH.md](ONE_TRUTH.md) - Executive summary for stakeholders
+- 🔍 [ROADMAP_COMPARISON.md](ROADMAP_COMPARISON.md) - Which roadmap to read & when
+
+### What's Implemented (V2.0)
+✅ Orchestrator (85% - coordinates multiple tools)  
+✅ Profiles (90% - solo/dev/team execution modes)  
+✅ Adapters (70% - actionlint, zizmor, gitleaks)  
+✅ Contract System (80% - single source of truth)  
+✅ Tool Detection (75% - cross-platform compatibility)  
+✅ File Discovery (80% - git-based, multi-mode)  
+✅ Circuit Breaker & Retry (85% - resilience patterns)  
+✅ Reporting (75% - text, JSON, GitHub annotations)  
+✅ Tests (97% - 1105 passing, integration tests included)
+
+### What's Next (To Release)
+⚠️ State Machine Integration (8h - connect ExecutionContext)  
+⚠️ Guardian CLI Completion (8h - doctor + <2s pre-commit)  
+⚠️ Fix Flaky Tests (3h - git timeout issues)  
+⚠️ Observability Integration (6h - logging, metrics, tracing)  
+⚠️ Documentation (6h - AGENTS.md, architecture guides)
+
+### Deferred to V2.1
+📅 Auto-Install Tools (8h) - Download binaries, cache, checksum verification  
+📅 Execution Persistence (8h) - History, replay, audit trails  
+📅 SARIF Format (4h) - GitHub Code Scanning integration  
+📅 Plugin System (6h) - Custom adapters  
+📅 Universal Targets (GitLab CI, generic YAML) - V2.2  
+
+---
+
+## �📄 License
 
 MIT © 2026 Stefan Pitek
 
