@@ -3,7 +3,7 @@
  * Supports: staged files, changed files (vs base branch), all tracked files
  */
 
-import execa = require('execa');
+import execa from 'execa';
 
 export class GitSCM {
   constructor(private cwd: string) {}

@@ -215,6 +215,74 @@ export class Orchestrator {
   }
 
   /**
+   * Execute specific adapters and collect violations
+   * @rule Per AGENTS.md §3 - Public API for adapter execution
+   * @rule Per AGENTS.md §6 - Graceful: handles missing adapters
+   * 
+   * Convenience method for running adapters without full orchestration
+   */
+  async executeAdapters(
+    toolNames: string[],
+    files: string[],
+    cwd: string,
+    options?: {
+      timeout?: number;
+      parallel?: boolean;
+      profile?: string;
+    }
+  ): Promise<{
+    violations: Violation[];
+    results: AdapterResult[];
+    summary: { total: number; errors: number; warnings: number; info: number };
+  }> {
+    const adapters = toolNames
+      .map(name => ({ name, adapter: this.getAdapter(name) }))
+      .filter((entry) => entry.adapter !== null) as Array<{
+      name: string;
+      adapter: Adapter;
+    }>;
+
+    if (adapters.length === 0) {
+      return {
+        violations: [],
+        results: [],
+        summary: { total: 0, errors: 0, warnings: 0, info: 0 }
+      };
+    }
+
+    // Execute adapters (parallel or sequential)
+    const results = (options?.parallel ?? true)
+      ? await this.runParallel(adapters, {
+          files,
+          cwd,
+          timeout: options?.timeout,
+          profile: options?.profile
+        })
+      : await this.runSequential(adapters, {
+          files,
+          cwd,
+          timeout: options?.timeout,
+          profile: options?.profile
+        });
+
+    // Merge and deduplicate violations
+    const allViolations: Violation[] = [];
+    for (const result of results) {
+      allViolations.push(...result.violations);
+    }
+
+    const uniqueViolations = this.deduplicate(allViolations);
+    const sortedViolations = this.sortViolations(uniqueViolations);
+    const summary = this.calculateSummary(sortedViolations);
+
+    return {
+      violations: sortedViolations,
+      results,
+      summary
+    };
+  }
+
+  /**
    * Run adapters in parallel
    * @rule Per AGENTS.md §6 - Graceful: one adapter fails → others continue
    * @rule Per PRODUCTION HARDENING - P2: Resilience delegated to strategy
