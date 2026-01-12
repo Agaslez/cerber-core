@@ -352,9 +352,10 @@ describe('COMMIT 8: Reporting - Text + GitHub Formatters', () => {
     });
 
     it('should detect format from environment', () => {
-      // Default
+      // Default - should detect GitHub Actions if on GitHub Actions
       const defaultFormat = ReportFormatter.detectFormat({});
-      expect(defaultFormat).toBe('text');
+      const expectedDefault = process.env.GITHUB_ACTIONS ? 'github' : 'text';
+      expect(defaultFormat).toBe(expectedDefault);
 
       // Explicit format
       const explicitFormat = ReportFormatter.detectFormat({ format: 'github' });
