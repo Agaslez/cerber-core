@@ -6,6 +6,7 @@ Detects workflow/config drift across repos and enforces a single source of truth
 
 [![npm version](https://img.shields.io/npm/v/cerber-core.svg)](https://www.npmjs.com/package/cerber-core)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Tests](https://github.com/Agaslez/cerber-core/actions/workflows/test-comprehensive.yml/badge.svg)](https://github.com/Agaslez/cerber-core/actions)
 [![GitHub](https://img.shields.io/badge/GitHub-cerber--core-blue.svg)](https://github.com/Agaslez/cerber-core)
 [![Discord](https://img.shields.io/discord/1457747175017545928?color=7289da&label=Discord&logo=discord&logoColor=white)](https://discord.gg/V8G5qw5D)
 
@@ -421,7 +422,46 @@ approvedBy: "CTO Name"
 
 ---
 
-## 🤝 Contributing
+## � Testing Strategy
+
+Cerber has **comprehensive test coverage** with real adapters verified in CI:
+
+```bash
+# Run all tests (1000+ tests)
+npm test
+
+# Run specific test suites
+npm test -- test/unit          # Unit tests
+npm test -- test/integration   # Integration tests (real adapters & git)
+npm test -- test/e2e           # End-to-end tests
+
+# Watch mode
+npm test -- --watch
+```
+
+### Test Coverage by Type
+
+| Type | Count | Purpose |
+|------|-------|---------|
+| **Unit** | 950+ | Schemas, adapters, utilities |
+| **Integration** | 45+ | Real adapters, git operations, CI scenarios |
+| **E2E** | 30+ | CLI commands, end-to-end workflows |
+
+### 🎯 Production Evidence
+
+Integration tests run on **every commit in CI/CD**:
+
+✅ **Real Adapters** — Tests verify ActionlintAdapter, GitleaksAdapter, ZizmorAdapter work together  
+✅ **Deterministic Output** — Same input → identical output across runs  
+✅ **Parallel Execution** — Adapters run in parallel without race conditions  
+✅ **Git Operations** — Tests with actual git repos (detached HEAD, shallow clones)  
+✅ **Error Resilience** — Graceful handling of missing files, invalid YAML, timeouts  
+
+**Evidence:** Test results are in [GitHub Actions](https://github.com/Agaslez/cerber-core/actions/workflows/test-comprehensive.yml) logs for every commit.
+
+---
+
+## �🤝 Contributing
 
 Contributions welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) first.
 
