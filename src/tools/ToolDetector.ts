@@ -78,13 +78,19 @@ export class ToolDetector {
         version,
         available: true,
       };
-    } catch (error: any) {
+    } catch (error) {
       // Tool not found or execution failed
+      const isError = error instanceof Error;
+      const code = isError ? (error as NodeJS.ErrnoException).code : undefined;
+      const message = isError ? error.message : String(error);
+      
+      const isNotFound = code === 'ENOENT' || message.includes('ENOENT');
+      
       return {
         name: toolName,
         version: 'unknown',
         available: false,
-        error: error.code === 'ENOENT' ? 'Tool not found in PATH' : error.message,
+        error: isNotFound ? 'Tool not found in PATH' : message,
       };
     }
   }

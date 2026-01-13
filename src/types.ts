@@ -3,6 +3,15 @@
  */
 
 // ============================================
+// JSON TYPES
+// ============================================
+
+export type JsonPrimitive = string | number | boolean | null;
+export type JsonValue = JsonPrimitive | JsonObject | JsonArray;
+export type JsonObject = { [key: string]: JsonValue };
+export type JsonArray = JsonValue[];
+
+// ============================================
 // GUARDIAN TYPES
 // ============================================
 
@@ -47,7 +56,7 @@ export interface ValidationResult {
 
 export interface CerberCheckContext {
   rootDir: string;
-  [key: string]: any;
+  [key: string]: JsonValue;
 }
 
 export type CerberCheck = (ctx: CerberCheckContext) => Promise<CerberIssue[]>;
@@ -60,7 +69,7 @@ export interface CerberIssue {
   rootCause?: string;
   fix?: string;
   durationMs?: number;
-  details?: Record<string, any>;
+  details?: JsonObject;
 }
 
 export interface CerberResult {
@@ -77,7 +86,7 @@ export interface CerberResult {
     name: string;
     severity: string;
     message: string;
-    details?: Record<string, any>;
+    details?: JsonObject;
     fix?: string;
   }>;
   summary: {
