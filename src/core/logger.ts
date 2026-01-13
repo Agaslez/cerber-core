@@ -22,7 +22,7 @@ export interface LoggerConfig {
 /**
  * Create production logger
  * @rule Structured logging for observability
- * @rule Use JSON logging by default for production compatibility
+ * @rule Use minimal config to ensure CI/production compatibility
  */
 export function createLogger(config: LoggerConfig = {}): pino.Logger {
   const isDev = process.env.NODE_ENV !== 'production';
@@ -31,29 +31,6 @@ export function createLogger(config: LoggerConfig = {}): pino.Logger {
   return pino({
     level,
     name: config.name || 'cerber-core',
-
-    // Base metadata
-    base: {
-      pid: process.pid,
-      hostname: process.env.HOSTNAME || 'unknown',
-      env: process.env.NODE_ENV || 'development',
-    },
-
-    // Production: structured JSON (default)
-    // Note: pino-pretty is optional for development pretty-printing
-    // Use: cat <logfile> | npx pino-pretty
-    formatters: {
-      level: (label) => ({ level: label }),
-    },
-
-    // Timestamp
-    timestamp: pino.stdTimeFunctions.isoTime,
-
-    // Redact sensitive data
-    redact: {
-      paths: ['*.password', '*.token', '*.secret', '*.apiKey'],
-      remove: true,
-    },
   });
 }
 
