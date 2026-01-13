@@ -84,7 +84,13 @@ export class ToolDetector {
       const code = isError ? (error as NodeJS.ErrnoException).code : undefined;
       const message = isError ? error.message : String(error);
       
-      const isNotFound = code === 'ENOENT' || message.includes('ENOENT');
+      // Detect "not found" across platforms:
+      // - Linux/macOS: code === 'ENOENT'
+      // - Windows: "is not recognized"
+      // - Generic: "not found" or "ENOENT" in message
+      const isNotFound = 
+        code === 'ENOENT' ||
+        /ENOENT|not found|is not recognized/i.test(message);
       
       return {
         name: toolName,

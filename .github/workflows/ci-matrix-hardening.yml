@@ -35,7 +35,7 @@ jobs:
       - run: npm ci
       
       - name: Lint (gate 1)
-        run: npm run lint
+        run: npm run lint -- --max-warnings 69
       
       - name: Build (gate 2)
         run: npm run build
@@ -77,7 +77,7 @@ jobs:
       - run: npm ci
       
       - name: Lint (gate 1)
-        run: npm run lint
+        run: npm run lint -- --max-warnings 69
       
       - name: Build (gate 2)
         run: npm run build
@@ -161,3 +161,7 @@ jobs:
       - name: Signal Tests (SIGINT/SIGTERM)
         run: npm test -- test/e2e/cli-signals.test.ts
         timeout-minutes: 5
+
+      - name: Open Handles Detection (timer/resource leaks)
+        run: npm test -- --detectOpenHandles --runInBand --testTimeout 10000
+        timeout-minutes: 15
