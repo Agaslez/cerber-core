@@ -57,11 +57,11 @@ jobs:
       - name: Install
         run: npm ci
 
-      - name: Unit tests
-        run: npm test
-
       - name: Build
         run: npm run build
+
+      - name: Unit tests
+        run: npm test
 
   pack_tarball:
     name: Pack (npm pack)
