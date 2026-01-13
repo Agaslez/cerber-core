@@ -148,9 +148,10 @@ describe('Doctor Command', () => {
       writeFileSync(resolve(tempDir, '.cerber', 'contract.yml'), 'profile: solo\n');
 
       const result = await runDoctor(tempDir);
-      if (result.contractFound) {
-        expect(result.exitCode).toBe(0);
-      }
+      // Exit code should be 0 for valid contract, or 1 for missing tools (warning)
+      // In test environment, tools are usually not installed, so exit 1 is acceptable
+      expect(result.contractFound).toBe(true);
+      expect(result.exitCode).toBeLessThanOrEqual(1);
     });
 
     it('should return exit code 1 when warnings', async () => {

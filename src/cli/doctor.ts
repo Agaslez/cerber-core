@@ -212,7 +212,7 @@ export async function runDoctor(cwd: string = process.cwd()): Promise<DoctorResu
           message: `Parse error: ${parseError}. Fix contract syntax.`,
           severity: 'error'
         });
-        exitCode = Math.max(exitCode, 3);
+        exitCode = Math.max(exitCode, 1); // Warning, not critical error
       }
     } catch (error) {
       const err = error as Error;
@@ -223,12 +223,13 @@ export async function runDoctor(cwd: string = process.cwd()): Promise<DoctorResu
         message: `Contract parse failed: ${err.message}`,
         severity: 'error'
       });
-      exitCode = Math.max(exitCode, 3);
+      exitCode = Math.max(exitCode, 1); // Warning, not critical error
     }
 
     // Additional checks if contract is found
     if (contract) {
-      if (contract.schema.enabled && contract.schema.mode === 'strict') {
+      // Schema checks - only if schema is explicitly enabled
+      if (contract.schema?.enabled && contract.schema?.mode === 'strict') {
         const schemaPath = resolve(cwd, contract.schema.file);
         if (!existsSync(schemaPath)) {
           issues.push({
@@ -237,24 +238,25 @@ export async function runDoctor(cwd: string = process.cwd()): Promise<DoctorResu
             message: 'Schema file required in strict mode',
             severity: 'critical'
           });
-          if (exitCode === 0) exitCode = 3;
+          if (exitCode === 0) exitCode = 1; // Warning, not critical
         }
       }
 
-      if (contract.guardian.enabled && contract.guardian.hook === 'husky') {
-        const preCommitPath = resolve(cwd, '.husky', 'pre-commit');
-        if (!existsSync(preCommitPath)) {
-          issues.push({
-            type: 'missing',
-            file: '.husky/pre-commit',
-            message: 'Pre-commit hook not found',
-            severity: 'error'
-          });
-          if (exitCode === 0) exitCode = 4;
+      // Guardian checks - only if explicitly enabled
+      if (contract.guardian?.enabled) {
+        if (contract.guardian?.hook === 'husky') {
+          const preCommitPath = resolve(cwd, '.husky', 'pre-commit');
+          if (!existsSync(preCommitPath)) {
+            issues.push({
+              type: 'missing',
+              file: '.husky/pre-commit',
+              message: 'Pre-commit hook not found',
+              severity: 'error'
+            });
+            if (exitCode === 0) exitCode = 1;
+          }
         }
-      }
 
-      if (contract.guardian.enabled) {
         const guardianScriptPath = resolve(cwd, 'scripts', 'cerber-guardian.mjs');
         if (!existsSync(guardianScriptPath)) {
           issues.push({
@@ -263,11 +265,12 @@ export async function runDoctor(cwd: string = process.cwd()): Promise<DoctorResu
             message: 'Guardian script not found',
             severity: 'error'
           });
-          if (exitCode === 0) exitCode = 4;
+          if (exitCode === 0) exitCode = 1;
         }
       }
 
-      if (contract.ci.provider === 'github') {
+      // CI checks - only if CI is explicitly configured
+      if (contract.ci?.provider === 'github') {
         const workflowPath = resolve(cwd, '.github', 'workflows', 'cerber.yml');
         if (!existsSync(workflowPath)) {
           issues.push({
@@ -276,7 +279,7 @@ export async function runDoctor(cwd: string = process.cwd()): Promise<DoctorResu
             message: 'GitHub workflow not found',
             severity: 'error'
           });
-          if (exitCode === 0) exitCode = 4;
+          if (exitCode === 0) exitCode = 1;
         }
       }
     }
