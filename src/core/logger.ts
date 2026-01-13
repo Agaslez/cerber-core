@@ -28,10 +28,30 @@ export function createLogger(config: LoggerConfig = {}): pino.Logger {
   const level = config.level || process.env.LOG_LEVEL || (isDev ? 'debug' : 'info');
   const pretty = config.pretty ?? isDev;
 
+  // Build transport config only if pretty printing is enabled
+  // Note: pino-pretty is devDependency, use safely in development only
+  let transport;
+  if (pretty) {
+    try {
+      transport = {
+        target: 'pino-pretty',
+        options: {
+          colorize: true,
+          translateTime: 'HH:MM:ss',
+          ignore: 'pid,hostname',
+          messageFormat: '{levelLabel} - {msg}',
+        },
+      };
+    } catch {
+      // Fallback to JSON if pino-pretty not available
+      transport = undefined;
+    }
+  }
+
   return pino({
     level,
     name: config.name || 'cerber-core',
-    
+
     // Base metadata
     base: {
       pid: process.pid,
@@ -39,16 +59,8 @@ export function createLogger(config: LoggerConfig = {}): pino.Logger {
       env: process.env.NODE_ENV || 'development',
     },
 
-    // Pretty printing in development
-    transport: pretty ? {
-      target: 'pino-pretty',
-      options: {
-        colorize: true,
-        translateTime: 'HH:MM:ss',
-        ignore: 'pid,hostname',
-        messageFormat: '{levelLabel} - {msg}',
-      },
-    } : undefined,
+    // Pretty printing in development (if available)
+    transport,
 
     // Production: structured JSON
     formatters: {
@@ -90,7 +102,7 @@ export function createChildLogger(context: Record<string, unknown>): pino.Logger
  */
 export function startTimer() {
   const start = Date.now();
-  
+
   return {
     end: (message: string, context?: Record<string, unknown>) => {
       const duration = Date.now() - start;
