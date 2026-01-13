@@ -80,8 +80,10 @@ export class FileDiscovery {
         break;
 
       default:
+        {
         const exhaustive: never = options.mode;
         throw new Error(`Unknown discovery mode: ${exhaustive}`);
+        }
     }
 
     // 2. Filter by glob patterns if provided

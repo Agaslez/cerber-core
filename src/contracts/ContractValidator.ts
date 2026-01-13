@@ -13,6 +13,7 @@ import * as path from 'path';
 import * as yaml from 'yaml';
 import type { Contract, ContractValidationResult } from './types.js';
 
+// eslint-disable-next-line @typescript-eslint/no-require-imports
 const contractSchema = require('./contract.schema.json');
 
 export class ContractValidator {
