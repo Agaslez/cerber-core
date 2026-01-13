@@ -25,6 +25,16 @@ jobs:
           node-version: ${{ matrix.node-version }}
           cache: 'npm'
       
+      - name: Guard - Check for file: dependencies
+        run: |
+          if grep -q '"file:' package.json; then
+            echo "❌ FATAL: file: dependency detected in package.json"
+            echo "This will cause npm ci to fail in CI environments."
+            grep '"file:' package.json
+            exit 1
+          fi
+          echo "✅ No file: dependencies found"
+      
       - name: Install dependencies
         run: npm ci
       
