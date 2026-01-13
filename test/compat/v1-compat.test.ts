@@ -8,7 +8,7 @@
  * - No "fatal" errors without guidance
  */
 
-import type { Violation } from '../../src/core/types';
+import type { Violation } from '../../src/types';
 
 describe('Backward Compatibility Gate (v1.1.12)', () => {
   describe('CLI command compatibility', () => {
@@ -118,12 +118,13 @@ describe('Backward Compatibility Gate (v1.1.12)', () => {
       const output = {
         violations: [
           {
-            file: 'test.yml',
+            path: 'test.yml',
             line: 10,
             column: 5,
-            ruleId: 'rule-001',
+            id: 'rule-001',
             message: 'Error message',
-            severity: 'error',
+            severity: 'error' as const,
+            source: 'actionlint',
           },
         ],
         summary: {
@@ -135,7 +136,7 @@ describe('Backward Compatibility Gate (v1.1.12)', () => {
 
       expect(output.violations).toBeDefined();
       expect(output.summary).toBeDefined();
-      expect(output.violations[0].file).toBe('test.yml');
+      expect(output.violations[0].path).toBe('test.yml');
     });
 
     it('should support text format', () => {
@@ -189,17 +190,18 @@ describe('Backward Compatibility Gate (v1.1.12)', () => {
 
     it('should maintain violation structure', () => {
       const violation: Partial<Violation> = {
-        file: 'test.yml',
+        path: 'test.yml',
         line: 10,
         column: 5,
-        ruleId: 'rule-001',
+        id: 'rule-001',
         message: 'Error',
         severity: 'error',
+        source: 'actionlint',
       };
 
-      expect(violation.file).toBeDefined();
+      expect(violation.path).toBeDefined();
       expect(violation.line).toBeDefined();
-      expect(violation.ruleId).toBeDefined();
+      expect(violation.id).toBeDefined();
       expect(violation.severity).toBeDefined();
     });
   });
@@ -319,7 +321,7 @@ describe('Backward Compatibility Gate (v1.1.12)', () => {
       expect(contract.version).toBe('1.0');
 
       // Defaults should apply silently
-      const tools = contract['tools'] ?? ['actionlint'];
+      const tools = (contract as any)['tools'] ?? ['actionlint'];
       expect(tools).toBeDefined();
     });
 
@@ -423,8 +425,8 @@ describe('Backward Compatibility Gate (v1.1.12)', () => {
       const profile = {}; // Minimal profile
 
       // Should use sensible defaults
-      const tools = profile['tools'] ?? ['actionlint', 'gitleaks', 'zizmor'];
-      const timeout = profile['timeout'] ?? 30000;
+      const tools = (profile as any)['tools'] ?? ['actionlint', 'gitleaks', 'zizmor'];
+      const timeout = (profile as any)['timeout'] ?? 30000;
 
       expect(tools.length).toBeGreaterThan(0);
       expect(timeout).toBeGreaterThan(0);

@@ -18,6 +18,7 @@ describe('Performance Regression Gates', () => {
 
       // Simulate small run
       const options: OrchestratorRunOptions = {
+        cwd: process.cwd(),
         files: ['.github/workflows/test.yml'],
         tools: ['actionlint'],
       };
@@ -34,6 +35,7 @@ describe('Performance Regression Gates', () => {
       const orchestrator = new Orchestrator();
 
       const options: OrchestratorRunOptions = {
+        cwd: process.cwd(),
         files: [
           '.github/workflows/test.yml',
           '.github/workflows/ci.yml',
@@ -59,6 +61,7 @@ describe('Performance Regression Gates', () => {
       const orchestrator = new Orchestrator();
 
       const options: OrchestratorRunOptions = {
+        cwd: process.cwd(),
         files: Array.from({ length: 10 }, (_, i) => `.github/workflows/file${i}.yml`),
         tools: ['actionlint'],
         parallel: false, // Sequential
@@ -94,6 +97,7 @@ describe('Performance Regression Gates', () => {
         memSamples.push(before);
 
         const options: OrchestratorRunOptions = {
+          cwd: process.cwd(),
           files: [`.github/workflows/test-${run}.yml`],
           tools: ['actionlint'],
           timeout: 1000,
@@ -132,6 +136,7 @@ describe('Performance Regression Gates', () => {
       const before = process.memoryUsage().heapUsed;
 
       const options: OrchestratorRunOptions = {
+        cwd: process.cwd(),
         files: largeFileList.slice(0, 50), // 50 files (not all, to be kind)
         tools: ['actionlint'],
         timeout: 2000,

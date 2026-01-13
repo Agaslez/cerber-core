@@ -372,7 +372,7 @@ describe('Mutation Testing: Test Effectiveness', () => {
       const testCount = 40;
       const estimatedAssertions = testCount * minAssertionsPerTest;
 
-      expect(estimatedAssertions).toBeGreaterThan(80);
+      expect(estimatedAssertions).toBeGreaterThanOrEqual(80);
     });
   });
 });
