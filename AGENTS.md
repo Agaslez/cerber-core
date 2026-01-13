@@ -1,148 +1,33 @@
-# AGENTS.md — CERBER CORE: RULES (ONE TRUTH)
+# AGENT RULES FOR CERBER V2.0 MVP
 
-**Version:** 2.0  
-**Last Updated:** 2026-01-09  
-**Purpose:** Canonical instructions for AI agents, developers, and CI bots working on Cerber.
+**Read this first. Follow these 10 rules strictly.**
 
----
-
-## 0) Non-negotiables
-
-### 1) ONE TRUTH
-- **Contract:** `.cerber/contract.yml` (canonical configuration)
-- **Spec:** `CERBER.md` (canonical behavior documentation)
-- **Output:** Deterministic JSON (canonical schema)
-
-**Rule:** If contract says X, and code does Y, the code is wrong.
-
-### 2) NO REINVENTING
-- Cerber does **NOT** re-implement deep semantic lint/security if a mature tool exists.
-- Cerber **orchestrates** tools + normalizes output + applies profiles/gating.
-- **Example:**
-  - ✅ Cerber runs `actionlint` and parses output
-  - ❌ Cerber re-implements GitHub Actions YAML parsing
-
-### 3) Determinism
-- Deterministic core output **MUST** be stable across runs for same inputs.
-- **No required timestamps** in deterministic core.
-- Violations sorted by: `path`, `line`, `column`, `id`, `source`.
-- **Test:** Same input → byte-identical JSON (except optional metadata).
-
-### 4) Tests-first gate
-- Any behavior change requires tests (unit OR fixture OR e2e snapshot).
-- CI must stay green. No "drive-by refactors".
-- **Rule:** If tests don't exist for behavior X, behavior X doesn't exist.
-
-### 5) Backward compatibility
-- Keep v1 CLI working unless `MIGRATION.md` exists and major bump is planned.
-- Contract versioning: `contractVersion: 1` → `contractVersion: 2` requires migration guide.
+**Last Updated:** January 12, 2026  
+**Phase:** MVP Release (2.0.0-rc1)  
+**Primary Source:** [ONE_TRUTH_MVP.md](../ONE_TRUTH_MVP.md)
 
 ---
 
-## 1) Adapter Rules
+## 1. SCOPE FREEZE (MANDATORY)
 
-### Required Interface
-Every adapter **MUST** implement:
+**❌ DO NOT:**
+- Add features beyond MVP definition
+- Refactor existing code
+- Reorganize folder structures
+- "Clean up" imports or naming
 
-```typescript
-interface Adapter {
-  name: string;
-  
-  // Detection
-  isInstalled(): Promise<boolean>;
-  getVersion(): Promise<string | null>;
-  getInstallHint(): string;
-  
-  // Execution
-  run(options: RunOptions): Promise<AdapterResult>;
-  
-  // Parsing
-  parseOutput(rawOutput: string): Violation[];
-}
-```
-
-### Adapter Testing Rules
-
-**CRITICAL:** Adapters MUST NOT require tool installation for unit tests.
-
-1. **Unit tests:** Feed `parseOutput()` with **fixtures**
-   - Fixtures stored in `fixtures/tool-outputs/<tool>/<case>.*`
-   - Example: `fixtures/tool-outputs/actionlint/syntax-error.txt`
-   - Test: `expect(adapter.parseOutput(fixture)).toMatchSnapshot()`
-
-2. **Integration tests:** Optional (skip if tool not installed)
-   ```typescript
-   it.skipIf(!await adapter.isInstalled())('runs real tool', async () => {
-     // ...
-   });
-   ```
-
-3. **CI:** Installs tools in controlled way (see Installation Rules)
-
-### Parsing Rules
-
-- **Never assume tool output format.** Use documented formats only.
-- If tool has JSON mode: use it and document which version requires it.
-- If tool has template mode: provide template and document it.
-- If tool has only text mode: parse with well-tested regex + fixtures.
-
-**Example (actionlint):**
-```typescript
-// ❌ WRONG: Assume JSON exists
-const json = JSON.parse(stdout);
-
-// ✅ CORRECT: Use template or parse text
-const template = '{{json .}}';  // Document this!
-const output = await execa('actionlint', ['-format', template]);
-```
+**✅ DO:**
+- Wire existing components together
+- Fix CLI speed issues
+- Implement missing CLI commands
+- Write tests for new code only
 
 ---
 
-## 2) Tool Installation Rules
+## 2. MVP DEFINITION (THE 5 ROUTES)
 
-### Platform-specific Installation
+Cerber v2.0.0-rc1 must have these 5 components working:
 
-**NEVER assume one package manager for all platforms.**
-
-| Platform | Priority Order |
-|----------|---------------|
-| macOS | 1. Homebrew 2. Download binary 3. Go install |
-| Linux (Ubuntu) | 1. Download binary 2. apt (if packaged) 3. Go install |
-| Windows | 1. Chocolatey 2. Scoop 3. Download binary |
-
-### CI Installation Strategy
-
-**GitHub Actions (ubuntu-latest):**
-```yaml
-# ❌ WRONG: Assume brew
-- run: brew install actionlint
-
-# ✅ CORRECT: Download release binary
-- name: Install actionlint
-  run: |
-    curl -sL https://github.com/rhysd/actionlint/releases/download/v1.6.27/actionlint_1.6.27_linux_amd64.tar.gz | tar xz
-    sudo mv actionlint /usr/local/bin/
-```
-
-### Auto-install Strategy
-
-```typescript
-// Priority order:
-1. Tool in PATH → use system tool
-2. Tool in ~/.cerber/tools/ → use cached
-3. Auto-install flag → download to cache
-4. No auto-install → show installHint
-```
-
-**Rule:** Never fail hard if tool missing in local dev. Show hint and continue with other tools.
-
----
-
-## 3) Contract Structure Rules
-
-### Separation: Tools vs Rules
-
-**CRITICAL:** Don't mix tool configuration with Cerber rules.
 
 ```yaml
 # ✅ CORRECT STRUCTURE

@@ -1,3 +1,9 @@
+# ⚠️ [ARCHIVED - SEE ONE_TRUTH_MVP.md]
+
+**This document is outdated.** Refer to [ONE_TRUTH_MVP.md](../ONE_TRUTH_MVP.md) for current MVP roadmap.
+
+---
+
 # 🎯 CERBER ORCHESTRATOR - PROFESSIONAL GAPS ANALYSIS
 
 **Analiza: Senior Dev (15+ lat) - Systemy orkiestracyjne**

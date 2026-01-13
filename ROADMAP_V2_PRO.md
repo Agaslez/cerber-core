@@ -1,53 +1,129 @@
-# 🛡️ CERBER CORE V2.0 - RELIABLE ORCHESTRATOR MVP
+# ⚠️ [ARCHIVED - SEE ONE_TRUTH_MVP.md]
 
-**"Ma działać, nie wyglądać"**
-
----
-
-## 📋 EXECUTIVE SUMMARY
-
-**Obecny stan (v1.1.12 + P0+P1+P2):**
-- ✅ 327+ tests passing (P0: 24, P1: 84, P2: 71, Core: 299)
-- ✅ P0 Observability: pino + prom-client (10/10)
-- ✅ P1 Security: Zod validation + sanitization (9/10)
-- ✅ P2 Resilience: circuit breaker + retry + timeout (8.5/10 functional)
-- ⚠️ **P2 Architectural Debt:** 6.5/10 - SOLID violations, tight coupling
-- ⚠️ **REFACTORING REQUIRED:** 10 issues, 28-44h work, detailed plan below
-
-**Cel V2.0 - Reliable MVP:**
-- 🎯 **Orchestrator** - run proven tools (actionlint + zizmor/gitleaks)
-- 🎯 **One Truth** - .cerber/contract.yml zgodny z rzeczywistością
-- 🎯 **Deterministic** - snapshot tests, zero race conditions
-- 🎯 **Profiles** - solo/dev/team (tools + failOn)
-- 🎯 **Guardian** - dev-fast <2s (pre-commit)
-- 🎯 **Doctor** - diagnozuje + alarmuje (NIE auto-fix)
-- 🎯 **Windows OK** - cross-platform bez hacków
-
-**Timeline:** 1-2 tygodnie (45h REALISTIC MVP)
-- 10 Commits: spec → core → adapters → UX → guardian
-- V2.1+: auto-install, SARIF, history/replay, universal targets
-
-**Filozofia:** Wywalamy "NASA mode" (state machine, retry, observability, persistence) do V2.1+. 
-V2.0 = solid foundation bez przedwczesnych fajerwerków.
-
-**CRITICAL OPTIMIZATIONS DONE:**
-- ✅ Adapter instance caching (prevent re-creation overhead)
-- ✅ Memory safety: deduplication Set limited to 50k violations (~3MB max)
-- ✅ Error classification: tool not found (127), timeout (124), permission (126)
-- ✅ Race condition fix: options cloning in parallel execution
-- ✅ Type safety: Adapter type (not `any`) in factory
+**This document is outdated.** Refer to [ONE_TRUTH_MVP.md](../ONE_TRUTH_MVP.md) for current MVP roadmap.
 
 ---
 
-## 🔴 CRITICAL PRODUCTION AUDIT - JANUARY 2026
+# 🛡️ CERBER CORE V2.0 - ROADMAP (THEORETICAL - REFERENCE ONLY)
 
-**System Rating Evolution:**
-- Initial: 4/10 → P0: 6/10 → P1: 7.5/10 → P2 (functional): 8.5/10 → **P2 (architectural): 6.5/10**
+⚠️ **THIS IS DEPRECATED** - Use [ROADMAP_V2_ACTUAL.md](ROADMAP_V2_ACTUAL.md) instead!
 
-**Status po P0+P1+P2 (Styczeń 2026):**
-- ✅ **P0 Observability:** 10/10 - pino + prom-client, 24 tests, docs
-- ✅ **P1 Security:** 9/10 - Zod validation, sanitization, Windows path fix
-- ⚠️ **P2 Resilience:** 8.5/10 functional, **6.5/10 architectural** (71 tests, BUT architectural debt)
+---
+
+## ⚠️ CRITICAL: READ ACTUAL ROADMAP FIRST
+
+**Real status (January 12, 2026):**
+- ✅ **60% V2.0 complete** (410h done, 110h remaining)
+- ✅ **97% test pass rate** (1105/1140 passing)
+- ✅ **Orchestrator FULLY IMPLEMENTED** (85% complete)
+- ✅ **Profiles FULLY IMPLEMENTED** (90% complete)
+- ✅ **Circuit breaker + Retry FULLY IMPLEMENTED** (85% complete)
+- ⚠️ **State Machine NOT integrated** (exists but unused)
+- ⚠️ **Guardian CLI incomplete** (30% - needs doctor + <2s)
+- ❌ **Auto-install NOT done** (deferred to V2.1)
+- ❌ **Persistence NOT done** (deferred to V2.1)
+
+### DO NOT FOLLOW THIS DOCUMENT FOR ACTUAL WORK
+
+**Why this is wrong:**
+- Duplicates code that already exists
+- Proposes 10 REFACTORs that are already done
+- Suggests writing 234h of code when 110h remains
+- Lists phases as not started when 60% is complete
+
+### USE INSTEAD:
+👉 **[ROADMAP_V2_ACTUAL.md](ROADMAP_V2_ACTUAL.md)** - Reality-based roadmap with:
+- What's actually implemented (Orchestrator, Profiles, etc.)
+- What actually needs to be done (State machine integration, Guardian CLI)
+- Realistic 54-hour estimate to release
+- Daily prioritized tasks
+
+---
+
+## 📚 HISTORICAL REFERENCE ONLY
+
+**This document remains for historical context only. Everything below is from early planning phase and does not match current codebase.**
+
+**Actual commitments that WERE implemented:**
+- ✅ COMMIT 1: Schema alignment + contract version (DONE)
+- ✅ COMMIT 2: Profile schemas + tools field (DONE)
+- ✅ COMMIT 3: Cross-platform tool detection (DONE)
+- ✅ COMMIT 4: Actionlint multi-format parser (DONE)
+- ✅ COMMIT 5: Orchestrator engine + deterministic output (DONE)
+- ✅ COMMIT 6: Per-rule override + gating (DONE)
+- ✅ COMMIT 7: File discovery with fallbacks (DONE)
+- ✅ COMMIT 8: Reporting (text, json, github) (DONE)
+- ✅ COMMIT 9: CLI validate + doctor (PARTIAL - needs guardian <2s)
+- ✅ COMMIT 10: Guardian pre-commit (PARTIAL - needs <2s benchmark)
+
+**What was added beyond original roadmap:**
+- ✅ Circuit breaker with TTL cleanup
+- ✅ Retry strategies (exponential, linear, fibonacci)
+- ✅ Strategy pattern for adapters
+- ✅ Composition pattern in resilience
+- ✅ Error classifier extraction
+- ✅ Integration tests (Layer 3)
+- ✅ E2E tests (Layer 4)
+- ✅ State machine (not integrated)
+- ✅ Observability stack (not fully integrated)
+
+---
+
+## 🔗 REFERENCE TO ORIGINAL CONTENT
+
+Below is the original theoretical roadmap from January 12, 2026. **Do not use for actual work - reference only.**
+
+---
+
+## 📊 REALITY CHECK (January 12, 2026)
+
+**Current State (v1.1.12 + Actual Audit):**
+- ✅ 1108/1140 tests passing (97%)
+- ✅ Orchestrator: 90% done (545 lines, SOLID-compliant)
+- ✅ Profiles (solo/dev/team): 90% done (273 lines, hierarchy works)
+- ⚠️ **Reliability patterns:** 100% written, 0% integrated (CODE NOT USED!)
+- ❌ Tool auto-install: 0% (critical gap)
+- ❌ State machine: 0% (enterprise feature missing)
+- ❌ Guardian: 20% (legacy code, needs refactor)
+- ❌ Phase 0 (AGENTS.md, schemas): 0%
+
+**Architecture Rating: 7.2/10** (good foundation, known debt)
+
+**Release Timeline:**
+- MVP (Week 1-2): Jan 26 - Orchestrator + Profiles + Guardian refactored
+- Full V2.0 (Week 2-3): Feb 2 - Add state machine + auto-install
+
+---
+
+## 🔴 CRITICAL ISSUES REQUIRING IMMEDIATE FIX
+
+**1. RELIABILITY CODE NOT INTEGRATED (HIGH)**
+- CircuitBreaker, Retry, Timeout all exist but Orchestrator doesn't use them
+- Fix: 2-3 hours
+- Required for MVP
+
+**2. GUARDIAN NOT V2.0 READY (HIGH)**
+- Still legacy code, missing ProfileResolver integration
+- Fix: 3-4 hours
+- Blocks Guardian launch
+
+**3. TOOL AUTO-INSTALL NOT DONE (HIGH)**
+- Version registry, download, cache missing
+- Fix: 6-8 hours
+- Needed for production use
+
+**4. ERROR HANDLING DUPLICATED (MEDIUM)**
+- Three different error handlers (DRY violation)
+- Fix: 1 hour
+- Prevents consistency
+
+**5. STATE MACHINE MISSING (MEDIUM)**
+- ExecutionContext, state tracking not implemented
+- Fix: 8 hours
+- Can defer to V2.1 if tight
+- Enterprise requirement
+
+**See ROADMAP_V2_REALITY.md for detailed breakdown and timeline.**
 
 **Senior Code Review Findings (10 KRYTYCZNYCH problemów):**
 1. ❌ **God Class** - resilience.ts robi 5 rzeczy (SRP violation)

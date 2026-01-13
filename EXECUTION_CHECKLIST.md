@@ -221,68 +221,174 @@ Ready for feedback. Resilience & observability in v2.0.0 full.
 
 ## PHASE 2: V2.0.0 (FULL RELEASE) - AFTER RC1 FEEDBACK
 
-### V2.0.0-Full-1: Resilience Integration (If not done in MVP-2)
+**⚠️ PRE-PHASE-2 SHORTCUTS REMEDIATION:**
 
-**What:** Full resilience stack wired + tested + observed
+Before starting Phase 2 features, fix 10 identified shortcuts from MVP:
+1. Add error boundary + logging to doctor/guardian
+2. Implement tool config system (not hardcoded)
+3. Integrate ResilientExecutionStrategy (instead of raw execSync)
+4. Structure stderr error reporting
+5. Make timeouts configurable
+6. Improve test mocks (test failure paths)
+7. Add observability integration (logs, metrics, traces)
+8. Implement performance profiling (P99, not just <1s)
+9. Safe process output parsing with schema validation
+10. Standardize contract format (deprecate CERBER.md)
 
-**Steps:**
-- [ ] Verify ExecutionStrategy selected by profile
-- [ ] Verify all 3 retry strategies wired (exponential, linear, fibonacci)
-- [ ] Verify CircuitBreaker state transitions work (CLOSED → OPEN → HALF_OPEN)
-- [ ] Verify TTL cleanup on circuit breaker
-- [ ] Test real failures: adapter timeouts, bad output, crashes
-- [ ] Benchmark: baseline vs resilient (document overhead)
+**Effort:** 17.5h total (12.5h critical path + 5h quality)  
+**Target:** Complete before GitHub PR review  
 
-**Tests:** `test/integration/resilience-full.test.ts`
-- [ ] Cascade failure scenario: 3 adapters fail in sequence
-- [ ] Circuit breaker recovers after TTL
-- [ ] Retry exhaustion: max retries + circuit open = fast fail
-- [ ] Profile switching: solo→legacy fast, team→resilient safe
-- [ ] No regress on existing tests
-
-**DoD:** Resilience proven in production-like scenarios  
-**PR:** "feat: full resilience integration (v2.0.0)"  
-**Push:** `git push origin v2.0.0-resilience-full`
+See `SHORTCUTS_AUDIT.md` for detailed fixes.
 
 ---
 
-### V2.0.0-Full-2: Observability Integration (6h)
+### V2.0.0-Full-1: Resilience Integration (Hardened from MVP-2)
 
-**What:** Logger + metrics wired to Orchestrator, spans in logs
+**What:** Harden MVP-2 resilience + fix guardian/doctor integration issues
 
-**Existing Code:** Logger and metrics written, need wiring
+**Shortcuts to Fix (from SHORTCUTS_AUDIT.md):**
+- [ ] Guardian integration: Use ResilientExecutionStrategy instead of raw execSync
+- [ ] Error recovery: Add retry logic with exponential backoff
+- [ ] Circuit breaker: Integrate for cascading failure prevention
+- [ ] Test scenarios: Add real failure simulation (timeout, crash, bad output)
 
-**Steps:**
-- [ ] Wire logger to Orchestrator execution path
-- [ ] Log adapter start/end with duration
-- [ ] Log profile resolution decision
-- [ ] Log violations found (count by severity)
-- [ ] Metrics: execution time, violation count, adapter errors
-- [ ] Spans: execution ID for tracing across adapters
-- [ ] Test: logs are JSON parseable, metrics incremented
-- [ ] CI: no performance regression
+**Implementation:**
+- [ ] Refactor guardian execSync → Orchestrator strategy delegation
+- [ ] Add resilience coordinator to doctor tool detection
+- [ ] Implement exponential backoff (1s, 2s, 4s, 8s, stop)
+- [ ] Circuit breaker: 3 failures → OPEN → 30s TTL → HALF_OPEN
+- [ ] Fallback for tools: gracefully degrade if tool unavailable
+
+**Tests:** Extend `test/integration/resilience-full.test.ts`
+- [ ] Doctor continues if one tool fails (resilience)
+- [ ] Guardian retries actionlint on transient failure
+- [ ] Circuit breaker prevents tool spam
+- [ ] Cascade failure handled properly
+
+**DoD:** Doctor/Guardian use resilience patterns, all failure modes tested  
+**PR:** "refactor: harden doctor/guardian with resilience (v2.0.0)"  
+**Push:** `git push origin v2.0.0-resilience-hardened`
+
+---
+
+### V2.0.0-Full-2: Observability + Tool Configuration (8h)
+
+**What:** Logger + metrics wired to doctor/guardian + config-driven tools
+
+**Shortcuts to Fix (from SHORTCUTS_AUDIT.md #1, #2, #4, #7, #8):**
+- [ ] Add structured logging to doctor/guardian
+- [ ] Implement tool config loader (tools.yml instead of hardcoded)
+- [ ] Parse + structure stderr output
+- [ ] Integrate Logger + metrics collection
+- [ ] Add performance profiling (P99, not just <1s)
+
+**Implementation:**
+- [ ] Create `src/config/tools-config.yml` with tool definitions + timeouts
+- [ ] Implement tool config loader with schema validation
+- [ ] Wire logger to doctor/guardian execution paths
+- [ ] Add metrics collection:
+  - Tool detection success rate
+  - Execution time (P50/P95/P99)
+  - Tool output parse success rate
+  - Error counts by type
+- [ ] Structured stderr parsing per tool
+- [ ] Execution context/span IDs for tracing
+- [ ] Performance profiler (breakdown per tool)
 
 **Tests:** `test/integration/observability.test.ts`
-- [ ] Test logs emitted for each adapter
-- [ ] Test metrics incremented for each run
-- [ ] Test span IDs track execution flow
-- [ ] Test no logs for violations (data privacy)
-- [ ] Test log format stable (JSON schema validation)
+- [ ] Logs emitted for each doctor/guardian step
+- [ ] Metrics incremented correctly
+- [ ] Span IDs track execution flow
+- [ ] P99 latency measured and reported
+- [ ] Tool config loading works (defaults + overrides)
+- [ ] Parse error handling with detailed messages
 
-**Integration Test:**
-```bash
-npm run build
-npm test -- observability
-# Verify logs in structured format
-```
-
-**DoD:** Observability operational, <2% performance overhead  
-**PR:** "feat: observability integration (v2.0.0)"  
-**Push:** `git push origin v2.0.0-observability`
+**DoD:** Doctor/Guardian observable + configurable, <2% overhead  
+**PR:** "feat: observability + tool config (v2.0.0)"  
+**Push:** `git push origin v2.0.0-observability-config`
 
 ---
 
-### V2.0.0-Full-3: State Machine / ExecutionContext (8h)
+### V2.0.0-Full-3: Error Handling + Output Parsing (5h)
+
+**What:** Robust error handling, timeout configuration, safe output parsing
+
+**Shortcuts to Fix (from SHORTCUTS_AUDIT.md #3, #5, #9):**
+- [ ] Make timeouts configurable (not hardcoded 5000ms)
+- [ ] Implement tool-specific output parsers with validation
+- [ ] Add graceful timeout + failure degradation
+- [ ] Support fallback strategies
+
+**Implementation:**
+- [ ] Load timeouts from contract + tool config
+- [ ] Add per-tool timeout settings in tools.yml
+- [ ] Implement tool-specific output parsers:
+  - actionlint version parser + schema
+  - zizmor version parser + schema
+  - gitleaks version parser + schema
+- [ ] Graceful timeout handling (report separately, don't crash)
+- [ ] Support skip-on-timeout mode for optional tools
+- [ ] Version range validation (SemVer)
+- [ ] Validate parsed output against schema
+- [ ] Report parse errors with suggestions
+
+**Tests:** `test/cli/doctor-parsing.test.ts`, `test/cli/guardian-errors.test.ts`
+- [ ] Test each tool parser with real/fake output
+- [ ] Test timeout behavior (graceful degrade)
+- [ ] Test version range validation
+- [ ] Test parse error messages (helpful)
+- [ ] Test schema validation failures
+- [ ] Test fallback strategies
+
+**DoD:** All error paths tested, timeouts configurable, parsing safe  
+**PR:** "feat: robust error handling + output parsing (v2.0.0)"  
+**Push:** `git push origin v2.0.0-error-handling`
+
+---
+
+### V2.0.0-Full-4: Test Coverage Hardening (5h)
+
+**What:** Comprehensive test scenarios covering all failure modes
+
+**Shortcuts to Fix (from SHORTCUTS_AUDIT.md #6):**
+- [ ] Test tool not installed scenarios
+- [ ] Test tool timeout + recovery
+- [ ] Test tool returns invalid output
+- [ ] Test tool permission errors
+- [ ] Test tool crashes
+- [ ] Test concurrent tool execution
+- [ ] Test graceful degradation
+
+**Implementation:**
+- [ ] Create tool mock factory with states:
+  - NOT_INSTALLED
+  - SUCCESS
+  - TIMEOUT
+  - INVALID_OUTPUT
+  - PERMISSION_ERROR
+  - CRASH
+  - SLOW (near timeout)
+- [ ] Mock execSync behavior per scenario
+- [ ] Extend doctor.test.ts with failure paths
+- [ ] Extend guardian.test.ts with failure paths
+- [ ] Test graceful fallback behavior
+- [ ] Test error message quality (helpful to user)
+
+**Tests:** `test/cli/doctor-failure-modes.test.ts`, `test/cli/guardian-failure-modes.test.ts`
+- [ ] Test each tool mock state
+- [ ] Test cascade failures (2+ tools fail)
+- [ ] Test recovery from transient failures
+- [ ] Test fast-fail scenarios
+- [ ] Test output validation (safe parsing)
+- [ ] Coverage target: >95% for failure paths
+
+**DoD:** All failure modes tested, 95%+ coverage, doctor/guardian robust  
+**PR:** "test: comprehensive failure mode coverage (v2.0.0)"  
+**Push:** `git push origin v2.0.0-test-hardening`
+
+---
+
+### V2.0.0-Full-5: State Machine / ExecutionContext (8h)
 
 **What:** Full state tracking for multi-step execution, debug/recovery
 
@@ -309,17 +415,16 @@ npm test -- observability
 
 ---
 
-### V2.0.0-Full Release
+### V2.0.0 Full Release
 
 **Checklist before GA tag:**
-- [ ] Resilience fully integrated (real failure scenarios)
-- [ ] Observability fully wired (logs, metrics, spans)
-- [ ] State machine operational (multi-step workflows)
-- [ ] `npm test` → 1109+ passing, 0 failures
-- [ ] Performance: no regression vs rc1
+- [ ] All 4 shortcuts remediation PRs merged (resilience, observability, error-handling, test-hardening)
+- [ ] `npm test` → 1200+ passing, 0 failures
+- [ ] Performance: P99 latency <100ms for doctor, <500ms for guardian
 - [ ] Security: no new vulnerabilities
-- [ ] README: updated with new features
-- [ ] CHANGELOG: v2.0.0 summary
+- [ ] Coverage: >95% for doctor/guardian failure paths
+- [ ] README: updated with new diagnostic features
+- [ ] CHANGELOG: v2.0.0 summary with shortcuts fixed
 
 **Tag:**
 ```bash
@@ -330,14 +435,16 @@ git push origin v2.0.0
 
 **v2.0.0 Announcement:**
 ```
-v2.0.0: Full Release
-✅ Resilience: Adaptive execution strategies
-✅ Observability: Logger + metrics + tracing
-✅ State machine: Multi-step workflow support
-✅ cerber doctor: Setup diagnostics
-✅ guardian <2s: Fast pre-commit hook
+v2.0.0: Production-Ready Release
+✅ Resilience: Adaptive strategies with circuit breaker
+✅ Observability: Structured logging + metrics
+✅ Doctor Diagnostic: Setup health check
+✅ Guardian <500ms: Fast pre-commit hook
+✅ Error Handling: Robust with graceful degradation
+✅ Config-Driven: Tools configurable, not hardcoded
 
-All 10 refactors verified. 1100+ tests. Production ready.
+1200+ tests. Enterprise-ready.
+Shortcuts from MVP remediated.
 ```
 
 ---
@@ -581,9 +688,31 @@ v2.1.0: Advanced Features
 | Phase | Version | Effort | Timeline | Tests | Status |
 |-------|---------|--------|----------|-------|--------|
 | 1 | rc1 | 18-32h | 2-3 weeks | 1109 | MVP ready |
-| 2 | v2.0.0 | 20h | 2-3 weeks after rc1 | 1150+ | Full release |
+| 1.5 | v2.0.0-rc1 fixes | 17.5h | 2 weeks | 1200+ | Shortcuts remediated |
+| 2 | v2.0.0 | 25h | 3 weeks after rc1 | 1200+ | Production ready |
 | 3 | v2.0.1 | TBD | 1-2 weeks | TBD | Patch fixes |
-| 4 | v2.1 | 27h | 2-3 months | 1200+ | Advanced features |
+| 4 | v2.1 | 27h | 2-3 months | 1300+ | Advanced features |
+
+---
+
+## KEY CHANGES FROM MVP AUDIT
+
+**Shortcuts Found:** 10  
+**Effort to Fix:** 17.5h before Phase 2  
+**Impact:** High quality, production-ready code  
+**Status:** Ready for remediation in Phase 2
+
+**What Changed:**
+- MVP-2.0.0-Full-1: Now includes doctor/guardian resilience hardening
+- MVP-2.0.0-Full-2: Combines observability + tool config (single pass)
+- MVP-2.0.0-Full-3: Adds error handling + output parsing safety
+- MVP-2.0.0-Full-4: Adds test hardening for all failure modes
+- MVP-2.0.0-Full-5: State machine as final v2.0.0 feature
+
+**Tests Growth:**
+- MVP: 1109 tests
+- After shortcuts fix: 1200+ tests (91 new test cases)
+- After Phase 2: 1300+ tests
 
 ---
 

@@ -1,6 +1,7 @@
 import { execSync } from 'child_process';
-import { existsSync } from 'fs';
+import { existsSync, readFileSync } from 'fs';
 import { resolve } from 'path';
+import { logger } from '../core/logger.js';
 import { parseCerberContract } from './contract-parser.js';
 import { tryShowCta } from './cta.js';
 import { validateOverride } from './override-validator.js';
@@ -11,7 +12,57 @@ export interface ToolStatus {
   installed: boolean;
   version?: string;
   installCommand?: string;
+  detectionDuration?: number;
 }
+
+interface ToolConfig {
+  command: string;
+  versionFlag: string;
+  installCmd: string;
+  timeout: number;
+  versionRegex: RegExp;
+}
+
+function loadToolsConfig(): Record<string, ToolConfig> {
+  const configPath = resolve(process.cwd(), 'src', 'config', 'tools-config.json');
+  
+  const defaultConfig: Record<string, ToolConfig> = {
+    actionlint: {
+      command: 'actionlint',
+      versionFlag: '--version',
+      installCmd: 'npm install actionlint',
+      timeout: 5000,
+      versionRegex: /(\d+\.\d+\.\d+)/
+    },
+    zizmor: {
+      command: 'zizmor',
+      versionFlag: '--version',
+      installCmd: 'npm install zizmor',
+      timeout: 5000,
+      versionRegex: /(\d+\.\d+\.\d+)/
+    },
+    gitleaks: {
+      command: 'gitleaks',
+      versionFlag: '--version',
+      installCmd: 'npm install gitleaks',
+      timeout: 8000,
+      versionRegex: /v(\d+\.\d+\.\d+)/
+    }
+  };
+
+  if (existsSync(configPath)) {
+    try {
+      const customConfig = JSON.parse(readFileSync(configPath, 'utf-8'));
+      logger.info('Loaded custom tools config');
+      return { ...defaultConfig, ...customConfig };
+    } catch (e) {
+      logger.warn('Failed to load custom tools config, using defaults');
+    }
+  }
+  return defaultConfig;
+}
+
+const toolsConfig = loadToolsConfig();
 
 export interface DoctorResult {
   success: boolean;
@@ -30,25 +81,7 @@ export interface DoctorIssue {
 }
 
 export async function getDoctorToolStatus(toolName: string): Promise<ToolStatus> {
-  const tools: Record<string, { command: string; versionFlag: string; installCmd: string }> = {
-    actionlint: {
-      command: 'actionlint',
-      versionFlag: '--version',
-      installCmd: 'npm install actionlint'
-    },
-    zizmor: {
-      command: 'zizmor',
-      versionFlag: '--version',
-      installCmd: 'npm install zizmor'
-    },
-    gitleaks: {
-      command: 'gitleaks',
-      versionFlag: '--version',
-      installCmd: 'npm install gitleaks'
-    }
-  };
-
-  const toolConfig = tools[toolName];
+  const toolConfig = toolsConfig[toolName];
   if (!toolConfig) {
     return {
       name: toolName,
@@ -57,75 +90,140 @@ export async function getDoctorToolStatus(toolName: string): Promise<ToolStatus>
     };
   }
 
+  const startTime = Date.now();
   try {
-    // Try to execute version command
     const versionOutput = execSync(`${toolConfig.command} ${toolConfig.versionFlag}`, {
-      stdio: 'pipe',
-      timeout: 5000
-    }).toString().trim();
+      stdio: ['ignore', 'pipe', 'pipe'],
+      timeout: toolConfig.timeout,
+      encoding: 'utf-8'
+    });
 
-    // Extract version number (e.g., "actionlint 1.6.27" -> "1.6.27")
-    const versionMatch = versionOutput.match(/(\d+\.\d+\.\d+|\d+\.\d+)/);
-    const version = versionMatch ? versionMatch[1] : versionOutput.split('\n')[0];
+    const duration = Date.now() - startTime;
+    
+    // Safe version parsing with schema validation
+    const versionMatch = versionOutput.match(toolConfig.versionRegex);
+    if (!versionMatch) {
+      logger.warn(`Failed to extract version for ${toolName}`);
+      return {
+        name: toolName,
+        installed: true,
+        version: 'unknown',
+        detectionDuration: duration
+      };
+    }
 
+    const version = versionMatch[1] || versionMatch[0];
+    logger.debug(`Tool detected: ${toolName}@${version}`);
+    
     return {
       name: toolName,
       installed: true,
-      version
+      version,
+      detectionDuration: duration
     };
-  } catch {
+  } catch (error) {
+    const duration = Date.now() - startTime;
+    const err = error as NodeJS.ErrnoException;
+    
+    if (err.code === 'ETIMEDOUT') {
+      logger.warn(`Tool detection timeout for ${toolName}`);
+    } else if (err.code === 'ENOENT') {
+      logger.debug(`Tool not installed: ${toolName}`);
+    } else {
+      logger.error(`Tool detection error for ${toolName}`);
+    }
+    
     return {
       name: toolName,
       installed: false,
-      installCommand: toolConfig.installCmd
+      installCommand: toolConfig.installCmd,
+      detectionDuration: duration
     };
   }
 }
 
 export async function runDoctor(cwd: string = process.cwd()): Promise<DoctorResult> {
+  const startTime = Date.now();
   const issues: DoctorIssue[] = [];
   let exitCode = 0;
 
-  // Check for contract file
-  const contractPath = resolve(cwd, '.cerber', 'contract.yml');
+  logger.info('Starting doctor diagnostic');
+
+  // Check for contract file - prefer .cerber/contract.yml (modern), fallback to CERBER.md (deprecated)
+  const contractYmlPath = resolve(cwd, '.cerber', 'contract.yml');
+  const cerberMdPath = resolve(cwd, 'CERBER.md');
+  
   let contract: CerberContract | undefined;
   let contractFound = false;
+  let contractPath = '';
 
-  const cerberMdPath = resolve(cwd, 'CERBER.md');
-  if (!existsSync(cerberMdPath)) {
+  if (existsSync(contractYmlPath)) {
+    contractFound = true;
+    contractPath = contractYmlPath;
+  } else if (existsSync(cerberMdPath)) {
+    contractFound = true;
+    contractPath = cerberMdPath;
+    logger.warn('Using deprecated CERBER.md format. Migrate to .cerber/contract.yml');
+  } else {
     issues.push({
       type: 'missing',
-      file: 'CERBER.md',
-      message: 'Contract file not found',
+      file: '.cerber/contract.yml',
+      message: 'Contract file not found. Create .cerber/contract.yml or CERBER.md',
       severity: 'critical'
     });
-    contractFound = false;
-  } else {
-    contractFound = true;
+    exitCode = 2;
   }
 
-  // Get tool status
-  const toolsStatus = await Promise.all([
-    getDoctorToolStatus('actionlint'),
-    getDoctorToolStatus('zizmor'),
-    getDoctorToolStatus('gitleaks')
-  ]);
+  // Get tool status with proper error handling
+  let toolsStatus: ToolStatus[] = [];
 
+  try {
+    toolsStatus = await Promise.all([
+      getDoctorToolStatus('actionlint'),
+      getDoctorToolStatus('zizmor'),
+      getDoctorToolStatus('gitleaks')
+    ]);
+    
+    const totalDuration = toolsStatus.reduce((sum, t) => sum + (t.detectionDuration || 0), 0);
+    logger.debug('Tool detection completed');
+  } catch (error) {
+    logger.error('Tool detection failed with unrecoverable error');
+    issues.push({
+      type: 'warning',
+      file: 'tools',
+      message: 'Tool detection encountered errors. Some tools may be unavailable.',
+      severity: 'warning'
+    });
+  }
+
+  // Parse contract with comprehensive error handling
   if (contractFound) {
     try {
       const parseResult = await parseCerberContract(cwd);
       if (parseResult.success && parseResult.contract) {
         contract = parseResult.contract;
+        logger.info('Contract parsed successfully');
       } else {
+        const parseError = parseResult.error?.message || 'Unknown parse error';
+        logger.error('Contract parse error');
         issues.push({
           type: 'warning',
-          file: 'CERBER.md',
-          message: 'Parse error: ' + (parseResult.error?.message || 'Unknown'),
+          file: contractPath,
+          message: `Parse error: ${parseError}. Fix contract syntax.`,
           severity: 'error'
         });
+        exitCode = Math.max(exitCode, 3);
       }
-    } catch (e) {
-      // Ignore parse errors
+    } catch (error) {
+      const err = error as Error;
+      logger.error('Unexpected error parsing contract');
+      issues.push({
+        type: 'warning',
+        file: contractPath,
+        message: `Contract parse failed: ${err.message}`,
+        severity: 'error'
+      });
+      exitCode = Math.max(exitCode, 3);
     }
 
     // Additional checks if contract is found
