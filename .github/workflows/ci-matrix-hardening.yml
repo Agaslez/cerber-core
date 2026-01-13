@@ -2,9 +2,9 @@ name: Hardening Pack - Cross-Platform Matrix
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main, develop, rcx-hardening]
   pull_request:
-    branches: [main, develop]
+    branches: [main, develop, rcx-hardening]
 
 jobs:
   matrix-test:
@@ -41,6 +41,34 @@ jobs:
       
       - name: Package Integrity (gate 4)
         run: npm pack --dry-run
+
+  # RCX Hardening Tests
+  rcx-hardening:
+    name: RCX Hardening Suite
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4.1.0
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4.0.0
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - run: npm ci
+      
+      - name: Lint (gate 1)
+        run: npm run lint
+      
+      - name: Build (gate 2)
+        run: npm run build
+      
+      - name: RCX Hardening Tests (contract-tamper, protected-files, exit-code, tool-detection, concurrency, schema-guard, no-runaway, npm-pack)
+        run: npm run test:rcx
+        timeout-minutes: 15
 
   # Separate job for pervasive/slow tests
   brutal-tests:

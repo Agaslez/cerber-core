@@ -2,7 +2,7 @@ name: Build & Test
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main, develop, rcx-hardening]
   pull_request:
     branches: [main]
 
