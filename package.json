@@ -24,8 +24,19 @@
   "scripts": {
     "build": "tsc",
     "test": "jest --passWithNoTests",
+    "postinstall": "node bin/setup-guardian-hooks.cjs || true",
+    "test:all": "jest --passWithNoTests",
     "test:release": "jest --testPathPattern=\"(npm-pack|orchestrator|parsers|scm|determinism|security)\" --passWithNoTests",
     "test:brutal": "jest --testPathPattern=\"(fs-hostile|cli-signals|corruption|package-integrity|huge-repo)\" --passWithNoTests",
+    "test:hardening": "jest --testPathPattern=\"(property|perf-regression|child-process-chaos|contract-fuzz|locale-timezone|v1-compat|repo-matrix)\" --passWithNoTests",
+    "test:hardening-v3": "npm run test:hardening",
+    "test:v3": "jest --testPathPattern=\"(runtime-guard|differential|parsers-chaos|parsers-valid|perf-regression|child-process-chaos|contract-fuzz|locale-timezone|v1-compat|repo-matrix|mutation-testing)\" --passWithNoTests",
+    "test:rcx": "jest --testPathPattern=\"(contract-tamper|protected-files|exit-code|tool-detection|concurrency|schema-guard|no-runaway|npm-pack)\" --passWithNoTests",
+    "test:real-tools": "jest --testPathPattern=\"differential\" --passWithNoTests",
+    "test:differential": "jest --testPathPattern=\"differential\" --passWithNoTests",
+    "test:property-fuzz": "jest --testPathPattern=\"property\" --passWithNoTests",
+    "test:perf": "jest --testPathPattern=\"perf-regression\" --passWithNoTests",
+    "test:mutation": "stryker run",
     "lint": "eslint src/**/*.ts",
     "format": "prettier --write \"src/**/*.ts\"",
     "prepublishOnly": "npm run build",
@@ -118,6 +129,8 @@
     "zod": "^3.25.76"
   },
   "devDependencies": {
+    "@stryker-mutator/core": "^7.0.0",
+    "@stryker-mutator/typescript-checker": "^7.0.0",
     "@types/jest": "^29.5.0",
     "@types/js-yaml": "^4.0.9",
     "@types/node": "^20.19.28",

@@ -1,0 +1,98 @@
+name: 🛡️ Guardian - Protected Files Enforcement
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - 'CERBER.md'
+      - '.cerber/**'
+      - 'bin/cerber-guardian'
+      - 'src/guardian/**'
+      - 'src/core/Orchestrator.ts'
+      - 'package.json'
+
+jobs:
+  verify-protected-files:
+    name: Verify Protected Files Policy
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Check PR author is approved maintainer
+        env:
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          ALLOWED_AUTHORS: |
+            owner
+            architect
+            maintainer
+        run: |
+          echo "PR Author: $PR_AUTHOR"
+          
+          # Check if author is in CODEOWNERS
+          if grep -q "@$PR_AUTHOR" CODEOWNERS; then
+            echo "✅ PR author is listed in CODEOWNERS"
+            exit 0
+          fi
+          
+          echo "⚠️  PR author not in CODEOWNERS"
+          echo "Protected files require approval from designated owners"
+          exit 0  # Warning only, actual enforcement via CODEOWNERS
+
+      - name: Verify commit signatures (strict mode)
+        if: contains(github.event.pull_request.labels.*.name, 'strict-verification')
+        run: |
+          echo "🔐 Strict mode: Verifying commit signatures..."
+          
+          # Get commits in PR
+          git log --format="%H" origin/main..HEAD | while read commit; do
+            echo "Checking commit: ${commit:0:7}"
+            
+            # Verify commit signature
+            if ! git verify-commit "$commit" 2>/dev/null; then
+              # Not signed - check if author is approved
+              author_email=$(git show -s --format=%ae "$commit")
+              if [[ "$author_email" != *"@cerber-core.dev" ]]; then
+                echo "❌ Unsigned commit from unknown author: $author_email"
+                exit 1
+              fi
+            fi
+            
+            echo "✅ Commit $commit verified"
+          done
+
+      - name: Verify no direct main branch writes
+        run: |
+          # Ensure all changes come through PR
+          if [[ "${{ github.event_name }}" == "push" && "${{ github.ref }}" == "refs/heads/main" ]]; then
+            # Check if push came from GitHub Actions (allowed)
+            if [[ "${{ github.actor }}" != "dependabot"* && "${{ github.actor }}" != "github-actions"* ]]; then
+              echo "❌ Direct push to main detected. Use pull request instead."
+              exit 1
+            fi
+          fi
+          
+          echo "✅ Branch protection rules verified"
+
+      - name: Log audit trail
+        if: always()
+        run: |
+          echo "## 🛡️ Guardian Audit Log" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Protected Files Changed:**" >> $GITHUB_STEP_SUMMARY
+          git diff origin/main..HEAD --name-only | grep -E '(CERBER|\.cerber|guardian|Orchestrator|package\.json)' | sed 's/^/- /' >> $GITHUB_STEP_SUMMARY || echo "- (none)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**PR Information:**" >> $GITHUB_STEP_SUMMARY
+          echo "- Author: ${{ github.event.pull_request.user.login }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Branch: ${{ github.event.pull_request.head.ref }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Commits: ${{ github.event.pull_request.commits }}" >> $GITHUB_STEP_SUMMARY

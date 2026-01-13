@@ -1,0 +1,20 @@
+{
+  ".github/workflows/ci.yml": [
+    {
+      "Line": 5,
+      "Column": 3,
+      "Message": "\"runs-on\" must be specified in a job. Did you forget to add it in the config?",
+      "Rule": {
+        "Name": "runs-on"
+      }
+    },
+    {
+      "Line": 12,
+      "Column": 5,
+      "Message": "The job \"build\" has invalid property \"invalid-prop\"",
+      "Rule": {
+        "Name": "unknown-property"
+      }
+    }
+  ]
+}

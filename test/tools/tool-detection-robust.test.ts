@@ -96,7 +96,7 @@ describe('Tool Detection Robustness', () => {
       fs.rmSync(tempDir, { recursive: true });
     });
 
-    it('should recognize executable file', () => {
+    (process.platform === 'win32' ? it.skip : it)('should recognize executable file', () => {
       const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'perm-test-'));
       const testFile = path.join(tempDir, 'withperm');
       fs.writeFileSync(testFile, '#!/bin/bash\necho test');

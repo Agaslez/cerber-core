@@ -27,6 +27,29 @@ defaults:
     required: true
     minVersion: '18.0.0'
 
+# Protected files policy - requires owner acknowledgment
+protectedFiles:
+  enabled: true
+  requireOwnerAck: true
+  blockingPatterns:
+    - CERBER.md
+    - CERBER.yml
+    - .cerber/contract.yml
+    - .cerber/contracts/**
+    - bin/cerber-guardian
+    - src/guardian/**
+    - src/contracts/**
+    - src/core/Orchestrator.ts
+    - package.json
+    - tsconfig.json
+  allowedFlagsForBypass:
+    - '--ack-protected'
+    - '--owner-ack'
+  requireCommentWhen:
+    - 'Changes contract definitions'
+    - 'Changes guardian policy'
+    - 'Changes core orchestration logic'
+
 rules:
   # Security rules
   security/no-hardcoded-secrets:
