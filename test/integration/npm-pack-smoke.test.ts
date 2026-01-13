@@ -239,24 +239,42 @@ describe('NPM Pack Smoke Test (Distribution)', () => {
           const stats = fs.statSync(hookPath);
           expect(stats.mode & 0o111).toBeGreaterThan(0);
         }
+
+        // Verify the script has expected content
+        const content = fs.readFileSync(hookPath, 'utf8');
+        expect(content).toContain('Guardian Hook Setup');
+        expect(content).toContain('--dry-run');
+        expect(content).toContain('.git');
       } catch (e) {
         throw new Error(`Hook script missing: ${e}`);
       }
     });
 
-    it('should run postinstall hook safely', () => {
-      let hookRan = false;
-
+    it('should run guardian hook installer with --dry-run safely', () => {
       try {
-        execSync('node -e "console.log(\'hook check\')" 2>&1', {
-          stdio: 'pipe'
+        const hookPath = path.join(process.cwd(), 'bin', 'setup-guardian-hooks.cjs');
+        
+        // Test --dry-run mode (should not modify system)
+        const output = execSync(`node ${hookPath} --dry-run 2>&1`, {
+          cwd: process.cwd(),
+          encoding: 'utf8',
+          stdio: 'pipe',
+          timeout: 5000
         });
-        hookRan = true;
-      } catch (e) {
-        // postinstall is optional
-      }
 
-      expect(hookRan).toBe(true);
+        // Should indicate dry-run mode and no changes
+        expect(output).toMatch(/DRY-RUN|would|No changes/i);
+        expect(output).not.toMatch(/ERROR|FATAL/i);
+      } catch (e: any) {
+        // Dry-run should not throw, but if it does, check if it's expected
+        if (e.status === 2) {
+          // Exit code 2 = blocker (e.g., not in a git repo during test)
+          // This is acceptable if we're testing in isolation
+          expect(e.toString()).toMatch(/not a git repository|FATAL/i);
+        } else {
+          throw new Error(`Hook installer failed unexpectedly: ${e}`);
+        }
+      }
     });
   });
 });

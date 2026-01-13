@@ -5,24 +5,58 @@
  * 
  * Installs pre-commit hook to enforce protected files policy
  * Run after: npm install
+ * 
+ * Usage:
+ *   node bin/setup-guardian-hooks.cjs                     # Install hooks
+ *   node bin/setup-guardian-hooks.cjs --dry-run           # Preview changes (no-op)
+ *   node bin/setup-guardian-hooks.cjs --force             # Overwrite existing
  */
 
 const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
 
-const hookDir = path.join(__dirname, '..', '.git', 'hooks');
+// Parse arguments
+const args = process.argv.slice(2);
+const isDryRun = args.includes('--dry-run');
+const isForce = args.includes('--force');
+
+const gitDir = path.join(__dirname, '..', '.git');
+const hookDir = path.join(gitDir, 'hooks');
 const preCommitHookPath = path.join(hookDir, 'pre-commit');
 const guardianScript = path.join(__dirname, 'guardian-protected-files-hook.cjs');
+
+/**
+ * Check if .git/ exists (blocker if not)
+ */
+function checkGitRepo() {
+  if (!fs.existsSync(gitDir)) {
+    console.error(`❌ FATAL: Not a git repository!`);
+    console.error(`   Expected to find: ${gitDir}`);
+    console.error(`   Guardian hooks can only be installed in a git repository.`);
+    process.exit(2);  // Exit code 2 = blocker
+  }
+}
 
 /**
  * Create .git/hooks directory if needed
  */
 function ensureHookDir() {
   if (!fs.existsSync(hookDir)) {
-    fs.mkdirSync(hookDir, { recursive: true });
-    console.log(`✅ Created ${hookDir}`);
+    if (isDryRun) {
+      console.log(`[DRY-RUN] Would create: ${hookDir}`);
+    } else {
+      fs.mkdirSync(hookDir, { recursive: true });
+      console.log(`✅ Created ${hookDir}`);
+    }
   }
+}
+
+/**
+ * Check if pre-commit hook already exists
+ */
+function hookExists() {
+  return fs.existsSync(preCommitHookPath);
 }
 
 /**
@@ -43,48 +77,74 @@ fi
 exit 0
 `;
 
-  fs.writeFileSync(preCommitHookPath, hookContent);
-  fs.chmodSync(preCommitHookPath, 0o755);
+  if (hookExists() && !isForce) {
+    console.warn(`⚠️  Pre-commit hook already exists at ${preCommitHookPath}`);
+    console.warn(`   Use --force to overwrite`);
+    return false;
+  }
 
-  console.log(`✅ Installed pre-commit hook at ${preCommitHookPath}`);
+  if (isDryRun) {
+    console.log(`[DRY-RUN] Would write hook to: ${preCommitHookPath}`);
+    console.log(`[DRY-RUN] Would chmod +x the hook`);
+  } else {
+    fs.writeFileSync(preCommitHookPath, hookContent);
+    fs.chmodSync(preCommitHookPath, 0o755);
+    console.log(`✅ Installed pre-commit hook at ${preCommitHookPath}`);
+  }
+  
+  return true;
 }
 
 /**
  * Verify installation
  */
 function verifyInstallation() {
-  if (fs.existsSync(preCommitHookPath)) {
-    const stats = fs.statSync(preCommitHookPath);
-    const isExecutable = (stats.mode & 0o111) !== 0;
-
-    if (isExecutable) {
-      console.log('✅ Pre-commit hook is executable and ready');
-      return true;
-    } else {
-      console.warn('⚠️  Pre-commit hook exists but is not executable');
-      fs.chmodSync(preCommitHookPath, 0o755);
-      console.log('✅ Fixed executable permission');
-      return true;
-    }
+  if (!fs.existsSync(preCommitHookPath)) {
+    return false;
   }
 
-  return false;
+  const stats = fs.statSync(preCommitHookPath);
+  const isExecutable = (stats.mode & 0o111) !== 0;
+
+  if (isExecutable) {
+    console.log('✅ Pre-commit hook is executable and ready');
+    return true;
+  } else {
+    console.warn('⚠️  Pre-commit hook exists but is not executable');
+    if (!isDryRun) {
+      fs.chmodSync(preCommitHookPath, 0o755);
+      console.log('✅ Fixed executable permission');
+    }
+    return true;
+  }
 }
 
 /**
  * Main setup
  */
 function setup() {
+  const mode = isDryRun ? '[DRY-RUN MODE]' : '';
   console.log(`\n╔════════════════════════════════════════════════════════════════╗`);
-  console.log(`║          🛡️  Guardian Hook Setup - Protected Files           ║`);
+  console.log(`║          🛡️  Guardian Hook Setup - Protected Files ${mode.padEnd(4)}║`);
   console.log(`╚════════════════════════════════════════════════════════════════╝\n`);
 
   try {
-    ensureHookDir();
-    installPreCommitHook();
-    const verified = verifyInstallation();
+    // Step 1: Check if git repo
+    checkGitRepo();
+    console.log(`✅ Git repository found: ${gitDir}`);
 
-    if (verified) {
+    // Step 2: Ensure hook directory
+    ensureHookDir();
+
+    // Step 3: Install hook
+    const installed = installPreCommitHook();
+
+    // Step 4: Verify (only if we installed)
+    if (installed && !isDryRun) {
+      verifyInstallation();
+    }
+
+    if (!isDryRun && installed) {
       console.log(`
 ✅ Guardian protected files policy is now ACTIVE.
 
@@ -106,6 +166,13 @@ To bypass (with acknowledgment):
   git commit -m "..." --owner-ack "reason"
 
 `);
+      process.exit(0);
+    } else if (isDryRun) {
+      console.log(`\n[DRY-RUN] No changes made. Re-run without --dry-run to install.\n`);
+      process.exit(0);
+    } else {
+      console.log(`\n⚠️  Hook already exists. Use --force to overwrite.\n`);
+      process.exit(0);
     }
   } catch (error) {
     console.error(`❌ Setup failed: ${error.message}`);
