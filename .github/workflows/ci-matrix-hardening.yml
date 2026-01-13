@@ -10,6 +10,10 @@ jobs:
   matrix-test:
     name: test:release on ${{ matrix.os }} / Node ${{ matrix.node-version }}
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    concurrency:
+      group: test-release-${{ matrix.os }}-${{ matrix.node-version }}-${{ github.ref }}
+      cancel-in-progress: true
     strategy:
       fail-fast: false
       matrix:
@@ -21,6 +25,7 @@ jobs:
       - uses: actions/checkout@v4.1.0
         with:
           persist-credentials: false
+          fetch-depth: 0
 
       - uses: actions/setup-node@v4.0.0
         with:
@@ -45,13 +50,19 @@ jobs:
   # RCX Hardening Tests
   rcx-hardening:
     name: RCX Hardening Suite
+    if: github.ref == 'refs/heads/rcx-hardening'
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+    concurrency:
+      group: rcx-hardening-${{ github.ref }}
+      cancel-in-progress: true
     permissions:
       contents: read
     steps:
       - uses: actions/checkout@v4.1.0
         with:
           persist-credentials: false
+          fetch-depth: 0
 
       - uses: actions/setup-node@v4.0.0
         with:
@@ -73,13 +84,19 @@ jobs:
   # Separate job for pervasive/slow tests
   brutal-tests:
     name: Brutal Mode Tests
+    if: github.ref == 'refs/heads/rcx-hardening'
     runs-on: ubuntu-latest
+    timeout-minutes: 40
+    concurrency:
+      group: brutal-tests-${{ github.ref }}
+      cancel-in-progress: true
     permissions:
       contents: read
     steps:
       - uses: actions/checkout@v4.1.0
         with:
           persist-credentials: false
+          fetch-depth: 0
 
       - uses: actions/setup-node@v4.0.0
         with:
@@ -90,33 +107,44 @@ jobs:
       
       - name: Hostile Filesystem
         run: npm test -- test/integration/fs-hostile.test.ts
+        timeout-minutes: 10
       
       - name: Property-Based Fuzz
         run: npm test -- test/fuzz/property-parsers.test.ts
-        timeout-minutes: 15
+        timeout-minutes: 20
       
       - name: Time Bombs (Fake Timers)
         run: npm test -- test/core/time-bombs.test.ts
+        timeout-minutes: 10
       
       - name: Huge Repo Performance
         run: npm test -- test/perf/huge-repo.test.ts
+        timeout-minutes: 15
       
       - name: Contract Corruption
         run: npm test -- test/contract/corruption.test.ts
+        timeout-minutes: 10
       
       - name: Package Integrity Deep
         run: npm test -- test/e2e/package-integrity.test.ts
+        timeout-minutes: 10
 
   # Signal handling (must be on unix-like)
   signal-tests:
     name: CLI Signal Handling
+    if: github.ref == 'refs/heads/rcx-hardening'
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    concurrency:
+      group: signal-tests-${{ github.ref }}
+      cancel-in-progress: true
     permissions:
       contents: read
     steps:
       - uses: actions/checkout@v4.1.0
         with:
           persist-credentials: false
+          fetch-depth: 0
 
       - uses: actions/setup-node@v4.0.0
         with:
