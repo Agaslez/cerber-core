@@ -47,6 +47,11 @@ jobs:
       - name: Package Integrity (gate 4)
         run: npm pack --dry-run
 
+      - name: E2E Pack Install (ubuntu-only) (gate 6)
+        if: runner.os == 'Linux'
+        run: npm run test:e2e:pack
+        timeout-minutes: 15
+
   # RCX Hardening Tests
   rcx-hardening:
     name: RCX Hardening Suite

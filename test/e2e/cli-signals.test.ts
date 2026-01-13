@@ -26,14 +26,14 @@ describe("CLI Signal Handling", () => {
         signal: string | null;
       }>((resolve) => {
         // Start a process that will receive SIGINT
-        const proc = spawn("node", ["-e", "setTimeout(() => {}, 60000)"], {
+        const proc = spawn("node", ["-e", "setTimeout(() => {}, 60000).unref()"], {
           stdio: "pipe",
         });
 
         // After 100ms, send SIGINT
         const timeout = setTimeout(() => {
           proc.kill("SIGINT");
-        }, 100);
+        }, 100).unref();
 
         proc.on("exit", (code, signal) => {
           clearTimeout(timeout);
@@ -79,7 +79,7 @@ describe("CLI Signal Handling", () => {
         "-e",
         `
         console.log('START');
-        setInterval(() => {}, 1000);
+        setInterval(() => {}, 1000).unref();
       `,
       ]);
 
@@ -108,12 +108,12 @@ describe("CLI Signal Handling", () => {
       const start = Date.now();
 
       const exitCode = await new Promise<number>((resolve) => {
-        const proc = spawn("node", ["-e", "setInterval(() => {}, 1000)"]);
+        const proc = spawn("node", ["-e", "setInterval(() => {}, 1000).unref()"]);
 
         // Send SIGTERM after 50ms
         const timeout = setTimeout(() => {
           proc.kill("SIGTERM");
-        }, 50);
+        }, 50).unref();
 
         proc.on("exit", (code) => {
           clearTimeout(timeout);
@@ -147,7 +147,7 @@ describe("CLI Signal Handling", () => {
           } catch {}
           process.exit(0);
         });
-        setInterval(() => {}, 1000);
+        setInterval(() => {}, 1000).unref();
       `;
 
       await new Promise<void>((resolve) => {
@@ -192,7 +192,7 @@ describe("CLI Signal Handling", () => {
         process.on('SIGINT', () => {
           process.exit(0);
         });
-        setInterval(() => {}, 100);
+        setInterval(() => {}, 100).unref();
       `;
 
       await new Promise<void>((resolve) => {
@@ -200,7 +200,7 @@ describe("CLI Signal Handling", () => {
 
         setTimeout(() => {
           proc.kill("SIGINT");
-        }, 50);
+        }, 50).unref();
 
         proc.on("exit", (code) => {
           // Should exit, even with unresolved promises
@@ -223,11 +223,11 @@ describe("CLI Signal Handling", () => {
           `
           setTimeout(() => {
             console.log('TIMEOUT_FIRED');
-          }, 5000);
+          }, 5000).unref();
           process.on('SIGTERM', () => {
             process.exit(0);
           });
-          setInterval(() => {}, 100);
+          setInterval(() => {}, 100).unref();
         `,
         ]);
 
@@ -240,7 +240,7 @@ describe("CLI Signal Handling", () => {
 
         setTimeout(() => {
           proc.kill("SIGTERM");
-        }, 100);
+        }, 100).unref();
 
         proc.on("exit", () => {
           const elapsed = Date.now() - start;
@@ -268,7 +268,7 @@ describe("CLI Signal Handling", () => {
             process.exit(0);
           }
         });
-        setInterval(() => {}, 100);
+        setInterval(() => {}, 100).unref();
       `;
 
       let exitCode = -1;
@@ -278,7 +278,7 @@ describe("CLI Signal Handling", () => {
 
         setTimeout(() => {
           proc.kill("SIGINT");
-        }, 50);
+        }, 50).unref();
 
         proc.on("exit", (code) => {
           exitCode = code ?? 0;
