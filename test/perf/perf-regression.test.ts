@@ -161,6 +161,7 @@ describe('Performance Regression Gates', () => {
         if (current > peakHeap) peakHeap = current;
 
         const options: OrchestratorRunOptions = {
+          cwd: process.cwd(),
           files: Array.from({ length: 20 }, (_, j) => `.github/workflows/file-${i}-${j}.yml`),
           tools: ['actionlint'],
         };
@@ -238,6 +239,7 @@ describe('Performance Regression Gates', () => {
       const orchestrator = new Orchestrator();
 
       const options: OrchestratorRunOptions = {
+        cwd: process.cwd(),
         files: ['.github/workflows/test.yml'],
         tools: ['actionlint'],
       };
