@@ -33,7 +33,7 @@ describe("CLI Signal Handling", () => {
         // After 100ms, send SIGINT
         const timeout = setTimeout(() => {
           proc.kill("SIGINT");
-        }, 100).unref();
+        }, 100);
 
         proc.on("exit", (code, signal) => {
           clearTimeout(timeout);
@@ -113,7 +113,7 @@ describe("CLI Signal Handling", () => {
         // Send SIGTERM after 50ms
         const timeout = setTimeout(() => {
           proc.kill("SIGTERM");
-        }, 50).unref();
+        }, 50);
 
         proc.on("exit", (code) => {
           clearTimeout(timeout);
@@ -200,7 +200,7 @@ describe("CLI Signal Handling", () => {
 
         setTimeout(() => {
           proc.kill("SIGINT");
-        }, 50).unref();
+        }, 50);
 
         proc.on("exit", (code) => {
           // Should exit, even with unresolved promises
@@ -278,7 +278,7 @@ describe("CLI Signal Handling", () => {
 
         setTimeout(() => {
           proc.kill("SIGINT");
-        }, 50).unref();
+        }, 50);
 
         proc.on("exit", (code) => {
           exitCode = code ?? 0;
