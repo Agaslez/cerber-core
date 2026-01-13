@@ -1,0 +1,102 @@
+name: Hardening Pack - Cross-Platform Matrix
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  matrix-test:
+    name: test:release on ${{ matrix.os }} / Node ${{ matrix.node-version }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        node-version: ['18', '20', '22']
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4.1.0
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4.0.0
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+
+      - run: npm ci
+      
+      - name: Lint (gate 1)
+        run: npm run lint
+      
+      - name: Build (gate 2)
+        run: npm run build
+      
+      - name: Hardening Pack Tests (gate 5)
+        run: npm run test:release
+        timeout-minutes: 10
+      
+      - name: Package Integrity (gate 4)
+        run: npm pack --dry-run
+
+  # Separate job for pervasive/slow tests
+  brutal-tests:
+    name: Brutal Mode Tests
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4.1.0
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4.0.0
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - run: npm ci
+      
+      - name: Hostile Filesystem
+        run: npm test -- test/integration/fs-hostile.test.ts
+      
+      - name: Property-Based Fuzz
+        run: npm test -- test/fuzz/property-parsers.test.ts
+        timeout-minutes: 15
+      
+      - name: Time Bombs (Fake Timers)
+        run: npm test -- test/core/time-bombs.test.ts
+      
+      - name: Huge Repo Performance
+        run: npm test -- test/perf/huge-repo.test.ts
+      
+      - name: Contract Corruption
+        run: npm test -- test/contract/corruption.test.ts
+      
+      - name: Package Integrity Deep
+        run: npm test -- test/e2e/package-integrity.test.ts
+
+  # Signal handling (must be on unix-like)
+  signal-tests:
+    name: CLI Signal Handling
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4.1.0
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4.0.0
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - run: npm ci
+      
+      - name: Signal Tests (SIGINT/SIGTERM)
+        run: npm test -- test/e2e/cli-signals.test.ts
+        timeout-minutes: 5
