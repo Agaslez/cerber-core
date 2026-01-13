@@ -51,11 +51,15 @@ describe('Security: Path Traversal & Input Validation', () => {
     });
 
     it('should reject absolute paths for repository files', () => {
-      const absolutePaths = [
+      const absolutePaths: string[] = [
         '/etc/passwd',
-        'C:\\Windows\\System32',
         process.cwd() + '/secrets.txt',
       ];
+      
+      // Windows-only test: C:\ is absolute only on Windows
+      if (process.platform === 'win32') {
+        absolutePaths.push('C:\\Windows\\System32');
+      }
 
       for (const absPath of absolutePaths) {
         // Absolute paths should be rejected
