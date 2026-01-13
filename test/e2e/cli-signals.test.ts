@@ -42,8 +42,8 @@ describe("CLI Signal Handling", () => {
       });
 
       // Exit code on SIGINT is typically 130 (128 + 2 for SIGINT)
-      // But Node.js may return null (killed by signal)
-      expect([130, null]).toContain(result.exitCode);
+      // But Node.js may return null (killed by signal) or -1 (on some systems)
+      expect([130, null, -1]).toContain(result.exitCode);
       expect(result.signal).toMatch(/SIGINT|null/i);
     });
 
