@@ -1,0 +1,23 @@
+{
+  "actionlint": {
+    "command": "actionlint",
+    "versionFlag": "--version",
+    "installCmd": "npm install actionlint",
+    "timeout": 5000,
+    "versionRegex": "(\\d+\\.\\d+\\.\\d+)"
+  },
+  "zizmor": {
+    "command": "zizmor",
+    "versionFlag": "--version",
+    "installCmd": "npm install zizmor",
+    "timeout": 5000,
+    "versionRegex": "(\\d+\\.\\d+\\.\\d+)"
+  },
+  "gitleaks": {
+    "command": "gitleaks",
+    "versionFlag": "--version",
+    "installCmd": "npm install gitleaks",
+    "timeout": 8000,
+    "versionRegex": "v(\\d+\\.\\d+\\.\\d+)"
+  }
+}

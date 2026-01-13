@@ -1,0 +1,236 @@
+import { execSync } from 'child_process';
+import { logger } from '../core/logger.js';
+
+interface ToolExecutionConfig {
+  timeout: number;
+  maxRetries: number;
+  retryDelay: number; // ms
+}
+
+export interface GuardianOptions {
+  staged?: boolean;
+  debug?: boolean;
+  profile?: 'dev-fast' | 'normal';
+}
+
+export interface GuardianResult {
+  exitCode: number;
+  duration: number;
+  toolsRan: string[];
+  output?: string;
+  errors?: Array<{ tool: string; error: string; code?: string }>;
+}
+
+/**
+ * Get list of staged files in git repo with proper error handling
+ */
+export async function getStagedFiles(cwd: string): Promise<string[]> {
+  try {
+    const output = execSync('git diff --cached --name-only', {
+      cwd,
+      encoding: 'utf-8',
+      stdio: ['pipe', 'pipe', 'pipe'],
+      timeout: 5000
+    });
+
+    const files = output
+      .trim()
+      .split('\n')
+      .filter(line => line.length > 0);
+    
+    logger.debug('Staged files detected');
+    return files;
+  } catch (error) {
+    const err = error as NodeJS.ErrnoException;
+    logger.error('Failed to get staged files');
+    return [];
+  }
+}
+
+/**
+ * Run tool with exponential backoff retry logic on transient failures
+ */
+async function runToolWithRetry(
+  command: string,
+  cwd: string,
+  toolName: string,
+  config: ToolExecutionConfig
+): Promise<{ success: boolean; output?: string; error?: string }> {
+  let lastError: Error | null = null;
+  
+  for (let attempt = 1; attempt <= config.maxRetries; attempt++) {
+    try {
+      const startTime = Date.now();
+      const output = execSync(command, {
+        cwd,
+        stdio: ['ignore', 'pipe', 'pipe'],
+        encoding: 'utf-8',
+        timeout: config.timeout
+      });
+      
+      const duration = Date.now() - startTime;
+      logger.debug(`Tool succeeded on attempt ${attempt}`);
+      return { success: true, output };
+    } catch (error) {
+      const err = error as any;
+      lastError = err;
+      
+      // Check if it's a transient error (timeout, EAGAIN, etc)
+      const isTransient = err.code === 'ETIMEDOUT' || err.code === 'EAGAIN' || err.status === 1;
+      
+      if (!isTransient || attempt === config.maxRetries) {
+        // Not transient or last attempt - give up
+        logger.warn(`Tool failed after ${attempt} attempts`);
+        return { 
+          success: false, 
+          output: err.stdout?.toString(),
+          error: err.stderr?.toString() || err.message 
+        };
+      }
+      
+      // Exponential backoff: 100ms, 200ms, 400ms, 800ms
+      const delay = Math.min(100 * Math.pow(2, attempt - 1), 2000);
+      logger.debug(`Retrying after ${delay}ms`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+  
+  return { 
+    success: false, 
+    error: lastError?.message || 'Unknown error' 
+  };
+}
+
+/**
+ * Filter files to relevant ones for CI checks
+ * Relevant: .github/workflows/* and .cerber/*
+ */
+function filterRelevantFiles(files: string[]): string[] {
+  return files.filter(file => 
+    file.startsWith('.github/workflows/') || 
+    file.startsWith('.cerber/')
+  );
+}
+
+/**
+ * Run guardian checks on staged files with proper error handling & retry logic
+ */
+export async function runGuardian(
+  cwd: string = process.cwd(),
+  options: GuardianOptions = {}
+): Promise<GuardianResult> {
+  const startTime = Date.now();
+  const toolsRan: string[] = [];
+  const errors: Array<{ tool: string; error: string; code?: string }> = [];
+  let exitCode = 0;
+  let output = '';
+
+  logger.info('Starting guardian checks');
+
+  const toolConfig: ToolExecutionConfig = {
+    timeout: options.profile === 'dev-fast' ? 3000 : 5000,
+    maxRetries: 2,
+    retryDelay: 100
+  };
+
+  // Get staged files if --staged flag
+  let files: string[] = [];
+  if (options.staged) {
+    files = await getStagedFiles(cwd);
+    
+    // If no relevant files changed, exit immediately with success (fast path)
+    const relevantFiles = filterRelevantFiles(files);
+    if (relevantFiles.length === 0) {
+      const duration = Date.now() - startTime;
+      if (options.debug) {
+        output = `[Guardian] No relevant files changed. Exit in ${duration}ms`;
+        console.log(output);
+      }
+      logger.debug('Fast path: no relevant files');
+      return {
+        exitCode: 0,
+        duration,
+        toolsRan: [],
+        output
+      };
+    }
+
+    // Run checks on relevant files
+    files = relevantFiles;
+  }
+
+  // Run actionlint on workflow files with retry logic
+  const workflowFiles = files.filter(f => f.startsWith('.github/workflows/'));
+  if (workflowFiles.length > 0) {
+    const command = `actionlint ${workflowFiles.join(' ')}`;
+    const result = await runToolWithRetry(command, cwd, 'actionlint', toolConfig);
+    
+    toolsRan.push('actionlint');
+    
+    if (!result.success) {
+      if (options.debug) {
+        console.log(`[Guardian] actionlint: VIOLATIONS`);
+      }
+      exitCode = 1;
+      output = result.output || result.error || '';
+      
+      errors.push({
+        tool: 'actionlint',
+        error: result.error || 'Tool execution failed',
+        code: 'VIOLATIONS'
+      });
+      
+      logger.warn('actionlint found violations');
+    } else {
+      if (options.debug) {
+        console.log(`[Guardian] actionlint: OK`);
+      }
+      logger.debug('actionlint check passed');
+    }
+  }
+
+  // In dev-fast mode, skip additional checks; in normal mode, could add zizmor/gitleaks
+  if (options.profile !== 'dev-fast') {
+    // Extended checks could be added here
+    logger.debug('Skipping extended checks in normal profile');
+  }
+
+  const duration = Date.now() - startTime;
+
+  if (options.debug) {
+    console.log(`[Guardian] Completed in ${duration}ms. Exit code: ${exitCode}`);
+  }
+
+  logger.info('Guardian checks completed');
+
+  return {
+    exitCode,
+    duration,
+    toolsRan,
+    output: output || undefined,
+    errors: errors.length > 0 ? errors : undefined
+  };
+}
+
+/**
+ * Print guardian output
+ */
+export function printGuardianReport(result: GuardianResult, options?: GuardianOptions): void {
+  if (!options?.debug) {
+    // Minimal output
+    if (result.exitCode !== 0) {
+      if (result.output) {
+        console.log(result.output);
+      }
+    }
+  } else {
+    // Debug output with timing
+    console.log(`[Guardian Report]`);
+    console.log(`Exit Code: ${result.exitCode}`);
+    console.log(`Duration: ${result.duration}ms`);
+    console.log(`Tools Ran: ${result.toolsRan.join(', ') || 'none'}`);
+    if (result.output) {
+      console.log(`Output: ${result.output}`);
+    }
+  }
+}

@@ -1,3 +1,9 @@
+# ⚠️ [ARCHIVED - SEE ONE_TRUTH_MVP.md]
+
+**This document is outdated.** Refer to [ONE_TRUTH_MVP.md](../ONE_TRUTH_MVP.md) for current MVP roadmap.
+
+---
+
 # 🔍 ORCHESTRATOR VISION ANALYSIS - ONE TRUTH VERIFICATION
 
 **Date:** 2026-01-09  

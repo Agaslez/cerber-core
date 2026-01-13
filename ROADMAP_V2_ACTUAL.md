@@ -1,3 +1,9 @@
+# ⚠️ [ARCHIVED - SEE ONE_TRUTH_MVP.md]
+
+**This document is outdated.** Refer to [ONE_TRUTH_MVP.md](../ONE_TRUTH_MVP.md) for current MVP roadmap.
+
+---
+
 # 🛡️ CERBER CORE V2.0 - ACTUAL ROADMAP (REALITY-BASED)
 
 **"Co JUŻ JEST, co BRAKUJE, ile GODZIN zostało"**
