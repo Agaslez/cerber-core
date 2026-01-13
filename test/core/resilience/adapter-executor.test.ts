@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from '@jest/globals';
 import type { Adapter, AdapterResult } from '../../../src/adapters/types.js';
 import { AdapterExecutor } from '../../../src/core/resilience/adapter-executor.js';
+import { makeRunOptions } from '../../helpers/options.js';
 
 // Mock adapter for testing
 class MockAdapter implements Partial<Adapter> {
@@ -43,7 +44,7 @@ describe('AdapterExecutor', () => {
   describe('execute()', () => {
     it('should execute adapter successfully without timeout', async () => {
       const adapter = new MockAdapter('test-adapter') as any;
-      const options = { files: ['test.yml'], cwd: process.cwd() };
+      const options = makeRunOptions({ files: ['test.yml'] });
       
       const result = await executor.execute(adapter, options, 0);
       
@@ -54,7 +55,7 @@ describe('AdapterExecutor', () => {
     
     it('should execute adapter successfully with timeout (fast adapter)', async () => {
       const adapter = new MockAdapter('fast-adapter', false, 10) as any;
-      const options = { files: ['test.yml'], cwd: process.cwd() };
+      const options = makeRunOptions({ files: ['test.yml'] });
       
       const result = await executor.execute(adapter, options, 1000);
       
@@ -64,14 +65,14 @@ describe('AdapterExecutor', () => {
     
     it('should timeout slow adapter', async () => {
       const adapter = new MockAdapter('slow-adapter', false, 500) as any;
-      const options = { files: ['test.yml'], cwd: process.cwd() };
+      const options = makeRunOptions({ files: ['test.yml'] });
       
       await expect(executor.execute(adapter, options, 100)).rejects.toThrow();
     });
     
     it('should propagate adapter errors', async () => {
       const adapter = new MockAdapter('failing-adapter', true) as any;
-      const options = { files: ['test.yml'], cwd: process.cwd() };
+      const options = makeRunOptions({ files: ['test.yml'] });
       
       await expect(executor.execute(adapter, options, 0)).rejects.toThrow('Mock adapter failure');
     });
@@ -79,7 +80,7 @@ describe('AdapterExecutor', () => {
     it('should clone options to prevent mutations', async () => {
       const adapter = new MockAdapter('test-adapter') as any;
       const originalFiles = ['test.yml'];
-      const options = { files: originalFiles, cwd: process.cwd() };
+      const options = makeRunOptions({ files: originalFiles });
       
       await executor.execute(adapter, options, 0);
       
@@ -90,7 +91,7 @@ describe('AdapterExecutor', () => {
     
     it('should handle empty files array', async () => {
       const adapter = new MockAdapter('test-adapter') as any;
-      const options = { files: [], cwd: process.cwd() };
+      const options = makeRunOptions({ files: [] });
       
       const result = await executor.execute(adapter, options, 0);
       
@@ -115,7 +116,7 @@ describe('AdapterExecutor', () => {
       
       const adapter = new MutatingAdapter() as any;
       const originalFiles = ['test.yml'];
-      const options = { files: originalFiles, cwd: process.cwd() };
+      const options = makeRunOptions({ files: originalFiles });
       
       await executor.execute(adapter, options, 0);
       
