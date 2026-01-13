@@ -138,6 +138,7 @@ jobs:
 
   use-cerber-guardian:
     name: 🛡️ Dogfooding - Use Guardian on Ourselves
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     
     steps:
@@ -225,6 +226,7 @@ jobs:
 
   use-cerber-health:
     name: 🔍 Dogfooding - Use Cerber Health Check
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     
     steps:
