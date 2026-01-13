@@ -1,22 +1,21 @@
 import js from '@eslint/js';
-import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
-export default tseslint.config(
-  // Ignoruj build output
-  { ignores: ['dist', 'src/__tests__'] },
+export default [
+  js.configs.recommended,
+  ...tseslint.configs.recommended,
   {
-    extends: [js.configs.recommended, ...tseslint.configs.recommended],
-    files: ['**/*.{ts,js}'],
+    files: ['src/**/*.ts'],
     languageOptions: {
-      ecmaVersion: 2020,
-      globals: globals.node,
+      parser: tseslint.parser,
     },
     rules: {
-      // Disable strict TypeScript rules for now
-      '@typescript-eslint/no-explicit-any': 'off',
-      '@typescript-eslint/no-unused-vars': 'off',
+      '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
+      '@typescript-eslint/no-explicit-any': 'warn',
       'no-useless-escape': 'off',
     },
   },
-);
+  {
+    ignores: ['dist/**', 'coverage/**', 'node_modules/**'],
+  },
+];
