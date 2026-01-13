@@ -22,31 +22,11 @@ export interface LoggerConfig {
 /**
  * Create production logger
  * @rule Structured logging for observability
+ * @rule Use JSON logging by default for production compatibility
  */
 export function createLogger(config: LoggerConfig = {}): pino.Logger {
   const isDev = process.env.NODE_ENV !== 'production';
   const level = config.level || process.env.LOG_LEVEL || (isDev ? 'debug' : 'info');
-  const pretty = config.pretty ?? isDev;
-
-  // Build transport config only if pretty printing is enabled
-  // Note: pino-pretty is devDependency, use safely in development only
-  let transport;
-  if (pretty) {
-    try {
-      transport = {
-        target: 'pino-pretty',
-        options: {
-          colorize: true,
-          translateTime: 'HH:MM:ss',
-          ignore: 'pid,hostname',
-          messageFormat: '{levelLabel} - {msg}',
-        },
-      };
-    } catch {
-      // Fallback to JSON if pino-pretty not available
-      transport = undefined;
-    }
-  }
 
   return pino({
     level,
@@ -59,10 +39,9 @@ export function createLogger(config: LoggerConfig = {}): pino.Logger {
       env: process.env.NODE_ENV || 'development',
     },
 
-    // Pretty printing in development (if available)
-    transport,
-
-    // Production: structured JSON
+    // Production: structured JSON (default)
+    // Note: pino-pretty is optional for development pretty-printing
+    // Use: cat <logfile> | npx pino-pretty
     formatters: {
       level: (label) => ({ level: label }),
     },
