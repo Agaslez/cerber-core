@@ -365,9 +365,12 @@ describe('COMMIT 8: Reporting - Text + GitHub Formatters', () => {
       const ghFormat = ReportFormatter.detectFormat({ github: true });
       expect(ghFormat).toBe('github');
 
-      // CI detected
+      // CI detected (clear GitHub Actions env to test generic CI)
+      const savedGhActions = process.env.GITHUB_ACTIONS;
+      delete process.env.GITHUB_ACTIONS;
       const ciFormat = ReportFormatter.detectFormat({ ci: true });
       expect(ciFormat).toBe('compact');
+      process.env.GITHUB_ACTIONS = savedGhActions;
     });
   });
 

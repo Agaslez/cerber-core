@@ -144,12 +144,12 @@ export class ReportFormatter {
       return options.format as OutputFormat;
     }
 
-    // GitHub Actions detected
+    // GitHub Actions detected (more specific than generic CI)
     if (options?.github || process.env.GITHUB_ACTIONS === 'true') {
       return 'github';
     }
 
-    // Generic CI detected
+    // Generic CI detected (fallback)
     if (options?.ci || process.env.CI === 'true') {
       return 'compact';
     }
