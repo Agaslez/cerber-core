@@ -2,7 +2,7 @@ import { describe, expect, it } from '@jest/globals';
 import { CircuitBreaker } from '../../src/core/circuit-breaker.js';
 import { retry } from '../../src/core/retry.js';
 
-describe('Integration: Retry Mechanism', () => {
+describe('@integration Integration: Retry Mechanism', () => {
   it('should retry operation multiple times', async () => {
     let attempts = 0;
 

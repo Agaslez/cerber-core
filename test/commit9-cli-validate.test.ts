@@ -13,7 +13,7 @@
 
 import { describe, expect, it } from '@jest/globals';
 
-describe('CLI Validate Command (COMMIT-9)', () => {
+describe('@integration CLI Validate Command (COMMIT-9)', () => {
   // Note: Actual implementation tests would go here
   // For now, this is a specification of expected behavior
   

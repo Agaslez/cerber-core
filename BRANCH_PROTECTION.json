@@ -1,0 +1,84 @@
+// GitHub Branch Protection Settings for main branch
+// 
+// To apply these settings, go to:
+// https://github.com/Agaslez/cerber-core/settings/branches
+//
+// REQUIREMENTS FOR 'main' BRANCH:
+// ================================
+
+{
+  "branchName": "main",
+  
+  // Require pull request reviews before merging
+  "require_code_reviews": {
+    "required_approving_review_count": 1,
+    "require_code_owner_reviews": true,
+    "dismiss_stale_pull_request_approvals": false,
+    "require_last_push_approval": false
+  },
+
+  // Require status checks to pass before merging
+  "require_status_checks": {
+    "strict": true,  // Branch must be up to date before merge
+    "contexts": [
+      "build",           // npm run build
+      "test",            // npm test
+      "lint",            // npm run lint
+      "test:v3"          // npm run test:v3 (new hardening pack)
+    ]
+  },
+
+  // Require branches to be up to date before merging
+  "require_up_to_date_before_merge": true,
+
+  // Require code owner reviews (via CODEOWNERS file)
+  "require_code_owner_reviews": true,
+
+  // Enforce on administrators
+  "enforce_admins": true,
+
+  // Restrict who can push to matching branches
+  "restrictions": {
+    "teams": ["maintainers", "architects"],
+    "users": [],
+    "apps": []
+  },
+
+  // Additional protections
+  "required_linear_history": false,  // Allow squash/rebase
+  "allow_force_pushes": false,       // No force pushes
+  "allow_deletions": false,          // No accidental deletion
+  "block_creations": false
+}
+
+// ====================================
+// GITHUB ACTIONS: Enforcement Script
+// ====================================
+//
+// Create .github/workflows/branch-protection-check.yml:
+//
+// name: Branch Protection Check
+// on:
+//   pull_request:
+//     types: [opened, synchronize]
+//
+// jobs:
+//   protect-critical-files:
+//     runs-on: ubuntu-latest
+//     steps:
+//       - uses: actions/checkout@v3
+//         with:
+//           fetch-depth: 0
+//
+//       - name: Check protected files
+//         run: |
+//           git diff origin/main..HEAD --name-only | while read file; do
+//             if [[ "$file" =~ ^(CERBER\.md|\.cerber/|contract.*\.yml) ]]; then
+//               echo "❌ Cannot modify protected file: $file"
+//               echo "   Requires @owner approval via CODEOWNERS"
+//               exit 1
+//             fi
+//           done
+//
+//       - name: Verify test:v3 passes
+//         run: npm run test:v3

@@ -9,7 +9,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { ZizmorAdapter } from '../../../src/adapters/zizmor/ZizmorAdapter.js';
 
-describe('ZizmorAdapter', () => {
+describe('@fast ZizmorAdapter', () => {
   let adapter: ZizmorAdapter;
   const fixturesDir = join(__dirname, '../../fixtures/tool-outputs/zizmor');
 

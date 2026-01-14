@@ -9,7 +9,7 @@ import fs from 'fs/promises';
 import { dirname, join } from 'path';
 import { Orchestrator } from '../../src/core/Orchestrator.js';
 
-describe('Orchestrator - Real Adapter Execution', () => {
+describe('@integration Orchestrator - Real Adapter Execution', () => {
   let tempDir: string;
   let orchestrator: Orchestrator;
   let workflowFile: string;

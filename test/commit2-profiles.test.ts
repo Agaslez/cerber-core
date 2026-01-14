@@ -8,7 +8,7 @@ import { load } from 'js-yaml';
 import { join } from 'path';
 import type { Contract, Profile } from '../src/contracts/types.js';
 
-describe('COMMIT 2: Contract Profiles', () => {
+describe('@fast COMMIT 2: Contract Profiles', () => {
   let contract: Contract;
 
   beforeAll(() => {

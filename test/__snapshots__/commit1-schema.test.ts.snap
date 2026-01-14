@@ -1,6 +1,6 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
-exports[`COMMIT 1: Schema Consistency Deterministic Output Snapshot should produce identical JSON for same data 1`] = `
+exports[`@fast COMMIT 1: Schema Consistency Deterministic Output Snapshot should produce identical JSON for same data 1`] = `
 "{
   "schemaVersion": 1,
   "deterministic": true,

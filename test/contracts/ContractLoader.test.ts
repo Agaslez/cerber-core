@@ -10,7 +10,7 @@ import { existsSync, mkdirSync, rmSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import { ContractValidator } from '../../src/contracts/ContractValidator';
 
-describe('ContractLoader', () => {
+describe('@e2e ContractLoader', () => {
   let validator: ContractValidator;
   let tmpDir: string;
 

@@ -18,7 +18,7 @@ import {
 
 const fixturesDir = path.join(__dirname, '..', 'fixtures', 'tool-outputs', 'actionlint');
 
-describe('Actionlint Parser (COMMIT-4)', () => {
+describe('@integration Actionlint Parser (COMMIT-4)', () => {
   describe('Load fixtures', () => {
     test('should have NDJSON fixture', () => {
       const content = fs.readFileSync(path.join(fixturesDir, 'ndjson.txt'), 'utf-8');

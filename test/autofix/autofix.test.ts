@@ -11,7 +11,7 @@ import type { WorkflowAST } from '../../src/semantic/SemanticComparator';
 import { SemanticComparator } from '../../src/semantic/SemanticComparator';
 
 describe.skip('Auto-Fix', () => {
-  describe('Fix confidence scoring', () => {
+  describe('@fast Fix confidence scoring', () => {
     it('should calculate high confidence for secret replacement', async () => {
       const workflow: WorkflowAST = {
         on: { push: { branches: ['main'] } },
@@ -187,8 +187,8 @@ describe.skip('Auto-Fix', () => {
 
       // After fixes, workflow name and branches should be unchanged
       expect(workflow.name).toBe('My Workflow');
-      if (workflow.on?.push && 'branches' in workflow.on.push) {
-        expect(workflow.on.push.branches).toEqual(['main', 'develop']);
+      if (workflow.on?.push && typeof workflow.on.push === 'object' && 'branches' in workflow.on.push) {
+        expect((workflow.on.push as Record<string, unknown>).branches).toEqual(['main', 'develop']);
       }
       if (workflow.jobs?.test?.steps && workflow.jobs.test.steps[1]) {
         expect(workflow.jobs.test.steps[1].run).toBe('npm test');

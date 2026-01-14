@@ -16,7 +16,7 @@ import {
 } from '../src/reporting/format-text.js';
 import { ReportFormatter } from '../src/reporting/ReportFormatter.js';
 
-describe('COMMIT 8: Reporting - Text + GitHub Formatters', () => {
+describe('@integration COMMIT 8: Reporting - Text + GitHub Formatters', () => {
   const mockOutput = {
     schemaVersion: 1,
     contractVersion: 1,

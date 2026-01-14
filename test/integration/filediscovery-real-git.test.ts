@@ -13,7 +13,7 @@ import fs from 'fs/promises';
 import { join } from 'path';
 import { FileDiscovery } from '../../src/core/file-discovery.js';
 
-describe('FileDiscovery - Real Git Repo', () => {
+describe('@integration FileDiscovery - Real Git Repo', () => {
   let tempDir: string;
   let discovery: FileDiscovery;
 

@@ -143,7 +143,7 @@ export function extractVersion(output: string, pattern: RegExp): string | null {
  * Parse exit code to standard Cerber exit codes
  * @rule Per AGENTS.md §8 - Exit codes: 0 (success) / 1 (violations) / 2 (config error) / 3 (tool error)
  */
-export function normalizeExitCode(toolExitCode: number, toolName: string): number {
+export function normalizeExitCode(toolExitCode: number, _toolName: string): number {
   // 0 = success (no violations)
   if (toolExitCode === 0) return 0;
   

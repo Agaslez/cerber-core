@@ -5,7 +5,7 @@
 
 import { Orchestrator } from '../src/core/Orchestrator.js';
 
-describe('COMMIT 5: Orchestrator Core', () => {
+describe('@fast COMMIT 5: Orchestrator Core', () => {
   let orchestrator: Orchestrator;
 
   beforeEach(() => {

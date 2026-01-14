@@ -168,7 +168,7 @@ export class ReportFormatter {
  */
 export function formatForConsole(
   output: CerberOutput,
-  options?: { color?: boolean }
+  _options?: { color?: boolean }
 ): string {
   return ReportFormatter.format(output, 'text');
   // Note: Color support would be added here with chalk or similar

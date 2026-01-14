@@ -1,0 +1,45 @@
+# Cerber Core CODEOWNERS
+# Defines code review requirements for critical files
+
+# Cerber documentation and configuration - requires OWNER approval
+CERBER.md @owner
+CERBER.yml @owner
+.cerber/ @owner
+.cerber-example/ @owner
+
+# Contract system - requires OWNER and ARCHITECT approval
+contract*.yml @owner @architect
+contract*.json @owner @architect
+.cerber/contract.yml @owner @architect
+solo/config/solo-contract.json @owner @architect
+team/config/team-contract.json @owner @architect
+
+# Guardian policy - requires OWNER approval
+bin/cerber-guardian @owner
+src/guardian/ @owner
+src/contracts/ @owner
+
+# Core orchestrator - requires architect review
+src/core/Orchestrator.ts @architect
+src/core/orchestrator-*.ts @architect
+
+# Adapter implementations - requires architect review
+src/adapters/ @architect
+
+# Type definitions and interfaces - requires architect review
+src/types.ts @architect
+src/contract/types.ts @architect
+
+# Build and deployment
+tsconfig.json @owner
+package.json @owner
+package-lock.json @owner
+jest.config.cjs @owner
+build: @owner
+
+# CI/CD
+.github/workflows/ @owner
+vercel.json @owner
+
+# By default, any pull request requires at least one approval
+*

@@ -4,6 +4,7 @@ import { resolve } from 'path';
 import { logger } from '../core/logger.js';
 import { parseCerberContract } from './contract-parser.js';
 import { tryShowCta } from './cta.js';
+import { checkDrift } from './drift-checker.js';
 import { validateOverride } from './override-validator.js';
 import type { CerberContract } from './types.js';
 
@@ -71,10 +72,12 @@ export interface DoctorResult {
   contract?: CerberContract;
   contractFound?: boolean;
   toolsStatus?: ToolStatus[];
+  driftDetected?: boolean;
+  driftReport?: string;
 }
 
 export interface DoctorIssue {
-  type: 'missing' | 'warning' | 'info';
+  type: 'missing' | 'warning' | 'info' | 'drift';
   file: string;
   message: string;
   severity: 'critical' | 'error' | 'warning' | 'info';
@@ -295,13 +298,46 @@ export async function runDoctor(cwd: string = process.cwd()): Promise<DoctorResu
     }
   }
 
+  // Check for drift between contract and generated files
+  let driftDetected = false;
+  let driftReport = '';
+  
+  if (contractFound && contract) {
+    try {
+      const driftResult = await checkDrift(cwd);
+      if (driftResult.hasDrift) {
+        driftDetected = true;
+        driftReport = driftResult.files
+          .filter(f => f.hasDrift)
+          .map(f => `  ${f.path}${f.diff ? '\n    ' + f.diff : ''}`)
+          .join('\n');
+        
+        issues.push({
+          type: 'drift',
+          file: 'contract',
+          message: 'Drift detected: Generated files out of sync with contract. Run: npm run cerber:generate',
+          severity: 'critical'
+        });
+        
+        if (exitCode === 0) {
+          exitCode = 2; // Critical: drift must be resolved
+        }
+      }
+    } catch (error) {
+      // Drift check error - log but don't fail
+      console.warn('[Cerber Doctor] Warning: Could not verify drift:', error);
+    }
+  }
+
   return { 
     success: exitCode === 0, 
     exitCode, 
     issues, 
     contract,
     contractFound,
-    toolsStatus
+    toolsStatus,
+    driftDetected,
+    driftReport
   };
 }
 
@@ -397,14 +433,30 @@ export function printDoctorReport(result: DoctorResult): void {
     criticalIssues.forEach(issue => {
       const icon = issue.severity === 'critical' ? '[!]' : '[WARN]';
       console.log(icon + ' ' + issue.file);
-      console.log('    ' + issue.message + '\n');
+      console.log('    ' + issue.message);
+      
+      // Show drift details if available
+      if (issue.type === 'drift' && result.driftReport) {
+        console.log('\n    Differences:');
+        console.log(result.driftReport);
+      }
+      console.log('');
     });
 
     console.log('Next Steps:\n');
     
     if (result.exitCode === 2) {
-      console.log('1. Initialize Cerber:');
-      console.log('   npx cerber init --mode=solo\n');
+      if (result.driftDetected) {
+        console.log('1. Regenerate files from contract:');
+        console.log('   npm run cerber:generate\n');
+        console.log('2. Review and commit changes:');
+        console.log('   git add CERBER.md .github/workflows/\n');
+        console.log('3. Run doctor again to verify:');
+        console.log('   npm run cerber:doctor\n');
+      } else {
+        console.log('1. Initialize Cerber:');
+        console.log('   npx cerber init --mode=solo\n');
+      }
     } else if (result.exitCode === 3) {
       console.log('1. Create schema file (strict mode requires it):');
       console.log('   touch ' + (result.contract?.schema.file || 'BACKEND_SCHEMA.mjs') + '\n');

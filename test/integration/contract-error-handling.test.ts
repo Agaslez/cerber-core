@@ -11,7 +11,7 @@ import { afterEach, beforeEach, describe, expect, it } from '@jest/globals';
 import fs from 'fs/promises';
 import { join } from 'path';
 
-describe('Contract & Profile Error Handling', () => {
+describe('@integration Contract & Profile Error Handling', () => {
   let tempDir: string;
 
   beforeEach(async () => {

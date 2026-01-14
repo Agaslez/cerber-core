@@ -1,12 +1,16 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
-exports[`COMMIT 2: Contract Profiles Profile Snapshot should produce consistent profile structure 1`] = `
+exports[`@fast COMMIT 2: Contract Profiles Profile Snapshot should produce consistent profile structure 1`] = `
 {
   "dev": {
     "description": "Full development check",
     "failOn": [
       "error",
       "warning",
+    ],
+    "gates": [
+      "fast",
+      "heavy",
     ],
     "tools": [
       "actionlint",
@@ -18,16 +22,25 @@ exports[`COMMIT 2: Contract Profiles Profile Snapshot should produce consistent 
     "failOn": [
       "error",
     ],
+    "gates": [
+      "fast",
+    ],
     "tools": [
       "actionlint",
     ],
   },
   "team": {
+    "codeowners": true,
     "description": "Team CI with secrets scanning",
     "failOn": [
       "error",
       "warning",
     ],
+    "gates": [
+      "fast",
+      "heavy",
+    ],
+    "protectedBranch": true,
     "tools": [
       "actionlint",
       "zizmor",

@@ -1,7 +1,7 @@
 import { describe, expect, it } from '@jest/globals';
 import { CircuitBreaker } from '../../src/core/circuit-breaker.js';
 
-describe('Integration: Circuit Breaker', () => {
+describe('@integration Integration: Circuit Breaker', () => {
   it('should track successful operations', async () => {
     const breaker = new CircuitBreaker({
       name: 'success-test',

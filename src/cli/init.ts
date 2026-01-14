@@ -269,7 +269,7 @@ export async function initCommand(options: InitOptions = {}): Promise<void> {
     process.exit(1);
   }
   
-  let contract = parseResult.contract!;
+  const contract = parseResult.contract!;
   
   // Step 2: Override mode if specified
   if (options.mode) {

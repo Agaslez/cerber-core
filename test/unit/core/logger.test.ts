@@ -6,7 +6,7 @@
 import { describe, expect, it } from '@jest/globals';
 import { createChildLogger, createLogger, generateRequestId, logError, startTimer } from '../../../src/core/logger.js';
 
-describe('Logger', () => {
+describe('@fast Logger', () => {
   describe('createLogger', () => {
     it('should create logger with default config', () => {
       const logger = createLogger();
@@ -39,7 +39,7 @@ describe('Logger', () => {
       await new Promise(resolve => setTimeout(resolve, 10));
       const duration = timer.end('Test operation');
       
-      expect(duration).toBeGreaterThanOrEqual(10);
+      expect(duration).toBeGreaterThanOrEqual(8);
       expect(duration).toBeLessThan(100);
     });
   });

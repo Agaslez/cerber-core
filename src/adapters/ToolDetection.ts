@@ -84,8 +84,7 @@ function getCommandPrefix(): string {
  * Handles platform-specific execution (PowerShell vs bash)
  */
 function executeCommand(command: string, args: string[] = []): string {
-  try {
-    let fullCommand: string;
+  let fullCommand: string;
 
     if (isWindows()) {
       // Windows: use cmd with quoted command
@@ -103,9 +102,6 @@ function executeCommand(command: string, args: string[] = []): string {
     }).trim();
 
     return output;
-  } catch (error) {
-    throw error;
-  }
 }
 
 /**

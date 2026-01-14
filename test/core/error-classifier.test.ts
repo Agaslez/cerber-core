@@ -1,7 +1,7 @@
 import { describe, expect, it } from '@jest/globals';
 import { ErrorClassifier } from '../../src/core/error-classifier.js';
 
-describe('ErrorClassifier', () => {
+describe('@fast ErrorClassifier', () => {
   describe('classify()', () => {
     it('should classify ENOENT as not_found with exitCode 127', () => {
       const error = new Error('ENOENT: no such file or directory');

@@ -5,7 +5,7 @@
 
 import { ToolDetector } from '../src/tools/ToolDetector.js';
 
-describe('COMMIT 3: Tool Detection', () => {
+describe('@fast COMMIT 3: Tool Detection', () => {
   let detector: ToolDetector;
 
   beforeEach(() => {

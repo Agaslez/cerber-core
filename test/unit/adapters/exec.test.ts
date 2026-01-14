@@ -13,7 +13,7 @@ import {
     normalizeExitCode,
 } from '../../../src/adapters/_shared/exec.js';
 
-describe('exec utilities', () => {
+describe('@fast exec utilities', () => {
   describe('executeCommand', () => {
     it('should execute successful command', async () => {
       const result = await executeCommand('node', ['--version']);

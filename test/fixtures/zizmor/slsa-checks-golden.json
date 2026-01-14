@@ -1,0 +1,18 @@
+[
+  {
+    "file": ".github/workflows/release.yml",
+    "line": 0,
+    "column": 0,
+    "ruleId": "pinned-checkout",
+    "severity": "warning",
+    "message": "checkout action not pinned to commit hash"
+  },
+  {
+    "file": ".github/workflows/release.yml",
+    "line": 0,
+    "column": 0,
+    "ruleId": "pinned-dependencies",
+    "severity": "warning",
+    "message": "npm install allows unpinned dependencies"
+  }
+]

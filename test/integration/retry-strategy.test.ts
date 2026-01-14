@@ -2,7 +2,7 @@ import { describe, expect, it } from '@jest/globals';
 import { FibonacciBackoffStrategy, LinearBackoffStrategy } from '../../src/core/retry-strategy.js';
 import { retry } from '../../src/core/retry.js';
 
-describe('Integration: Retry with Custom Strategies', () => {
+describe('@integration Integration: Retry with Custom Strategies', () => {
   it('should use linear backoff strategy', async () => {
     let attempts = 0;
     const delays: number[] = [];

@@ -15,7 +15,7 @@ import { afterEach, beforeEach, describe, expect, it } from '@jest/globals';
 import fs from 'fs/promises';
 import { join } from 'path';
 
-describe('Timeout Enforcement & Race Conditions', () => {
+describe('@integration Timeout Enforcement & Race Conditions', () => {
   let tempDir: string;
 
   beforeEach(async () => {

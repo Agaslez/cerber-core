@@ -11,6 +11,9 @@
 
 import chalk from 'chalk';
 import { program } from 'commander';
+import { createRequire } from 'module';
+
+const require = createRequire(import.meta.url);
 
 program
   .name('cerber')
@@ -173,6 +176,23 @@ program
     process.exit(result.exitCode);
   });
 
-program.parse();
+// Hidden test command: long-running process for signal testing
+program
+  .command('_signals-test')
+  .description('[INTERNAL] Signal handling test command for E2E tests')
+  .action(async () => {
+    const { registerSignalHandlers } = await import('../dist/core/process-cleanup.js');
+    
+    // Signal readiness
+    console.log('READY');
+    console.error(`[${new Date().toISOString()}] [DEBUG] READY flushed, handlers registered`);
+    
+    // Register signal handlers (SIGINT/SIGTERM)
+    registerSignalHandlers();
+    
+    // Keep process alive until signal received
+    await new Promise(() => {}); // Never resolves - waits for SIGINT/SIGTERM
+  });
 
 program.parse();
+

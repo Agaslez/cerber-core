@@ -17,4 +17,13 @@ module.exports = {
     }],
   },
   extensionsToTreatAsEsm: ['.ts'],
+  
+  // Support for test tags (@fast, @integration, @e2e, @signals)
+  // Usage: npm run test:fast   (runs only @fast tests)
+  testNamePattern: process.env.CERBER_TEST_TAG
+    ? process.env.CERBER_TEST_TAG
+    : undefined,
+  
+  // Increase timeout for heavy tests
+  maxWorkers: process.env.CI ? '50%' : 'auto',
 };

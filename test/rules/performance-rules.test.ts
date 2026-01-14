@@ -10,7 +10,7 @@ import { describe, expect, it } from '@jest/globals';
 import { RuleManager } from '../../src/rules/index';
 import type { WorkflowAST } from '../../src/semantic/SemanticComparator';
 
-describe('Performance Rules', () => {
+describe('@fast Performance Rules', () => {
   describe('performance/avoid-unnecessary-checkout', () => {
     it('should detect multiple checkout steps in same job', async () => {
       const workflow: WorkflowAST = {

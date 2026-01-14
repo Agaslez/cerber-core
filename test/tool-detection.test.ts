@@ -15,7 +15,7 @@ import {
     ToolInfo
 } from '../src/adapters/ToolDetection';
 
-describe('Tool Detection (COMMIT-3)', () => {
+describe('@fast Tool Detection (COMMIT-3)', () => {
   describe('Single Tool Detection', () => {
     test('should detect node (always available in test environment)', () => {
       const result = detectTool('node');

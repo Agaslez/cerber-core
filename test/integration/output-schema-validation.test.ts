@@ -9,7 +9,7 @@ import { existsSync, readFileSync } from 'fs';
 import fs from 'fs/promises';
 import { join } from 'path';
 
-describe('Output JSON Schema Validation', () => {
+describe('@integration Output JSON Schema Validation', () => {
   let schema: any;
   let tempDir: string;
 

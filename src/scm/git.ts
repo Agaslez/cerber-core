@@ -23,7 +23,7 @@ export class GitSCM {
         .split('\n')
         .map((line: string) => line.trim())
         .filter(Boolean);
-    } catch (error) {
+    } catch {
       // Not a git repo or git not available
       return [];
     }
@@ -87,7 +87,7 @@ export class GitSCM {
         // merge-base also failed, return all files
         return this.getTrackedFiles();
       }
-    } catch (error) {
+    } catch {
       // git diff failed (origin/<baseBranch> doesn't exist)
       // Fallback: return all tracked files
       return this.getTrackedFiles();
@@ -113,7 +113,7 @@ export class GitSCM {
         .split('\n')
         .map((line: string) => line.trim())
         .filter(Boolean);
-    } catch (error) {
+    } catch {
       // Not a git repo
       return [];
     }
@@ -146,7 +146,7 @@ export class GitSCM {
         cwd: this.cwd,
       });
       return stdout.trim();
-    } catch (error) {
+    } catch {
       // Fallback to cwd if not in a repo
       return this.cwd;
     }
@@ -164,7 +164,7 @@ export class GitSCM {
         cwd: this.cwd,
       });
       return stdout.trim();
-    } catch (error) {
+    } catch {
       return 'unknown';
     }
   }
@@ -186,7 +186,7 @@ export class GitSCM {
         .map((line: string) => line.trim())
         .filter(Boolean)
         .map((line: string) => line.replace(/^\*?\s+/, '')); // Remove * prefix and whitespace
-    } catch (error) {
+    } catch {
       return [];
     }
   }

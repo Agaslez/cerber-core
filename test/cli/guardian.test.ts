@@ -5,7 +5,7 @@ import { tmpdir } from 'os';
 import { resolve } from 'path';
 import { getStagedFiles, runGuardian } from '../../src/cli/guardian.js';
 
-describe('Guardian Fast Mode', () => {
+describe('@e2e @cli Guardian Fast Mode', () => {
   let tempDir: string;
 
   beforeEach(() => {

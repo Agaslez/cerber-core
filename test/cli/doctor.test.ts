@@ -4,7 +4,7 @@ import { tmpdir } from 'os';
 import { resolve } from 'path';
 import { getDoctorToolStatus, printDoctorReport, runDoctor } from '../../src/cli/doctor.js';
 
-describe('Doctor Command', () => {
+describe('@e2e @cli Doctor Command', () => {
   let tempDir: string;
 
   beforeEach(() => {

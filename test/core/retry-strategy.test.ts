@@ -6,7 +6,7 @@ import {
     LinearBackoffStrategy,
 } from '../../src/core/retry-strategy.js';
 
-describe('RetryStrategy', () => {
+describe('@fast RetryStrategy', () => {
   describe('ExponentialBackoffStrategy', () => {
     it('should calculate exponential delays', () => {
       const strategy = new ExponentialBackoffStrategy(100, 10000, 2, 0);

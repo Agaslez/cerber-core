@@ -52,7 +52,7 @@ class MockAdapter {
   }
 }
 
-describe('Resilience Integration', () => {
+describe('@fast Resilience Integration', () => {
   describe('executeResilientAdapter', () => {
     it('returns success for working adapter', async () => {
       const adapter = new MockAdapter('test-adapter') as any;
@@ -65,7 +65,7 @@ describe('Resilience Integration', () => {
       expect(result.success).toBe(true);
       expect(result.adapter).toBe('test-adapter');
       expect(result.result).toBeDefined();
-      expect(result.duration).toBeGreaterThan(0);
+      expect(result.duration).toBeGreaterThanOrEqual(0); // Allow 0 if execution is very fast
     });
     
     it('retries on transient failures', async () => {

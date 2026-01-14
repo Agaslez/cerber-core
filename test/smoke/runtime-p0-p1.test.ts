@@ -14,7 +14,7 @@ import { sanitizePath } from '../../src/core/security.js';
 
 const log = createLogger({ name: 'smoke-test' });
 
-describe('Runtime Smoke Tests - P0 Observability', () => {
+describe('@integration Runtime Smoke Tests - P0 Observability', () => {
   let orchestrator: Orchestrator;
   let testDir: string;
   let validWorkflow: string;

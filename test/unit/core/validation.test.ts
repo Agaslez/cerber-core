@@ -18,7 +18,7 @@ import {
     validateOrchestratorOptions
 } from '../../../src/core/validation.js';
 
-describe('Validation', () => {
+describe('@fast Validation', () => {
   describe('FilePathSchema', () => {
     it('should accept valid file paths', () => {
       expect(() => FilePathSchema.parse('/path/to/file.txt')).not.toThrow();

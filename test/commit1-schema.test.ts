@@ -9,7 +9,7 @@ import { readFileSync } from 'fs';
 import { join } from 'path';
 import type { OrchestratorResult } from '../src/core/types.js';
 
-describe('COMMIT 1: Schema Consistency', () => {
+describe('@fast COMMIT 1: Schema Consistency', () => {
   let ajv: Ajv;
   
   beforeAll(() => {

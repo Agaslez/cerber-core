@@ -9,7 +9,7 @@
 import { ContractValidator } from '../../src/contracts/ContractValidator';
 import type { Contract } from '../../src/contracts/types';
 
-describe('ContractValidator', () => {
+describe('@e2e ContractValidator', () => {
   let validator: ContractValidator;
 
   beforeEach(() => {
