@@ -179,15 +179,20 @@ program
 // Hidden test command: long-running process for signal testing
 program
   .command('_signals-test')
-  .description('[TEST ONLY] Signal handling test - requires CERBER_TEST_MODE=1')
+  .description('[INTERNAL] Signal handling test command for E2E tests')
   .action(async () => {
-    try {
-      const signalsTest = require('../dist/cli/signals-test.js');
-      await signalsTest.runSignalsTest();
-    } catch (err) {
-      process.stderr.write(`ERROR: Failed to load _signals-test: ${String(err)}\n`);
-      process.exit(1);
-    }
+    const { registerSignalHandlers } = await import('../dist/core/process-cleanup.js');
+    
+    // Signal readiness
+    console.log('READY');
+    console.error(`[${new Date().toISOString()}] [DEBUG] READY flushed, handlers registered`);
+    
+    // Register signal handlers (SIGINT/SIGTERM)
+    registerSignalHandlers();
+    
+    // Keep process alive until signal received
+    await new Promise(() => {}); // Never resolves - waits for SIGINT/SIGTERM
   });
 
 program.parse();
+
