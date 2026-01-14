@@ -375,6 +375,18 @@ jobs:
           cp -R /tmp/cerber-e2e-team/. /tmp/cerber-artifacts/
           ls -la /tmp/cerber-artifacts | head -200
 
+      - name: E2E Signal Handling Tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/cerber-e2e-team
+          
+          echo "Running E2E signal handling tests..."
+          npm run build
+          npm test -- test/e2e/cli-signals-refactored.test.ts
+          
+          echo "Signal handling E2E tests passed"
+
       - name: Upload E2E artifacts
         uses: actions/upload-artifact@v4
         with:
