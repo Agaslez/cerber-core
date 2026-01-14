@@ -178,8 +178,13 @@ program
   .command('_signals-test')
   .description('[TEST ONLY] Signal handling test - requires CERBER_TEST_MODE=1')
   .action(async () => {
-    const { runSignalsTest } = await import('../dist/cli/signals-test.js');
-    await runSignalsTest();
+    try {
+      const { runSignalsTest } = await import('../dist/cli/signals-test.js');
+      await runSignalsTest();
+    } catch (err) {
+      process.stderr.write(`ERROR: Failed to load _signals-test: ${String(err)}\n`);
+      process.exit(1);
+    }
   });
 
 program.parse();
