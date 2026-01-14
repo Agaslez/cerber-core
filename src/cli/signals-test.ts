@@ -65,14 +65,15 @@ export function runSignalsTest(): void {
         
         // CRITICAL: uncork() flushes the corked writes atomically
         process.stdout.uncork();
-        process.stderr.write(`[DEBUG] Step 4b: uncork() called - buffer will flush\n`);
+        process.stderr.write(`[DEBUG] Step 4b: uncork() called - buffer flushing...\n`);
         
-        // Step 5: Exit AFTER uncork to allow flush
-        process.stderr.write(`[DEBUG] Step 5: Scheduling exit via setImmediate\n`);
-        setImmediate(() => {
-          process.stderr.write(`[DEBUG] Step 5b: setImmediate fired - calling process.exit(0)\n`);
+        // Step 5: Exit AFTER uncork with 50ms delay to ensure flush completes
+        // setTimeout(50) is more reliable than setImmediate for giving OS time to flush
+        process.stderr.write(`[DEBUG] Step 5: Scheduling exit via setTimeout(50)\n`);
+        setTimeout(() => {
+          process.stderr.write(`[DEBUG] Step 5b: setTimeout(50) fired - calling process.exit(0)\n`);
           process.exit(0);
-        });
+        }, 50);
       }, 100);
     } catch (e) {
       process.stderr.write(`CLEANUP_ERROR: ${String(e)}\n`);
