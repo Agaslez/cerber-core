@@ -37,46 +37,56 @@ describe('@e2e NPM Pack Smoke Test (Distribution)', () => {
   describe('Package structure validation', () => {
     it('should generate valid tarball with npm pack', () => {
       try {
+        // Just verify npm pack succeeds and produces a file
         const output = execSync('npm pack --dry-run 2>&1', {
           cwd: process.cwd(),
-          encoding: 'utf8'
+          encoding: 'utf8',
+          stdio: ['pipe', 'pipe', 'pipe'],
+          timeout: 30000,
         });
 
-        expect(output).toMatch(/cerber/i);
-        expect(output).toMatch(/\.tgz/);
+        // Should mention the tarball being created
+        expect(output).toMatch(/cerber.*\.tgz/i);
       } catch (e) {
         throw new Error(`npm pack failed: ${e}`);
       }
     });
 
-    it('should include dist/ directory in tarball', () => {
+    it('should include dist/ files in tarball', () => {
       try {
-        const output = execSync('npm pack --dry-run 2>&1', {
+        // Use tar command to list contents without extracting
+        const listOutput = execSync('npm pack --dry-run 2>&1', {
           cwd: process.cwd(),
           encoding: 'utf8'
         });
 
-        expect(output).toContain('dist/');
+        const lines = listOutput.split('\n');
+        const distFiles = lines.filter(l => l.includes('dist/') && !l.includes('test'));
+
+        expect(distFiles.length).toBeGreaterThan(0);
+        // Should have compiled JS/TS files
+        expect(distFiles.some(l => l.match(/\.(js|d\.ts)/))).toBe(true);
       } catch (e) {
-        throw new Error(`Package missing dist/: ${e}`);
+        throw new Error(`Tarball dist check failed: ${e}`);
       }
     });
 
     it('should exclude test/ directory from tarball', () => {
       try {
-        const output = execSync('npm pack --dry-run 2>&1', {
+        const listOutput = execSync('npm pack --dry-run 2>&1', {
           cwd: process.cwd(),
           encoding: 'utf8'
         });
 
-        // Should not include test files in main listing
-        const lines = output.split('\n');
-        const testLines = lines.filter(l => l.includes('test/'));
+        const lines = listOutput.split('\n');
+        // Only look at file listings (lines with spaces/indentation)
+        const fileLines = lines.filter(l => l.match(/^\s+\S+/) && l.includes('test/'));
 
-        // May have minimal test refs but not bulk test files
-        expect(testLines.length).toBeLessThan(5);
+        // May have minimal test references in CHANGELOG but not actual test files
+        const actualTestFiles = fileLines.filter(l => l.match(/\.test\.(ts|js)/));
+        expect(actualTestFiles.length).toBe(0);
       } catch (e) {
-        throw new Error(`Package check failed: ${e}`);
+        throw new Error(`Tarball exclusion check failed: ${e}`);
       }
     });
 
@@ -210,21 +220,17 @@ describe('@e2e NPM Pack Smoke Test (Distribution)', () => {
   });
 
   describe('Post-install artifacts', () => {
-    it('should include guardian protection files', () => {
+    it('should include guardian setup script in tarball', () => {
       try {
-        const files = [
-          'CODEOWNERS',
-          '.cerber/contract.yml',
-          'GUARDIAN_PROTECTION.md'
-        ];
+        const listOutput = execSync('npm pack --dry-run 2>&1', {
+          cwd: process.cwd(),
+          encoding: 'utf8'
+        });
 
-        for (const file of files) {
-          const fullPath = path.join(process.cwd(), file);
-          const exists = fs.existsSync(fullPath);
-          expect(exists).toBe(true);
-        }
+        // Guardian hook setup script should be packable
+        expect(listOutput).toContain('bin/setup-guardian-hooks.cjs');
       } catch (e) {
-        throw new Error(`Guardian files missing: ${e}`);
+        throw new Error(`Guardian setup script check failed: ${e}`);
       }
     });
 

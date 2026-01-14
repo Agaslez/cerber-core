@@ -77,6 +77,7 @@ describe("@signals CLI Signal Handling", () => {
         exitCode: number | null;
         signal: string | null;
         stdout: string;
+        stderr: string;
       }>((resolve) => {
         // Spawn long-running CLI process
         const proc = spawn(
@@ -84,7 +85,7 @@ describe("@signals CLI Signal Handling", () => {
           ["bin/cerber", "_signals-test"],
           {
             stdio: ["ignore", "pipe", "pipe"],
-            env: { ...process.env, CERBER_TEST_MODE: "1" },
+            env: { ...process.env, CERBER_TEST_MODE: "1", CI: "1" },
           }
         );
 
@@ -99,28 +100,29 @@ describe("@signals CLI Signal Handling", () => {
           stderr += data.toString();
         });
 
-        // Wait for READY signal
+        // Wait for READY signal with extended timeout for CI
         const readyTimer = setTimeout(() => {
           proc.kill("SIGKILL");
           resolve({
             exitCode: -1,
             signal: null,
-            stdout: `TIMEOUT waiting for READY. Got: ${stdout}`,
+            stdout,
+            stderr: `TIMEOUT waiting for READY. stderr: ${stderr}`
           });
-        }, 3000);
+        }, 5000); // Increased from 3s to 5s for CI
 
-        // Check for READY in output
+        // Check for READY in output with polling
         const checkReady = setInterval(() => {
           if (stdout.includes("READY")) {
             clearInterval(checkReady);
             clearTimeout(readyTimer);
 
-            // Now send SIGINT
+            // Now send SIGINT after a small delay
             setTimeout(() => {
               proc.kill("SIGINT");
-            }, 100);
+            }, 50);
           }
-        }, 10);
+        }, 5); // More frequent polling
 
         proc.on("exit", (code, signal) => {
           clearInterval(checkReady);
@@ -129,9 +131,30 @@ describe("@signals CLI Signal Handling", () => {
             exitCode: code,
             signal,
             stdout,
+            stderr,
+          });
+        });
+
+        // Handle errors from spawn
+        proc.on("error", (err) => {
+          clearInterval(checkReady);
+          clearTimeout(readyTimer);
+          resolve({
+            exitCode: null,
+            signal: null,
+            stdout,
+            stderr: `Spawn error: ${err.message}`,
           });
         });
       });
+
+      // Enhanced diagnostics: Show what we got if test fails
+      if (!result.stdout.includes("READY")) {
+        console.error("❌ READY not found");
+        console.error(`exitCode: ${result.exitCode}, signal: ${result.signal}`);
+        console.error(`stdout: ${result.stdout}`);
+        console.error(`stderr: ${result.stderr}`);
+      }
 
       // Should exit cleanly
       expect([0, null]).toContain(result.exitCode);
@@ -150,12 +173,12 @@ describe("@signals CLI Signal Handling", () => {
         ["bin/cerber", "_signals-test"],
         {
           stdio: "pipe",
-          env: { ...process.env, CERBER_TEST_MODE: "1" },
+          env: { ...process.env, CERBER_TEST_MODE: "1", CI: "1" },
         }
       );
 
       // Wait for READY and kill
-      await waitForOutput(proc, "READY", 3000).catch(() => {
+      await waitForOutput(proc, "READY", 5000).catch(() => {
         // Ignore timeout, just proceed with kill
       });
 
@@ -183,17 +206,26 @@ describe("@signals CLI Signal Handling", () => {
         ["bin/cerber", "_signals-test"],
         {
           stdio: ["ignore", "pipe", "pipe"],
-          env: { ...process.env, CERBER_TEST_MODE: "1" },
+          env: { ...process.env, CERBER_TEST_MODE: "1", CI: "1" },
         }
       );
 
       let output = "";
+      let errors = "";
       proc.stdout?.on("data", (data: Buffer) => {
         output += data.toString();
       });
+      proc.stderr?.on("data", (data: Buffer) => {
+        errors += data.toString();
+      });
 
-      // Wait for READY
-      await waitForOutput(proc, "READY", 3000);
+      // Wait for READY with longer timeout
+      try {
+        await waitForOutput(proc, "READY", 5000);
+      } catch (e) {
+        console.error(`Failed to get READY. stdout: ${output}, stderr: ${errors}`);
+        throw e;
+      }
 
       // Send SIGINT
       proc.kill("SIGINT");
@@ -203,6 +235,7 @@ describe("@signals CLI Signal Handling", () => {
         await waitForOutput(proc, "CLEANUP_DONE", 5000);
       } catch (e) {
         proc.kill("SIGKILL");
+        console.error(`Failed to get CLEANUP_DONE. stdout: ${output}, stderr: ${errors}`);
         throw e;
       }
 
@@ -227,12 +260,13 @@ describe("@signals CLI Signal Handling", () => {
           ["bin/cerber", "_signals-test"],
           {
             stdio: "pipe",
-            env: { ...process.env, CERBER_TEST_MODE: "1" },
+            env: { ...process.env, CERBER_TEST_MODE: "1", CI: "1" },
           }
         );
 
         // Wait for READY then send SIGTERM
         let readyFound = false;
+        let stderr = "";
         proc.stdout?.on("data", (data: Buffer) => {
           if (!readyFound && data.toString().includes("READY")) {
             readyFound = true;
@@ -242,16 +276,21 @@ describe("@signals CLI Signal Handling", () => {
           }
         });
 
+        proc.stderr?.on("data", (data: Buffer) => {
+          stderr += data.toString();
+        });
+
         proc.on("exit", () => {
           resolve(Date.now() - start);
         });
 
-        // Safety: if READY never comes, timeout
+        // Safety: if READY never comes, timeout with diagnostics
         setTimeout(() => {
           if (!readyFound) {
+            console.error(`SIGTERM test: READY not found. stderr: ${stderr}`);
             proc.kill("SIGKILL");
           }
-        }, 3000);
+        }, 5000);
       });
 
       // Should exit within 2 seconds
@@ -268,12 +307,12 @@ describe("@signals CLI Signal Handling", () => {
         ["bin/cerber", "_signals-test"],
         {
           stdio: "pipe",
-          env: { ...process.env, CERBER_TEST_MODE: "1" },
+          env: { ...process.env, CERBER_TEST_MODE: "1", CI: "1" },
         }
       );
 
-      // Wait for READY
-      await waitForOutput(proc, "READY", 3000);
+      // Wait for READY with longer timeout
+      await waitForOutput(proc, "READY", 5000);
 
       // Send SIGTERM
       proc.kill("SIGTERM");
