@@ -1,4 +1,4 @@
-# PR #62 Evidence & Verification
++# PR #62 Evidence & Verification
 
 **Date**: January 13, 2026  
 **PR**: https://github.com/Agaslez/cerber-core/pull/62  

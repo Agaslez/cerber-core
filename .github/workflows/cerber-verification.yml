@@ -62,6 +62,8 @@ jobs:
 
       - name: Unit tests
         run: npm test
+        env:
+          CERBER_TEST_MODE: '1'
 
   pack_tarball:
     name: Pack (npm pack)
