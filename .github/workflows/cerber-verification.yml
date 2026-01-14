@@ -61,7 +61,7 @@ jobs:
         run: npm run build
 
       - name: Unit tests
-        run: npm test
+        run: npm test -- --runInBand
         env:
           CERBER_TEST_MODE: '1'
 

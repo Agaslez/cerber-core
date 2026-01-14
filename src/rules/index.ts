@@ -253,7 +253,7 @@ function createNoWildcardTriggersRule(): Rule {
       const violations: Violation[] = [];
 
       if (workflow.on) {
-        const checkWildcard = (obj: unknown, path: string) => {
+        const checkWildcard = (obj: unknown, path: string): void => {
           if (Array.isArray(obj) && obj.includes('*')) {
             violations.push({
               level: 'semantic',
@@ -262,7 +262,7 @@ function createNoWildcardTriggersRule(): Rule {
               location: path,
               suggestion: `Specify explicit branches/tags instead of wildcards`
             });
-          } else if (typeof obj === 'object') {
+          } else if (obj && typeof obj === 'object') {
             for (const [key, value] of Object.entries(obj)) {
               checkWildcard(value, `${path}.${key}`);
             }

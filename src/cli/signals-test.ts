@@ -23,6 +23,9 @@ export async function runSignalsTest(): Promise<void> {
   const keepAlive = setInterval(() => {
     // do nothing - keeps event loop alive
   }, 1000);
+  
+  // Don't let this timer block process exit
+  keepAlive.unref();
 
   // Cleanup handler for SIGINT/SIGTERM
   const cleanup = async (reason: string) => {
