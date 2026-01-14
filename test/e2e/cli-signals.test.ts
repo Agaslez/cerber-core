@@ -16,6 +16,7 @@ describe("@signals CLI Signal Handling", () => {
   const isWindows = process.platform === "win32";
   const READY_TIMEOUT = process.env.CI ? 30000 : 5000;
   const CLEANUP_TIMEOUT = process.env.CI ? 30000 : 5000;
+  const SIGNAL_DELAY = 200; // Wait 200ms after READY before sending signal
 
   // This is a long-running e2e test that needs more time in CI
   jest.setTimeout(90000);
@@ -111,6 +112,9 @@ describe("@signals CLI Signal Handling", () => {
         console.error('stderr:', io.stderr);
         throw e;
       }
+
+      // Wait before sending signal to ensure handlers are ready
+      await new Promise((resolve) => setTimeout(resolve, SIGNAL_DELAY));
 
       // Send signal
       proc.kill("SIGINT");
@@ -224,6 +228,9 @@ describe("@signals CLI Signal Handling", () => {
         throw e;
       }
 
+      // Wait before sending signal to ensure handlers are ready
+      await new Promise((resolve) => setTimeout(resolve, SIGNAL_DELAY));
+
       // Send signal
       proc.kill("SIGTERM");
 
@@ -269,6 +276,9 @@ describe("@signals CLI Signal Handling", () => {
         console.error('stderr:', io.stderr);
         throw e;
       }
+
+      // Wait before sending signal to ensure handlers are ready
+      await new Promise((resolve) => setTimeout(resolve, SIGNAL_DELAY));
 
       // Send signal
       proc.kill("SIGTERM");

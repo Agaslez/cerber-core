@@ -14,42 +14,41 @@ export function runSignalsTest(): void {
   // Gate: only available in test mode
   if (process.env.CERBER_TEST_MODE !== '1') {
     process.stderr.write('❌ _signals-test is disabled (test mode only)\n');
-    process.exit(2); // 2 = blocker/forbidden
+    process.exit(2);
   }
 
-  // Keep process alive until a signal arrives
-  // This is critical: without keepAlive, GitHub runners can kill the process
-  // because the event loop appears idle
+  // Keep process alive
   const keepAlive = setInterval(() => {
     // do nothing - keeps event loop alive
   }, 100);
-  
-  // Don't let this timer block process exit
   keepAlive.unref();
 
-  // Safety timeout setup
+  // Safety timeout - prevent hanging forever
   const safetyTimeout = setTimeout(() => {
     process.stdout.write('SAFETY_TIMEOUT_REACHED\n');
     process.exit(0);
   }, 60000);
   safetyTimeout.unref();
 
-  // Cleanup handler for SIGINT/SIGTERM - MUST BE SYNC to guarantee execution
-  const cleanup = (reason: string): void => {
+  // Cleanup handler - ASYNC to properly handle signal completion
+  const cleanup = async (reason: string): Promise<void> => {
     try {
-      // Signal received - must flush immediately
+      // Step 1: Log signal received
       process.stdout.write(`${reason}\n`);
+      
+      // Step 2: Clear timers
       clearInterval(keepAlive);
       clearTimeout(safetyTimeout);
 
-      // Cleanup operations
+      // Step 3: Simulate cleanup work (100ms)
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      
+      // Step 4: Log cleanup done
       process.stdout.write('CLEANUP_DONE\n');
       
-      // CRITICAL: Wait longer to ensure stdout buffer flushes completely
-      // 100ms is minimum on CI to guarantee flush
-      setTimeout(() => {
-        process.exit(0);
-      }, 100);
+      // Step 5: Exit after another 100ms to ensure flush
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      process.exit(0);
     } catch (e) {
       process.stderr.write(`CLEANUP_ERROR: ${String(e)}\n`);
       clearInterval(keepAlive);
@@ -58,20 +57,21 @@ export function runSignalsTest(): void {
     }
   };
 
-  // Signal ready to receive signals - IMMEDIATELY and guaranteed
-  // Write READY synchronously with callback to ensure flush
-  process.stdout.write('READY\n', () => {
-    // READY is flushed, signal handlers now registered
+  // Write READY immediately
+  process.stdout.write('READY\n');
+
+  // Register signal handlers with proper async handling
+  process.on('SIGINT', () => {
+    cleanup('SIGINT_RECEIVED').catch(() => process.exit(1));
+  });
+  
+  process.on('SIGTERM', () => {
+    cleanup('SIGTERM_RECEIVED').catch(() => process.exit(1));
   });
 
-  // Register signal handlers (using on, not once, for robustness)
-  process.on('SIGINT', () => cleanup('SIGINT_RECEIVED'));
-  process.on('SIGTERM', () => cleanup('SIGTERM_RECEIVED'));
-
-  // For the "handle errors during cleanup" test (if you use env toggle)
+  // For test that triggers cleanup failure
   if (process.env.CERBER_SIGNAL_TEST_FAIL_CLEANUP === '1') {
     process.once('SIGUSR1', () => {
-      // force error path deterministically
       throw new Error('FORCED_CLEANUP_ERROR');
     });
   }
