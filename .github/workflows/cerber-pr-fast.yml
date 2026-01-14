@@ -39,15 +39,25 @@ jobs:
         env:
           CERBER_TEST_MODE: "1"
 
+  cerber_integrity:
+    name: Cerber Integrity (Protected Files)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history to compare against main
+      - run: node bin/cerber-integrity.cjs
+
   pr_summary:
     name: PR Summary
     runs-on: ubuntu-latest
-    needs: [lint_and_typecheck, build_and_test]
+    needs: [lint_and_typecheck, build_and_test, cerber_integrity]
     if: always()
     steps:
       - run: |
           if [[ "${{ needs.lint_and_typecheck.result }}" != "success" ]] || \
-             [[ "${{ needs.build_and_test.result }}" != "success" ]]; then
+             [[ "${{ needs.build_and_test.result }}" != "success" ]] || \
+             [[ "${{ needs.cerber_integrity.result }}" != "success" ]]; then
             echo "❌ Fast gate failed"
             exit 1
           fi

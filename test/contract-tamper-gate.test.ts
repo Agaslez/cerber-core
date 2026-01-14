@@ -6,7 +6,7 @@
  * This is an "anti-bypass" mechanism for Cerber's One Truth policy.
  */
 
-import { readFileSync, existsSync } from 'fs';
+import { existsSync, readFileSync } from 'fs';
 import { join } from 'path';
 
 describe('@fast Contract Tamper Gate', () => {
@@ -128,10 +128,8 @@ describe('@fast Contract Tamper Gate', () => {
         
         if (stats.mtimeMs > twoMinutesAgo) {
           // Workflow was recently modified
-          expect(proof).toContain(
-            'OWNER_APPROVED: YES',
-            `Workflow ${workflow} modified without owner approval in PROOF.md`
-          );
+          expect(proof).toContain('OWNER_APPROVED: YES');
+          expect(proof).toContain('OWNER_APPROVED: YES'); // Workflow modified
         }
       }
     }
@@ -154,10 +152,7 @@ describe('@fast Contract Tamper Gate', () => {
 
       if (stats.mtimeMs > twoMinutesAgo) {
         // package.json was recently modified
-        expect(proof).toContain(
-          'OWNER_APPROVED: YES',
-          'package.json modified without owner approval'
-        );
+        expect(proof).toContain('OWNER_APPROVED: YES');
       }
     }
   });

@@ -1,0 +1,27 @@
+# Code owners for Cerber One Truth infrastructure
+# Changes to protected files require approval from codeowners
+
+# One Truth contract and policy
+CERBER.md @owner
+.cerber/ @owner
+.github/workflows/ @owner
+
+# Critical dependencies
+package.json @owner
+package-lock.json @owner
+
+# CLI entry points  
+bin/ @owner
+
+# Guardian system (enforcement)
+src/guardian/ @owner
+
+# Core infrastructure
+src/core/Orchestrator.ts @owner
+src/cli/generator.ts @owner
+src/cli/drift-checker.ts @owner
+src/cli/guardian.ts @owner
+src/cli/doctor.ts @owner
+
+# Branch protection documentation
+docs/BRANCH_PROTECTION.md @owner
