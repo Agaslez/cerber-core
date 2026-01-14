@@ -18,6 +18,7 @@ describe("CLI Signal Handling", () => {
   /**
    * Helper: Wait for text in stream with timeout
    * Kills process if timeout exceeded
+   * Collects both stdout and stderr for diagnostics
    */
   async function waitForOutput(
     proc: any,
@@ -25,33 +26,40 @@ describe("CLI Signal Handling", () => {
     timeoutMs: number = 5000
   ): Promise<string> {
     return new Promise((resolve, reject) => {
-      let output = "";
+      let stdout = "";
+      let stderr = "";
+
       const timer = setTimeout(() => {
         proc.kill("SIGKILL");
         reject(
           new Error(
             `Timeout waiting for "${searchText}" after ${timeoutMs}ms.\n` +
-            `stdout: ${output}\n` +
-            `stderr: ${proc.stderr?.read?.() || ""}`
+            `stdout: ${stdout}\n` +
+            `stderr: ${stderr}`
           )
         );
       }, timeoutMs);
 
       proc.stdout?.on("data", (data: Buffer) => {
-        output += data.toString();
-        if (output.includes(searchText)) {
+        stdout += data.toString();
+        if (stdout.includes(searchText)) {
           clearTimeout(timer);
-          resolve(output);
+          resolve(stdout);
         }
+      });
+
+      proc.stderr?.on("data", (data: Buffer) => {
+        stderr += data.toString();
       });
 
       proc.on("exit", () => {
         clearTimeout(timer);
-        if (!output.includes(searchText)) {
+        if (!stdout.includes(searchText)) {
           reject(
             new Error(
               `Process exited before "${searchText}" was found.\n` +
-              `stdout: ${output}`
+              `stdout: ${stdout}\n` +
+              `stderr: ${stderr}`
             )
           );
         }
