@@ -30,25 +30,27 @@ export function runSignalsTest(): void {
   }, 60000);
   safetyTimeout.unref();
 
-  // Cleanup handler - ASYNC to properly handle signal completion
-  const cleanup = async (reason: string): Promise<void> => {
+  // Cleanup handler with guaranteed stdout flush before exit
+  const cleanup = (reason: string): void => {
     try {
-      // Step 1: Log signal received
-      process.stdout.write(`${reason}\n`);
-      
-      // Step 2: Clear timers
+      // Step 1: Clear timers immediately
       clearInterval(keepAlive);
       clearTimeout(safetyTimeout);
 
-      // Step 3: Simulate cleanup work (100ms)
-      await new Promise((resolve) => setTimeout(resolve, 100));
-      
-      // Step 4: Log cleanup done
-      process.stdout.write('CLEANUP_DONE\n');
-      
-      // Step 5: Exit after another 100ms to ensure flush
-      await new Promise((resolve) => setTimeout(resolve, 100));
-      process.exit(0);
+      // Step 2: Log signal received with guaranteed flush via callback
+      process.stdout.write(`${reason}\n`, () => {
+        // This callback fires ONLY after stdout buffer is flushed
+        
+        // Step 3: Simulate cleanup work
+        setTimeout(() => {
+          // Step 4: Log cleanup done with guaranteed flush
+          process.stdout.write('CLEANUP_DONE\n', () => {
+            // This callback fires ONLY after CLEANUP_DONE is flushed
+            // Now safe to exit
+            process.exit(0);
+          });
+        }, 100);
+      });
     } catch (e) {
       process.stderr.write(`CLEANUP_ERROR: ${String(e)}\n`);
       clearInterval(keepAlive);
@@ -57,16 +59,18 @@ export function runSignalsTest(): void {
     }
   };
 
-  // Write READY immediately
-  process.stdout.write('READY\n');
+  // Write READY immediately with guaranteed flush
+  process.stdout.write('READY\n', () => {
+    // READY is flushed, signal handlers now registered
+  });
 
-  // Register signal handlers with proper async handling
+  // Register signal handlers (synchronous, no async overhead)
   process.on('SIGINT', () => {
-    cleanup('SIGINT_RECEIVED').catch(() => process.exit(1));
+    cleanup('SIGINT_RECEIVED');
   });
   
   process.on('SIGTERM', () => {
-    cleanup('SIGTERM_RECEIVED').catch(() => process.exit(1));
+    cleanup('SIGTERM_RECEIVED');
   });
 
   // For test that triggers cleanup failure
