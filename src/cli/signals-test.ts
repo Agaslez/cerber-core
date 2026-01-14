@@ -17,50 +17,41 @@ export async function runSignalsTest(): Promise<void> {
     process.exit(2); // 2 = blocker/forbidden
   }
 
-  // Signal ready to receive signals - IMMEDIATELY and guaranteed
-  process.stdout.write('READY\n');
-  // Flush output streams to ensure READY reaches parent process
-  process.stdout.once('drain', () => {});
-
-  // Track cleanup state
-  let isCleaningUp = false;
-
-  /**
-   * Cleanup handler for SIGINT/SIGTERM
-   */
-  const cleanup = async () => {
-    if (isCleaningUp) {
-      return; // Prevent double cleanup
-    }
-    isCleaningUp = true;
-
-    process.stdout.write('SIGINT_RECEIVED\n');
-
-    // Simulate cleanup work (close connections, flush logs, etc)
-    await new Promise((resolve) => setTimeout(resolve, 100));
-
-    process.stdout.write('CLEANUP_DONE\n');
-    process.exit(0);
-  };
-
-  // Register signal handlers
-  process.on('SIGINT', cleanup);
-  process.on('SIGTERM', cleanup);
-
-  // Long-running loop (60 seconds or until interrupted)
-  let running = true;
-  const startTime = Date.now();
-
-  const interval = setInterval(() => {
-    if (!running || Date.now() - startTime > 60000) {
-      clearInterval(interval);
-      running = false;
-      process.exit(0);
-    }
+  // Keep process alive until a signal arrives
+  // This is critical: without keepAlive, GitHub runners can kill the process
+  // because the event loop appears idle
+  const keepAlive = setInterval(() => {
+    // do nothing - keeps event loop alive
   }, 1000);
 
-  // Prevent immediate exit - wait for signal
-  await new Promise(() => {
-    // Never resolves - intentional, waiting for signal or timeout
-  });
+  // Cleanup handler for SIGINT/SIGTERM
+  const cleanup = async (reason: string) => {
+    try {
+      process.stdout.write(`${reason}\n`);
+      clearInterval(keepAlive);
+
+      // Simulate cleanup / flush steps
+      process.stdout.write('CLEANUP_DONE\n');
+      process.exit(0);
+    } catch (e) {
+      process.stderr.write(`CLEANUP_ERROR: ${String(e)}\n`);
+      clearInterval(keepAlive);
+      process.exit(1);
+    }
+  };
+
+  // Signal ready to receive signals - IMMEDIATELY and guaranteed
+  process.stdout.write('READY\n');
+
+  // Register signal handlers (using once to prevent double handling)
+  process.once('SIGINT', () => void cleanup('SIGINT_RECEIVED'));
+  process.once('SIGTERM', () => void cleanup('SIGTERM_RECEIVED'));
+
+  // For the "handle errors during cleanup" test (if you use env toggle)
+  if (process.env.CERBER_SIGNAL_TEST_FAIL_CLEANUP === '1') {
+    process.once('SIGUSR1', () => {
+      // force error path deterministically
+      throw new Error('FORCED_CLEANUP_ERROR');
+    });
+  }
 }
