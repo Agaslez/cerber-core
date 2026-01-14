@@ -141,8 +141,8 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.2",
-    "@stryker-mutator/core": "^7.0.0",
-    "@stryker-mutator/typescript-checker": "^7.0.0",
+    "@stryker-mutator/core": "^9.4.0",
+    "@stryker-mutator/typescript-checker": "^9.4.0",
     "@types/jest": "^29.5.0",
     "@types/js-yaml": "^4.0.9",
     "@types/node": "^20.19.28",
