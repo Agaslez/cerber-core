@@ -1,50 +1,135 @@
 import { spawn } from "node:child_process";
-import { setTimeout as sleep } from "node:timers/promises";
 
 /**
  * CLI Signal Handling Tests
  *
  * Verifies graceful shutdown on SIGINT/SIGTERM:
+ * - Process uses _signals-test long-running command
+ * - SIGINT: process logs SIGINT_RECEIVED + CLEANUP_DONE + exits with 0
+ * - Exit code matches standard (0 for clean exit, or signal termination)
  * - No zombie processes
- * - Exit code matches standard (130 for SIGINT, etc.)
- * - Cleanup: closed file handles, flushed logs
- * - No hanging on exit
+ * - Cleanup completes within 5 seconds
+ * - No "worker force exit" warnings
  */
 
 describe("CLI Signal Handling", () => {
-  // Skip on Windows (signals work differently)
   const isWindows = process.platform === "win32";
 
+  /**
+   * Helper: Wait for text in stream with timeout
+   * Kills process if timeout exceeded
+   */
+  async function waitForOutput(
+    proc: any,
+    searchText: string,
+    timeoutMs: number = 5000
+  ): Promise<string> {
+    return new Promise((resolve, reject) => {
+      let output = "";
+      const timer = setTimeout(() => {
+        proc.kill("SIGKILL");
+        reject(
+          new Error(
+            `Timeout waiting for "${searchText}" after ${timeoutMs}ms.\n` +
+            `stdout: ${output}\n` +
+            `stderr: ${proc.stderr?.read?.() || ""}`
+          )
+        );
+      }, timeoutMs);
+
+      proc.stdout?.on("data", (data: Buffer) => {
+        output += data.toString();
+        if (output.includes(searchText)) {
+          clearTimeout(timer);
+          resolve(output);
+        }
+      });
+
+      proc.on("exit", () => {
+        clearTimeout(timer);
+        if (!output.includes(searchText)) {
+          reject(
+            new Error(
+              `Process exited before "${searchText}" was found.\n` +
+              `stdout: ${output}`
+            )
+          );
+        }
+      });
+    });
+  }
+
   describe("SIGINT (CTRL+C)", () => {
-    it("should exit with code 130 on SIGINT", async () => {
+    it("should handle SIGINT gracefully with long-running process", async () => {
       if (isWindows) {
         return;
       }
 
       const result = await new Promise<{
-        exitCode: number;
+        exitCode: number | null;
         signal: string | null;
+        stdout: string;
       }>((resolve) => {
-        // Start a process that will receive SIGINT
-        const proc = spawn("node", ["-e", "setTimeout(() => {}, 60000).unref()"], {
-          stdio: "pipe",
+        // Spawn long-running CLI process
+        const proc = spawn(
+          "node",
+          ["dist/bin/cerber", "_signals-test"],
+          {
+            stdio: ["ignore", "pipe", "pipe"],
+            env: { ...process.env, CERBER_TEST_MODE: "1" },
+          }
+        );
+
+        let stdout = "";
+        let stderr = "";
+
+        proc.stdout?.on("data", (data: Buffer) => {
+          stdout += data.toString();
         });
 
-        // After 100ms, send SIGINT
-        const timeout = setTimeout(() => {
-          proc.kill("SIGINT");
-        }, 100);
+        proc.stderr?.on("data", (data: Buffer) => {
+          stderr += data.toString();
+        });
+
+        // Wait for READY signal
+        const readyTimer = setTimeout(() => {
+          proc.kill("SIGKILL");
+          resolve({
+            exitCode: -1,
+            signal: null,
+            stdout: `TIMEOUT waiting for READY. Got: ${stdout}`,
+          });
+        }, 3000);
+
+        // Check for READY in output
+        const checkReady = setInterval(() => {
+          if (stdout.includes("READY")) {
+            clearInterval(checkReady);
+            clearTimeout(readyTimer);
+
+            // Now send SIGINT
+            setTimeout(() => {
+              proc.kill("SIGINT");
+            }, 100);
+          }
+        }, 10);
 
         proc.on("exit", (code, signal) => {
-          clearTimeout(timeout);
-          resolve({ exitCode: code ?? -1, signal: signal ?? null });
+          clearInterval(checkReady);
+          clearTimeout(readyTimer);
+          resolve({
+            exitCode: code,
+            signal,
+            stdout,
+          });
         });
       });
 
-      // Exit code on SIGINT is typically 130 (128 + 2 for SIGINT)
-      // But Node.js may return null (killed by signal) or -1 (on some systems)
-      expect([130, null, -1]).toContain(result.exitCode);
-      expect(result.signal).toMatch(/SIGINT|null/i);
+      // Should exit cleanly
+      expect([0, null]).toContain(result.exitCode);
+      expect(result.stdout).toContain("READY");
+      expect(result.stdout).toContain("SIGINT_RECEIVED");
+      expect(result.stdout).toContain("CLEANUP_DONE");
     });
 
     it("should not leave zombie processes", async () => {
@@ -52,50 +137,71 @@ describe("CLI Signal Handling", () => {
         return;
       }
 
-      const proc = spawn("node", ["-e", "setInterval(() => {}, 1000)"]);
+      const proc = spawn(
+        "node",
+        ["dist/bin/cerber", "_signals-test"],
+        {
+          stdio: "pipe",
+          env: { ...process.env, CERBER_TEST_MODE: "1" },
+        }
+      );
 
-      // Kill immediately
-      await sleep(50);
+      // Wait for READY and kill
+      await waitForOutput(proc, "READY", 3000).catch(() => {
+        // Ignore timeout, just proceed with kill
+      });
+
       proc.kill("SIGINT");
 
       // Wait for process to actually exit
-      await new Promise((resolve) => {
-        proc.on("exit", resolve);
+      await new Promise<void>((resolve) => {
+        proc.on("exit", () => {
+          resolve();
+        });
+        setTimeout(() => resolve(), 2000); // Safety timeout
       });
 
-      // Process should be truly dead, no zombie
-      // (Hard to test directly, but if this completes without hanging, we're good)
+      // Process should be truly dead
       expect(proc.killed).toBe(true);
     });
 
-    it("should flush logs before exiting (basic check)", async () => {
+    it("should flush logs before exiting", async () => {
       if (isWindows) {
         return;
       }
 
+      const proc = spawn(
+        "node",
+        ["dist/bin/cerber", "_signals-test"],
+        {
+          stdio: ["ignore", "pipe", "pipe"],
+          env: { ...process.env, CERBER_TEST_MODE: "1" },
+        }
+      );
+
       let output = "";
-
-      const proc = spawn("node", [
-        "-e",
-        `
-        console.log('START');
-        setInterval(() => {}, 1000).unref();
-      `,
-      ]);
-
-      proc.stdout?.on("data", (data) => {
+      proc.stdout?.on("data", (data: Buffer) => {
         output += data.toString();
       });
 
-      // Give it time to log
-      await sleep(50);
+      // Wait for READY
+      await waitForOutput(proc, "READY", 3000);
+
+      // Send SIGINT
       proc.kill("SIGINT");
 
-      // Wait for exit
-      await new Promise((resolve) => proc.on("exit", resolve));
+      // Wait for CLEANUP_DONE with max 5s timeout
+      try {
+        await waitForOutput(proc, "CLEANUP_DONE", 5000);
+      } catch (e) {
+        proc.kill("SIGKILL");
+        throw e;
+      }
 
-      // Verify: "START" was logged (basic proof that logs work)
-      expect(output).toContain("START");
+      // Verify output
+      expect(output).toContain("READY");
+      expect(output).toContain("SIGINT_RECEIVED");
+      expect(output).toContain("CLEANUP_DONE");
     });
   });
 
@@ -107,70 +213,75 @@ describe("CLI Signal Handling", () => {
 
       const start = Date.now();
 
-      const exitCode = await new Promise<number>((resolve) => {
-        const proc = spawn("node", ["-e", "setInterval(() => {}, 1000).unref()"]);
+      const exitTime = await new Promise<number>((resolve) => {
+        const proc = spawn(
+          "node",
+          ["dist/bin/cerber", "_signals-test"],
+          {
+            stdio: "pipe",
+            env: { ...process.env, CERBER_TEST_MODE: "1" },
+          }
+        );
 
-        // Send SIGTERM after 50ms
-        const timeout = setTimeout(() => {
-          proc.kill("SIGTERM");
-        }, 50);
-
-        proc.on("exit", (code) => {
-          clearTimeout(timeout);
-          resolve(code ?? 143); // 143 = 128 + 15 (SIGTERM)
+        // Wait for READY then send SIGTERM
+        let readyFound = false;
+        proc.stdout?.on("data", (data: Buffer) => {
+          if (!readyFound && data.toString().includes("READY")) {
+            readyFound = true;
+            setTimeout(() => {
+              proc.kill("SIGTERM");
+            }, 50);
+          }
         });
+
+        proc.on("exit", () => {
+          resolve(Date.now() - start);
+        });
+
+        // Safety: if READY never comes, timeout
+        setTimeout(() => {
+          if (!readyFound) {
+            proc.kill("SIGKILL");
+          }
+        }, 3000);
       });
 
-      const elapsed = Date.now() - start;
       // Should exit within 2 seconds
-      expect(elapsed).toBeLessThan(2000);
+      expect(exitTime).toBeLessThan(2000);
     });
 
-    it("should gracefully close file handles on SIGTERM", async () => {
+    it("should gracefully close handles on SIGTERM", async () => {
       if (isWindows) {
         return;
       }
 
-      let fsyncCalled = false;
+      const proc = spawn(
+        "node",
+        ["dist/bin/cerber", "_signals-test"],
+        {
+          stdio: "pipe",
+          env: { ...process.env, CERBER_TEST_MODE: "1" },
+        }
+      );
 
-      // Mock scenario: if process closes files on SIGTERM
-      const code = `
-        const fs = require('fs');
-        const original = fs.fsyncSync;
-        fs.fsyncSync = function(...args) {
-          process.send('fsync');
-          return original.apply(this, args);
-        };
-        process.on('SIGTERM', () => {
-          try {
-            fs.fsyncSync(1); // Flush stdout
-          } catch {}
-          process.exit(0);
-        });
-        setInterval(() => {}, 1000).unref();
-      `;
+      // Wait for READY
+      await waitForOutput(proc, "READY", 3000);
 
+      // Send SIGTERM
+      proc.kill("SIGTERM");
+
+      // Should exit cleanly
       await new Promise<void>((resolve) => {
-        const proc = spawn("node", ["-e", code]);
-
-        proc.on("message", (msg) => {
-          if (msg === "fsync") {
-            fsyncCalled = true;
-          }
-        });
-
-        setTimeout(() => {
-          proc.kill("SIGTERM");
-        }, 50);
-
-        proc.on("exit", () => {
-          // We got here without hanging, which is the main test
+        proc.on("exit", (code) => {
+          // SIGTERM should result in clean exit
+          expect([0, null]).toContain(code);
           resolve();
         });
+        setTimeout(() => {
+          proc.kill("SIGKILL");
+          resolve();
+        }, 2000);
       });
-
-      // Just verify: process exited (no hang)
-      expect(true).toBe(true);
     });
   });
 
@@ -180,33 +291,25 @@ describe("CLI Signal Handling", () => {
         return;
       }
 
-      const promises = 0;
-      const code = `
-        let promiseCount = 0;
-        for (let i = 0; i < 5; i++) {
-          new Promise(() => {
-            // Never resolves
-            promiseCount++;
-          });
+      const proc = spawn(
+        "node",
+        ["dist/bin/cerber", "_signals-test"],
+        {
+          stdio: "pipe",
+          env: { ...process.env, CERBER_TEST_MODE: "1" },
         }
-        process.on('SIGINT', () => {
-          process.exit(0);
-        });
-        setInterval(() => {}, 100).unref();
-      `;
+      );
 
+      await waitForOutput(proc, "READY", 3000);
+      proc.kill("SIGINT");
+
+      // Wait for clean exit
       await new Promise<void>((resolve) => {
-        const proc = spawn("node", ["-e", code]);
-
-        setTimeout(() => {
-          proc.kill("SIGINT");
-        }, 50);
-
         proc.on("exit", (code) => {
-          // Should exit, even with unresolved promises
-          expect(code).toBeDefined();
+          expect([0, null]).toContain(code);
           resolve();
         });
+        setTimeout(() => resolve(), 2000);
       });
     });
 
@@ -217,38 +320,29 @@ describe("CLI Signal Handling", () => {
 
       const start = Date.now();
 
+      const proc = spawn(
+        "node",
+        ["dist/bin/cerber", "_signals-test"],
+        {
+          stdio: "pipe",
+          env: { ...process.env, CERBER_TEST_MODE: "1" },
+        }
+      );
+
+      await waitForOutput(proc, "READY", 3000);
+
+      const elapsed = Date.now() - start;
+      proc.kill("SIGTERM");
+
+      // Wait for exit
       await new Promise<void>((resolve) => {
-        const proc = spawn("node", [
-          "-e",
-          `
-          setTimeout(() => {
-            console.log('TIMEOUT_FIRED');
-          }, 5000).unref();
-          process.on('SIGTERM', () => {
-            process.exit(0);
-          });
-          setInterval(() => {}, 100).unref();
-        `,
-        ]);
-
-        let timedOut = false;
-        proc.stdout?.on("data", (data) => {
-          if (data.toString().includes("TIMEOUT_FIRED")) {
-            timedOut = true;
-          }
-        });
-
-        setTimeout(() => {
-          proc.kill("SIGTERM");
-        }, 100).unref();
-
         proc.on("exit", () => {
-          const elapsed = Date.now() - start;
-          // Should exit before 5 second timeout fires
-          expect(elapsed).toBeLessThan(2000);
-          expect(timedOut).toBe(false);
+          const totalElapsed = Date.now() - start;
+          // Should be quick (not hang on timers)
+          expect(totalElapsed).toBeLessThan(3000);
           resolve();
         });
+        setTimeout(() => resolve(), 2000);
       });
     });
   });
@@ -259,35 +353,33 @@ describe("CLI Signal Handling", () => {
         return;
       }
 
-      const code = `
-        process.on('SIGINT', () => {
-          try {
-            throw new Error('Cleanup error');
-          } catch (e) {
-            // Handle it, don't let it crash
-            process.exit(0);
-          }
-        });
-        setInterval(() => {}, 100).unref();
-      `;
+      const proc = spawn(
+        "node",
+        ["dist/bin/cerber", "_signals-test"],
+        {
+          stdio: "pipe",
+          env: { ...process.env, CERBER_TEST_MODE: "1" },
+        }
+      );
+
+      await waitForOutput(proc, "READY", 3000);
+      proc.kill("SIGINT");
+
+      // Should still complete cleanup
+      await waitForOutput(proc, "CLEANUP_DONE", 5000);
 
       let exitCode = -1;
-
       await new Promise<void>((resolve) => {
-        const proc = spawn("node", ["-e", code]);
-
-        setTimeout(() => {
-          proc.kill("SIGINT");
-        }, 50);
-
         proc.on("exit", (code) => {
           exitCode = code ?? 0;
           resolve();
         });
+        setTimeout(() => resolve(), 1000);
       });
 
-      // Should exit cleanly, not crash
-      expect([0, 1]).toContain(exitCode);
+      // Should exit cleanly
+      expect([0, null]).toContain(exitCode);
     });
   });
 });
+

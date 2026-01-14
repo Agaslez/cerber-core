@@ -173,6 +173,52 @@ program
     process.exit(result.exitCode);
   });
 
+// Hidden test command: long-running process for signal testing
+program
+  .command('_signals-test')
+  .description('[TEST ONLY] Signal handling test - requires CERBER_TEST_MODE=1')
+  .action(async () => {
+    // Only available in test mode
+    if (process.env.CERBER_TEST_MODE !== '1') {
+      console.error(chalk.red('❌ This command is disabled (test mode only)'));
+      process.exit(1);
+    }
+
+    // Print ready signal
+    console.log('READY');
+
+    // Setup signal handlers
+    const cleanup = async () => {
+      console.log('SIGINT_RECEIVED');
+      
+      // Simulate cleanup work (close connections, flush logs, etc)
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      console.log('CLEANUP_DONE');
+      process.exit(0);
+    };
+
+    process.on('SIGINT', cleanup);
+    process.on('SIGTERM', cleanup);
+
+    // Long-running loop (60 seconds or until interrupted)
+    let running = true;
+    const startTime = Date.now();
+    
+    const interval = setInterval(() => {
+      if (!running || Date.now() - startTime > 60000) {
+        clearInterval(interval);
+        running = false;
+        process.exit(0);
+      }
+    }, 1000);
+
+    // Prevent immediate exit
+    await new Promise(() => {
+      // Never resolves - intentional, waiting for signal
+    });
+  });
+
 program.parse();
 
 program.parse();
