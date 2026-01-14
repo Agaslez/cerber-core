@@ -18,6 +18,24 @@ env:
   INIT_TIMEOUT_SECONDS: 90
 
 jobs:
+  detect-branch-type:
+    name: Detect Branch Type
+    runs-on: ubuntu-latest
+    outputs:
+      test-mode: ${{ steps.check.outputs.test-mode }}
+    steps:
+      - id: check
+        shell: bash
+        run: |
+          echo "Detecting branch type..."
+          if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+            echo "test-mode=full" >> $GITHUB_OUTPUT
+            echo "MAIN branch detected - FULL test suite will run"
+          else
+            echo "test-mode=fast" >> $GITHUB_OUTPUT
+            echo "Feature branch detected - FAST test suite will run (SIGINT only)"
+          fi
+
   lint_and_typecheck:
     name: Lint & Type Check
     runs-on: ubuntu-latest
@@ -302,9 +320,9 @@ jobs:
           echo "✅ Generated workflow contains cerber-integrity + cerber-ci"
 
   cerber_e2e_all_modes:
-    name: E2E (solo/dev/team) + artifacts
+    name: E2E Tests (conditional)
     runs-on: ubuntu-latest
-    needs: pack_tarball
+    needs: [pack_tarball, detect-branch-type]
     steps:
       - name: Download tarball
         uses: actions/download-artifact@v4
@@ -375,17 +393,26 @@ jobs:
           cp -R /tmp/cerber-e2e-team/. /tmp/cerber-artifacts/
           ls -la /tmp/cerber-artifacts | head -200
 
-      - name: E2E Signal Handling Tests
+      - name: E2E Signal Handling Tests (Conditional)
         shell: bash
         run: |
           set -euo pipefail
           cd /tmp/cerber-e2e-team
           
-          echo "Running E2E signal handling tests..."
-          npm run build
-          npm test -- test/e2e/cli-signals-refactored.test.ts
+          TEST_MODE="${{ needs.detect-branch-type.outputs.test-mode }}"
+          echo "Test mode: $TEST_MODE"
           
-          echo "Signal handling E2E tests passed"
+          npm run build
+          
+          if [[ "$TEST_MODE" == "full" ]]; then
+            echo "FULL mode: Running all signal tests (SIGINT + SIGTERM)"
+            npm test -- test/e2e/cli-signals-refactored.test.ts
+          else
+            echo "FAST mode: Running critical path only (SIGINT)"
+            npm test -- test/e2e/cli-signals-refactored.test.ts --testNamePattern="SIGINT"
+          fi
+          
+          echo "Signal tests completed in $TEST_MODE mode"
 
       - name: Upload E2E artifacts
         uses: actions/upload-artifact@v4
