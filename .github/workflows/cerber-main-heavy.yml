@@ -40,8 +40,8 @@ jobs:
         env:
           CERBER_TEST_MODE: "1"
 
-  integration_tests:
-    name: Integration Tests (@integration)
+  comprehensive_tests:
+    name: Comprehensive Tests (@all)
     runs-on: ubuntu-latest
     needs: build_and_unit
     steps:
@@ -51,37 +51,7 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
       - run: npm ci
       - run: npm run build
-      - run: npm run test:integration
-        env:
-          CERBER_TEST_MODE: "1"
-
-  e2e_tests:
-    name: E2E Tests (@e2e)
-    runs-on: ubuntu-latest
-    needs: build_and_unit
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-      - run: npm ci
-      - run: npm run build
-      - run: npm run test:e2e
-        env:
-          CERBER_TEST_MODE: "1"
-
-  signals_tests:
-    name: Signal Handling Tests (@signals)
-    runs-on: ubuntu-latest
-    needs: build_and_unit
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-      - run: npm ci
-      - run: npm run build
-      - run: npm run test:signals
+      - run: npm run test:ci:heavy
         env:
           CERBER_TEST_MODE: "1"
 
@@ -91,17 +61,13 @@ jobs:
     needs:
       - lint_and_typecheck
       - build_and_unit
-      - integration_tests
-      - e2e_tests
-      - signals_tests
+      - comprehensive_tests
     if: always()
     steps:
       - run: |
           if [[ "${{ needs.lint_and_typecheck.result }}" != "success" ]] || \
              [[ "${{ needs.build_and_unit.result }}" != "success" ]] || \
-             [[ "${{ needs.integration_tests.result }}" != "success" ]] || \
-             [[ "${{ needs.e2e_tests.result }}" != "success" ]] || \
-             [[ "${{ needs.signals_tests.result }}" != "success" ]]; then
+             [[ "${{ needs.comprehensive_tests.result }}" != "success" ]]; then
             echo "❌ One or more checks failed"
             exit 1
           fi

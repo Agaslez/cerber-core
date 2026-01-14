@@ -23,8 +23,8 @@ jobs:
       - run: npm run lint || echo "⚠️  ESLint skipped"
       - run: npx tsc --noEmit
 
-  build_and_unit:
-    name: Build & Unit Tests (@fast)
+  build_and_test:
+    name: Build & Tests (@fast + @integration)
     runs-on: ubuntu-latest
     needs: lint_and_typecheck
     steps:
@@ -35,19 +35,19 @@ jobs:
       - run: chmod +x bin/*.cjs bin/cerber* || true
       - run: npm ci
       - run: npm run build
-      - run: npm run test:fast
+      - run: npm run test:ci:pr
         env:
           CERBER_TEST_MODE: "1"
 
   pr_summary:
     name: PR Summary
     runs-on: ubuntu-latest
-    needs: [lint_and_typecheck, build_and_unit]
+    needs: [lint_and_typecheck, build_and_test]
     if: always()
     steps:
       - run: |
           if [[ "${{ needs.lint_and_typecheck.result }}" != "success" ]] || \
-             [[ "${{ needs.build_and_unit.result }}" != "success" ]]; then
+             [[ "${{ needs.build_and_test.result }}" != "success" ]]; then
             echo "❌ Fast gate failed"
             exit 1
           fi
