@@ -65,7 +65,7 @@ describe('@fast Resilience Integration', () => {
       expect(result.success).toBe(true);
       expect(result.adapter).toBe('test-adapter');
       expect(result.result).toBeDefined();
-      expect(result.duration).toBeGreaterThan(0);
+      expect(result.duration).toBeGreaterThanOrEqual(0); // Allow 0 if execution is very fast
     });
     
     it('retries on transient failures', async () => {

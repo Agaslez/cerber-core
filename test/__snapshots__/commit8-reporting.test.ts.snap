@@ -1,20 +1,20 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
-exports[`COMMIT 8: Reporting - Text + GitHub Formatters Snapshot tests - Deterministic output compact format snapshot 1`] = `
+exports[`@integration COMMIT 8: Reporting - Text + GitHub Formatters Snapshot tests - Deterministic output compact format snapshot 1`] = `
 "❌ security/no-secrets @ .github/workflows/ci.yml:10 - Hardcoded secret detected
 ❌ workflow/invalid-syntax @ .github/workflows/test.yml:20 - Invalid YAML syntax
 ⚠️ security/outdated-action @ .github/workflows/deploy.yml:15 - Action uses outdated version
 "
 `;
 
-exports[`COMMIT 8: Reporting - Text + GitHub Formatters Snapshot tests - Deterministic output github format snapshot 1`] = `
+exports[`@integration COMMIT 8: Reporting - Text + GitHub Formatters Snapshot tests - Deterministic output github format snapshot 1`] = `
 "::error file=.github/workflows/ci.yml,line=10,col=5::[security/no-secrets] Hardcoded secret detected (Hint: Use environment variables or secrets)
 ::error file=.github/workflows/test.yml,line=20,col=1::[workflow/invalid-syntax] Invalid YAML syntax
 ::warning file=.github/workflows/deploy.yml,line=15,col=3::[security/outdated-action] Action uses outdated version
 "
 `;
 
-exports[`COMMIT 8: Reporting - Text + GitHub Formatters Snapshot tests - Deterministic output github-group format snapshot 1`] = `
+exports[`@integration COMMIT 8: Reporting - Text + GitHub Formatters Snapshot tests - Deterministic output github-group format snapshot 1`] = `
 "::group::🛡️ Cerber Validation Results
 Found 3 violation(s):
 
@@ -25,7 +25,7 @@ Found 3 violation(s):
 "
 `;
 
-exports[`COMMIT 8: Reporting - Text + GitHub Formatters Snapshot tests - Deterministic output github-summary format snapshot 1`] = `
+exports[`@integration COMMIT 8: Reporting - Text + GitHub Formatters Snapshot tests - Deterministic output github-summary format snapshot 1`] = `
 "## 🛡️ Cerber Validation Summary
 
 - **Total:** 3
@@ -37,7 +37,7 @@ exports[`COMMIT 8: Reporting - Text + GitHub Formatters Snapshot tests - Determi
 "
 `;
 
-exports[`COMMIT 8: Reporting - Text + GitHub Formatters Snapshot tests - Deterministic output table format snapshot 1`] = `
+exports[`@integration COMMIT 8: Reporting - Text + GitHub Formatters Snapshot tests - Deterministic output table format snapshot 1`] = `
 "
 | Severity | Tool | Rule | File | Line | Message |
 |----------|------|------|------|------|----------|
@@ -48,7 +48,7 @@ exports[`COMMIT 8: Reporting - Text + GitHub Formatters Snapshot tests - Determi
 "
 `;
 
-exports[`COMMIT 8: Reporting - Text + GitHub Formatters Snapshot tests - Deterministic output text format snapshot 1`] = `
+exports[`@integration COMMIT 8: Reporting - Text + GitHub Formatters Snapshot tests - Deterministic output text format snapshot 1`] = `
 "
 🛡️  CERBER VALIDATION REPORT
 ═══════════════════════════════════════
