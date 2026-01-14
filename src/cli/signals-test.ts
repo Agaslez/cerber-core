@@ -30,21 +30,36 @@ export function runSignalsTest(): void {
   }, 60000);
   safetyTimeout.unref();
 
-  // Cleanup handler with guaranteed stdout flush before exit
+  // Guard: prevent cleanup from running multiple times
+  let cleanupStarted = false;
+
+  // Cleanup handler with guaranteed stdout flush via callback
   const cleanup = (reason: string): void => {
+    // CRITICAL: Guard against multiple cleanup calls
+    if (cleanupStarted) {
+      process.stderr.write(`[DEBUG] Cleanup already started, ignoring signal: ${reason}\n`);
+      return;
+    }
+    cleanupStarted = true;
+
     try {
+      process.stderr.write(`[DEBUG] Cleanup started for: ${reason}\n`);
+      
       // Step 1: Clear timers immediately
       clearInterval(keepAlive);
       clearTimeout(safetyTimeout);
 
-      // Step 2: Log signal received with guaranteed flush via callback
+      // Step 2: Log signal received with callback-based flush guarantee
       process.stdout.write(`${reason}\n`, () => {
-        // This callback fires ONLY after stdout buffer is flushed
+        process.stderr.write(`[DEBUG] Signal logged, performing cleanup work...\n`);
         
-        // Step 3: Simulate cleanup work
+        // Step 3: Simulate cleanup work (100ms)
         setTimeout(() => {
-          // Step 4: Log cleanup done with guaranteed flush
+          process.stderr.write(`[DEBUG] Cleanup work done, logging CLEANUP_DONE...\n`);
+          
+          // Step 4: Log cleanup done with callback-based flush guarantee
           process.stdout.write('CLEANUP_DONE\n', () => {
+            process.stderr.write(`[DEBUG] CLEANUP_DONE logged, exiting process...\n`);
             // This callback fires ONLY after CLEANUP_DONE is flushed
             // Now safe to exit
             process.exit(0);
@@ -59,17 +74,19 @@ export function runSignalsTest(): void {
     }
   };
 
-  // Write READY immediately with guaranteed flush
+  // Write READY immediately with guaranteed flush via callback
   process.stdout.write('READY\n', () => {
-    // READY is flushed, signal handlers now registered
+    process.stderr.write(`[DEBUG] READY signal flushed, handlers registered\n`);
   });
 
   // Register signal handlers (synchronous, no async overhead)
   process.on('SIGINT', () => {
+    process.stderr.write(`[DEBUG] Received SIGINT\n`);
     cleanup('SIGINT_RECEIVED');
   });
   
   process.on('SIGTERM', () => {
+    process.stderr.write(`[DEBUG] Received SIGTERM\n`);
     cleanup('SIGTERM_RECEIVED');
   });
 

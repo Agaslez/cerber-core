@@ -58,13 +58,19 @@ describe("@signals CLI Signal Handling", () => {
       const tick = () => {
         if (getOut().includes(text)) return resolve();
         if (Date.now() - start > timeoutMs) {
-          return reject(new Error(`Timeout waiting for "${text}" after ${timeoutMs}ms`));
+          const output = getOut();
+          const lastLine = output.split('\n').filter(l => l.trim()).pop() || '(empty)';
+          return reject(new Error(
+            `Timeout ${timeoutMs}ms waiting for "${text}". ` +
+            `Last output: "${lastLine}". ` +
+            `Full: "${output.substring(Math.max(0, output.length - 200))}"`
+          ));
         }
         setTimeout(tick, 25);
       };
 
       proc.once('exit', (code, signal) => {
-        reject(new Error(`Process exited early while waiting for "${text}". code=${code} signal=${signal}`));
+        reject(new Error(`Process exited early while waiting for "${text}". code=${code} signal=${signal}. Output: "${getOut()}"`));
       });
 
       tick();
@@ -102,6 +108,11 @@ describe("@signals CLI Signal Handling", () => {
       );
 
       const io = collect(proc);
+
+      // Debug: Log process exit to catch early termination
+      proc.on('exit', (code, signal) => {
+        console.log(`[DEBUG] Process exited early: code=${code}, signal=${signal}`);
+      });
 
       // Wait for process to be ready
       try {
