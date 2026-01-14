@@ -33,52 +33,62 @@ export function runSignalsTest(): void {
   // Guard: prevent cleanup from running multiple times
   let cleanupStarted = false;
 
-  // Cleanup handler with cork/uncork for atomic flush guarantee
+  // Helper: Get current timestamp for diagnostic logs
+  const now = () => new Date().toISOString();
+
+  // Cleanup handler with socket + stdin destruction for complete isolation
   const cleanup = (reason: string): void => {
     // CRITICAL: Guard against multiple cleanup calls
     if (cleanupStarted) {
-      process.stderr.write(`[DEBUG] Cleanup already started, ignoring signal: ${reason}\n`);
+      process.stderr.write(`[${now()}] [DEBUG] Cleanup already started, ignoring: ${reason}\n`);
       return;
     }
     cleanupStarted = true;
 
     try {
-      process.stderr.write(`[DEBUG] Cleanup START for: ${reason}\n`);
+      process.stderr.write(`[${now()}] [DEBUG] Cleanup STARTED for reason=${reason}\n`);
       
-      // Step 1: Clear timers immediately
+      // Step 1: Destroy stdin immediately (prevents hanging on input)
+      process.stdin.destroy();
+      process.stderr.write(`[${now()}] [DEBUG] Step 1: stdin destroyed\n`);
+      
+      // Step 2: Clear all timers
       clearInterval(keepAlive);
       clearTimeout(safetyTimeout);
-      process.stderr.write(`[DEBUG] Step 1: Timers cleared\n`);
+      process.stderr.write(`[${now()}] [DEBUG] Step 2: All timers cleared\n`);
 
-      // Step 2: Atomically write signal with cork/uncork
+      // Step 3: Cork stdout for atomic writes
       process.stdout.cork();
       process.stdout.write(`${reason}\n`);
-      process.stderr.write(`[DEBUG] Step 2a: Signal message written (corked)\n`);
+      process.stderr.write(`[${now()}] [DEBUG] Step 3a: Signal message corked\n`);
 
-      // Step 3: Simulate cleanup work (100ms delay BEFORE cleanup_done)
+      // Step 4: After 100ms delay, write cleanup_done and uncork
       setTimeout(() => {
-        process.stderr.write(`[DEBUG] Step 3: Cleanup work simulation done\n`);
+        process.stderr.write(`[${now()}] [DEBUG] Step 4a: 100ms elapsed, writing CLEANUP_DONE\n`);
         
-        // Step 4: Write cleanup_done THEN uncork to flush atomically
         process.stdout.write('CLEANUP_DONE\n');
-        process.stderr.write(`[DEBUG] Step 4a: CLEANUP_DONE written (still corked)\n`);
+        process.stderr.write(`[${now()}] [DEBUG] Step 4b: CLEANUP_DONE written (still corked)\n`);
         
-        // CRITICAL: uncork() flushes the corked writes atomically
+        // Uncork to flush atomically
         process.stdout.uncork();
-        process.stderr.write(`[DEBUG] Step 4b: uncork() called - buffer flushing...\n`);
+        process.stderr.write(`[${now()}] [DEBUG] Step 4c: uncork() called - flushing...\n`);
         
-        // Step 5: Exit AFTER uncork with 50ms delay to ensure flush completes
-        // setTimeout(50) is more reliable than setImmediate for giving OS time to flush
-        process.stderr.write(`[DEBUG] Step 5: Scheduling exit via setTimeout(50)\n`);
+        // Step 5: Final timeout before exit (50ms for OS to flush)
+        process.stderr.write(`[${now()}] [DEBUG] Step 5: Scheduling final exit via setTimeout(50)\n`);
         setTimeout(() => {
-          process.stderr.write(`[DEBUG] Step 5b: setTimeout(50) fired - calling process.exit(0)\n`);
+          process.stderr.write(`[${now()}] [DEBUG] Step 5b: setTimeout(50) fired - calling process.exit(0)\n`);
           process.exit(0);
         }, 50);
       }, 100);
     } catch (e) {
-      process.stderr.write(`CLEANUP_ERROR: ${String(e)}\n`);
-      clearInterval(keepAlive);
-      clearTimeout(safetyTimeout);
+      process.stderr.write(`[${now()}] [ERROR] CLEANUP_ERROR: ${String(e)}\n`);
+      try {
+        clearInterval(keepAlive);
+        clearTimeout(safetyTimeout);
+        process.stdin.destroy();
+      } catch {
+        // Ignore errors during emergency cleanup
+      }
       process.exit(1);
     }
   };
@@ -87,16 +97,16 @@ export function runSignalsTest(): void {
   process.stdout.cork();
   process.stdout.write('READY\n');
   process.stdout.uncork();
-  process.stderr.write(`[DEBUG] READY flushed, handlers registered\n`);
+  process.stderr.write(`[${now()}] [DEBUG] READY flushed, handlers registered\n`);
 
   // Register signal handlers (synchronous, no async overhead)
   process.on('SIGINT', () => {
-    process.stderr.write(`[DEBUG] Received SIGINT\n`);
+    process.stderr.write(`[${now()}] [DEBUG] Signal handler: SIGINT received\n`);
     cleanup('SIGINT_RECEIVED');
   });
   
   process.on('SIGTERM', () => {
-    process.stderr.write(`[DEBUG] Received SIGTERM\n`);
+    process.stderr.write(`[${now()}] [DEBUG] Signal handler: SIGTERM received\n`);
     cleanup('SIGTERM_RECEIVED');
   });
 

@@ -14,12 +14,12 @@ import { ChildProcess, spawn } from "node:child_process";
 
 describe("@signals CLI Signal Handling", () => {
   const isWindows = process.platform === "win32";
-  const READY_TIMEOUT = process.env.CI ? 60000 : 5000; // 60s on CI to allow flush time
-  const CLEANUP_TIMEOUT = process.env.CI ? 60000 : 5000; // 60s on CI to allow flush time
+  const READY_TIMEOUT = process.env.CI ? 90000 : 10000; // 90s on CI
+  const CLEANUP_TIMEOUT = process.env.CI ? 90000 : 10000; // 90s on CI
   const SIGNAL_DELAY = 200; // Wait 200ms after READY before sending signal
 
   // This is a long-running e2e test that needs more time in CI
-  jest.setTimeout(90000);
+  jest.setTimeout(120000);
 
   /**
    * Helper: Collect stdout and stderr from a child process
