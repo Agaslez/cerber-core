@@ -7,6 +7,7 @@ on:
     branches: 
       - main
       - 'feat/**'
+      - 'rcx-**'
   workflow_dispatch:
 
 # PR ma być szybki, ale kompletny w sensie "czy Cerber działa".
