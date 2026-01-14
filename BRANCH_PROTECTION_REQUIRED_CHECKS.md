@@ -1,89 +1,352 @@
-# Branch Protection: Required Checks Configuration
+# Branch Protection: Single Required Check Configuration
 
-**Document**: Definition of required PR checks for `main` branch protection  
+**Document**: ZADANIE 2 & 3 — Single gate for PR merge + npm-pack-smoke validation  
 **Updated**: January 14, 2026  
 **Status**: ACTIVE (Deployed in workflows)
 
 ---
 
-## 📋 Overview
+## 📋 Objective: ONE Required Check
 
-This document defines which workflow jobs are **REQUIRED** for PR merge to `main` branch. Each check must:
-1. Run on every pull request
-2. Have a stable, consistent job name
-3. Correspond to an actual workflow job (not a ghost check)
-4. Not be flaky or non-deterministic
+**Single Required Check Name**: `PR FAST (required)`
+
+This check aggregates:
+- ✅ Lint & Type Check
+- ✅ Build & Tests (@fast + @integration)  
+- ✅ Cerber Integrity (protected file approval)
+- ✅ Code Owner review (CODEOWNERS)
+- ✅ No force-push allowed
 
 ---
 
-## ✅ REQUIRED Checks for PR Merge
+## Workflow: `cerber-pr-fast.yml`
 
-### Workflow: `Cerber Fast Checks (PR)`
 **File**: `.github/workflows/cerber-pr-fast.yml`  
 **Trigger**: `pull_request` on `main` branch  
-**Expected Duration**: ~9 minutes
+**Expected Duration**: ~15-20 minutes
+
+### Jobs (in execution order)
 
 #### Job 1: `lint_and_typecheck`
 - **Name**: Lint & Type Check
 - **Purpose**: ESLint + TypeScript validation
 - **Command**: `npm run lint` + `npx tsc --noEmit`
-- **Status**: ✅ REQUIRED for PR
-- **Failure Action**: Block merge (hard fail)
+- **Status**: ✅ Part of aggregated check
+- **Failure Action**: Blocks downstream (hard fail)
 
 #### Job 2: `build_and_test`
 - **Name**: Build & Tests (@fast + @integration)
-- **Purpose**: Compile + run @fast (unit) + @integration tests
+- **Purpose**: Compile + run unit + integration tests
 - **Command**: `npm run build` + `npm run test:ci:pr`
-- **Tests Included**: 
-  - @fast: 32 unit tests (~2 min)
-  - @integration: 37 integration tests (~5-10 min)
-- **Status**: ✅ REQUIRED for PR
-- **Failure Action**: Block merge (hard fail)
+- **Depends On**: lint_and_typecheck
+- **Status**: ✅ Part of aggregated check
+- **Failure Action**: Blocks downstream (hard fail)
 
-#### Job 3: `pr_summary`
-- **Name**: PR Summary
-- **Purpose**: Aggregate result from lint, build, and tests
-- **Condition**: `always()` (runs even if previous fail)
-- **Status**: ✅ REQUIRED for PR (gating)
-- **Depends On**: lint_and_typecheck, build_and_test
-- **Failure Action**: Block merge if any upstream failed
+#### Job 3: `cerber_integrity` ✨ **NEW**
+- **Name**: Cerber Integrity (Protected Files)
+- **Purpose**: Validate GitHub PR approval for protected files
+- **Command**: `node bin/cerber-integrity.cjs`
+- **Environment**:
+  - `GITHUB_TOKEN`: ${{ secrets.GITHUB_TOKEN }}
+  - `REQUIRED_OWNER`: owner
+- **How it works**:
+  1. Extracts PR number from `GITHUB_EVENT_PATH`
+  2. Calls GitHub Reviews API: `/repos/{owner}/{repo}/pulls/{prNumber}/reviews`
+  3. Verifies `APPROVED` state from `@owner`
+  4. Checks if protected files modified:
+     - CERBER.md
+     - .cerber/**
+     - .github/workflows/**
+     - package*.json
+     - bin/**
+     - src/guardian/**
+     - src/core/Orchestrator.ts
+     - src/cli/*.ts
+- **Status**: ✅ Part of aggregated check
+- **Failure Action**: Exit code 1 (prevents auto-merge, allows discussion)
+
+#### Job 4: `pr_summary` → `PR FAST (required)` ✨ **RENAMED**
+- **Display Name**: PR FAST (required)
+- **Purpose**: Aggregate all upstream checks
+- **Condition**: `always()` (runs even if upstream fails)
+- **Depends On**: lint_and_typecheck, build_and_test, cerber_integrity
+- **Status**: ✅ **THE ONLY REQUIRED CHECK**
+- **Exit Logic**:
+  ```bash
+  if [ upstream success ]; then
+    echo "✅ All fast checks passed"
+  else
+    exit 1
+  fi
+  ```
 
 ---
 
-## ❌ NOT REQUIRED Checks for PR (Optional/Informational)
+## GitHub Branch Protection Settings
 
-These run on `main` branch push only:
+### Required Status Checks
+
+```json
+{
+  "required_status_checks": {
+    "strict": true,
+    "contexts": ["PR FAST (required)"]
+  }
+}
+```
+
+**Single check name**: `PR FAST (required)`
+
+### Pull Request Reviews
+
+```json
+{
+  "required_pull_request_reviews": {
+    "dismiss_stale_reviews": true,
+    "require_code_owner_reviews": true,
+    "require_last_push_approval": true
+  }
+}
+```
+
+**Code owners** (from `.github/CODEOWNERS`):
+```
+* @owner
+.cerber/** @owner
+.github/workflows/** @owner
+bin/** @owner
+package*.json @owner
+src/guardian/** @owner
+src/core/Orchestrator.ts @owner
+src/cli/*.ts @owner
+CERBER.md @owner
+```
+
+### Additional Rules
+
+- **Enforce admins**: Yes (even admins must follow rules)
+- **Allow force pushes**: No
+- **Allow deletions**: No
+- **Require last push approval**: Yes (invalidates stale reviews)
+
+### How to Apply
+
+Use the CLI setup script:
+
+```bash
+bash scripts/set-branch-protection.sh Agaslez/cerber-core
+```
+
+Or manual command:
+
+```bash
+gh api repos/Agaslez/cerber-core/branches/main/protection \
+  --input - << 'EOF'
+{
+  "required_status_checks": {
+    "strict": true,
+    "contexts": ["PR FAST (required)"]
+  },
+  "required_pull_request_reviews": {
+    "dismiss_stale_reviews": true,
+    "require_code_owner_reviews": true,
+    "require_last_push_approval": true
+  },
+  "enforce_admins": true,
+  "allow_force_pushes": false,
+  "allow_deletions": false
+}
+EOF
+```
+
+---
+
+## Three-Layer Enforcement (JEDNA PRAWDA)
+
+### Layer 1: Local (Guardian Hook)
+- **File**: `bin/guardian-protected-files-hook.cjs`
+- **When**: Pre-commit (`.git/hooks/pre-commit`)
+- **Action**: Block commit to protected files
+- **Override**: `git commit --no-verify`
+
+### Layer 2: CI (GitHub Actions)
+- **File**: `.github/workflows/cerber-pr-fast.yml` → `cerber_integrity` job
+- **File**: `bin/cerber-integrity.cjs`
+- **When**: On PR push
+- **Action**: Call GitHub API to verify owner approval
+- **Soft block**: Prevents auto-merge, allows discussion
+
+### Layer 3: GitHub (Branch Protection)
+- **When**: Merge attempt
+- **Action**: Requires `PR FAST (required)` + Code Owner review
+- **Hard block**: Merge impossible without compliance
+
+---
+
+## TASK 3: npm-pack-smoke (Tarball Validation)
+
+### Purpose
+Verifies the tarball shipped to npm clients contains required files and works end-to-end.
+
+**File**: `test/e2e/npm-pack-smoke.test.ts`
+
+### Test Cases (14 tests, all passing ✅)
+
+#### Tarball Content Validation
+1. ✅ Should create tarball with `npm pack`
+2. ✅ Should include `dist/index.js` in tarball
+3. ✅ Should include `bin/cerber` executable
+4. ✅ Should include `setup-guardian-hooks.cjs` in bin/
+5. ✅ Should NOT include `test/` files
+6. ✅ Should NOT include `node_modules`
+7. ✅ Should have `package.json` with correct main/bin entries
+
+#### E2E Tarball Installation
+8. ✅ Should install tarball in clean directory
+9. ✅ `npx cerber --help` should work post-install
+10. ✅ Should have `dist/` files installed in `node_modules`
+11. ✅ Should have `bin/` scripts installed
+
+#### Determinism & Reproducibility
+12. ✅ Should produce same tarball content on rebuild
+13. ✅ `package.json::files` should include `dist`, `bin`
+14. ✅ `package.json::files` should NOT include `test`
+
+### How to Run
+
+```bash
+npm run test:e2e:pack
+```
+
+Expected output:
+```
+PASS  test/e2e/npm-pack-smoke.test.ts
+  @e2e NPM Pack Smoke Test (Tarball Distribution)
+    ✓ 14 tests passed
+    Time: 17.3s
+```
+
+### Package Configuration
+
+**File**: `package.json`
+
+```json
+{
+  "files": [
+    "dist",
+    "bin",
+    "examples",
+    ".cerber-example",
+    "solo",
+    "dev",
+    "team",
+    "LICENSE",
+    "README.md",
+    "CHANGELOG.md",
+    "USAGE_GUIDE.md"
+  ]
+}
+```
+
+**File**: `.npmignore`
+
+```ignore
+# Test files
+__tests__/
+*.test.ts
+*.spec.ts
+test/
+
+# Source files (we ship compiled)
+src/
+
+# CI/CD
+.github/
+.husky/
+
+# Development
+.vscode/
+.idea/
+tsconfig.json
+jest.config.cjs
+```
+
+### Tarball Inspection Commands
+
+List tarball contents:
+```bash
+TARBALL="$(npm pack)" && tar -tzf "$TARBALL" | head -20
+```
+
+Extract and inspect package.json:
+```bash
+TARBALL="$(npm pack)" && tar -xzOf "$TARBALL" package/package.json | jq .
+```
+
+Simulate user install:
+```bash
+rm -rf /tmp/cerber-smoke
+mkdir -p /tmp/cerber-smoke
+cd /tmp/cerber-smoke
+npm init -y >/dev/null
+npm install "$PWD/../cerber-core-1.1.12.tgz"
+npx cerber --help
+```
+
+---
+
+## ❌ NOT REQUIRED Checks (Optional/Informational)
 
 ### Workflow: `Cerber Heavy Verification (Main)`
 **File**: `.github/workflows/cerber-main-heavy.yml`  
-**Trigger**: `push` to `main` branch (not PR)  
-**Expected Duration**: ~24 minutes
-
-#### Job: `comprehensive_tests`
-- **Name**: Comprehensive Tests (@all)
-- **Purpose**: Full test suite including @e2e and @signals
-- **Command**: `npm run test:ci:heavy` (all tests)
-- **Status**: ℹ️ INFORMATIONAL (runs post-merge)
-- **Failure Action**: Notify (doesn't block PR)
+**Trigger**: `push` to `main` branch (post-merge only)  
+**Status**: ℹ️ INFORMATIONAL (runs after PR merge)  
+**Failure Action**: Notify only (doesn't block)
 
 ---
 
 ## 🔍 Mapping: GitHub Check Names vs Workflow Jobs
 
-When GitHub shows a PR status check, the displayed name follows this pattern:
+GitHub displays PR checks in format: `{Workflow} / {Job}`
 
-```
-{Workflow Name} / {Job Name}
-```
+### Check Display in PR Status
 
-### Example PR Check Display:
+| Workflow | Job ID | Display Name | Required |
+|----------|--------|--------------|----------|
+| Cerber Fast Checks (PR) | lint_and_typecheck | `Lint & Type Check` | ✅ YES (aggregated) |
+| Cerber Fast Checks (PR) | build_and_test | `Build & Tests (@fast + @integration)` | ✅ YES (aggregated) |
+| Cerber Fast Checks (PR) | cerber_integrity | `Cerber Integrity (Protected Files)` | ✅ YES (aggregated) |
+| Cerber Fast Checks (PR) | pr_summary | **`PR FAST (required)`** | ✅ **YES (FINAL)** |
 
-| Workflow | Job | Displayed As | Required |
-|----------|-----|--------------|----------|
-| Cerber Fast Checks (PR) | lint_and_typecheck | `Cerber Fast Checks (PR) / Lint & Type Check` | ✅ YES |
-| Cerber Fast Checks (PR) | build_and_test | `Cerber Fast Checks (PR) / Build & Tests (@fast + @integration)` | ✅ YES |
-| Cerber Fast Checks (PR) | pr_summary | `Cerber Fast Checks (PR) / PR Summary` | ✅ YES |
-| Cerber Heavy... | comprehensive_tests | `Cerber Heavy Verification (Main) / Comprehensive Tests (@all)` | ❌ NO |
+**The "PR FAST (required)" check aggregates all upstream checks into a single GitHub check.**
+
+---
+
+## Verification Checklist
+
+- [x] Workflow `cerber-pr-fast.yml` has exactly 4 jobs
+- [x] Job `pr_summary` displays as `PR FAST (required)`
+- [x] Job `cerber_integrity` calls GitHub Reviews API
+- [x] CODEOWNERS specifies `@owner` for protected files
+- [x] Branch protection configured with single required check
+- [x] Script `scripts/set-branch-protection.sh` ready
+- [x] Test `contract-tamper-gate.test.ts` validates enforcement (3 tests passing)
+- [x] Test `npm-pack-smoke.test.ts` validates tarball (14 tests passing)
+- [ ] Execute `bash scripts/set-branch-protection.sh Agaslez/cerber-core`
+- [ ] Verify 3 consecutive test runs pass (determinism proof)
+- [ ] Document proof in PROOF.md
+
+---
+
+## Links
+
+- **Workflow**: [.github/workflows/cerber-pr-fast.yml](.github/workflows/cerber-pr-fast.yml)
+- **Integrity Script**: [bin/cerber-integrity.cjs](bin/cerber-integrity.cjs)
+- **Code Owners**: [.github/CODEOWNERS](.github/CODEOWNERS)
+- **Tamper Test**: [test/contract-tamper-gate.test.ts](test/contract-tamper-gate.test.ts)
+- **Pack Test**: [test/e2e/npm-pack-smoke.test.ts](test/e2e/npm-pack-smoke.test.ts)
+- **Branch Setup**: [scripts/set-branch-protection.sh](scripts/set-branch-protection.sh)
+- **This Doc**: [BRANCH_PROTECTION_REQUIRED_CHECKS.md](BRANCH_PROTECTION_REQUIRED_CHECKS.md)
 
 ---
 

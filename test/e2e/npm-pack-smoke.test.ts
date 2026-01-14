@@ -1,8 +1,13 @@
 /**
- * NPM Pack Smoke Test
+ * NPM Pack Smoke Test — TARBALL VALIDATION
  * 
- * Verifies package tarball can be installed and CLI commands work
- * Tests: --help, doctor, init from packed distribution
+ * Verifies:
+ * 1. npm pack creates valid tarball with required files
+ * 2. dist/, bin/ present and accessible
+ * 3. test/* NOT packaged (not shipped to users)
+ * 4. E2E: Install tarball in clean dir, npx cerber --help works
+ * 
+ * This is the TRUE test: client installs tarball, not repo
  */
 
 import { execSync } from 'child_process';
@@ -10,276 +15,295 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 
-describe('@e2e NPM Pack Smoke Test (Distribution)', () => {
-  let tempDir: string;
+describe('@e2e NPM Pack Smoke Test (Tarball Distribution)', () => {
   let packFile: string;
+  let packDir: string;
+  let installDir: string;
 
   beforeAll(() => {
-    // Create temp directory for extraction
-    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cerber-pack-'));
+    packDir = process.cwd();
+    installDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cerber-smoke-'));
   });
 
   afterAll(() => {
-    // Cleanup
-    if (fs.existsSync(tempDir)) {
+    // Cleanup temp dir
+    if (fs.existsSync(installDir)) {
       try {
         if (process.platform === 'win32') {
-          execSync(`rmdir /s /q "${tempDir}"`, { shell: 'cmd.exe' as any });
+          execSync(`rmdir /s /q "${installDir}"`, { stdio: 'pipe' });
         } else {
-          execSync(`rm -rf "${tempDir}"`, { shell: true as any });
+          execSync(`rm -rf "${installDir}"`, { stdio: 'pipe' });
         }
       } catch {
-        // Ignore cleanup errors
+        // Ignore
       }
     }
   });
 
-  describe('Package structure validation', () => {
-    it('should generate valid tarball with npm pack', () => {
+  describe('Tarball content validation', () => {
+    it('should create tarball with npm pack', () => {
       try {
-        // Just verify npm pack succeeds and produces a file
-        const output = execSync('npm pack --dry-run 2>&1', {
-          cwd: process.cwd(),
+        const output = execSync('npm pack 2>&1', {
+          cwd: packDir,
           encoding: 'utf8',
-          stdio: ['pipe', 'pipe', 'pipe'],
-          timeout: 30000,
+          stdio: ['pipe', 'pipe', 'pipe']
         });
 
-        // Should mention the tarball being created
-        expect(output).toMatch(/cerber.*\.tgz/i);
+        // Extract filename from output (e.g., "cerber-core-1.1.12.tgz")
+        // npm pack outputs the filename as the last line
+        const lines = output.trim().split('\n');
+        const lastLine = lines[lines.length - 1].trim();
+        
+        packFile = lastLine;
+        const fullPath = path.join(packDir, packFile);
+        expect(fs.existsSync(fullPath)).toBe(true);
       } catch (e) {
         throw new Error(`npm pack failed: ${e}`);
       }
     });
 
-    it('should include dist/ files in tarball', () => {
+    it('should include dist/index.js in tarball', () => {
       try {
-        // Use tar command to list contents without extracting
-        const listOutput = execSync('npm pack --dry-run 2>&1', {
-          cwd: process.cwd(),
-          encoding: 'utf8'
+        const listing = execSync(`tar -tzf "${packFile}"`, {
+          cwd: packDir,
+          encoding: 'utf8',
+          stdio: ['pipe', 'pipe', 'pipe']
         });
 
-        const lines = listOutput.split('\n');
-        const distFiles = lines.filter(l => l.includes('dist/') && !l.includes('test'));
-
-        expect(distFiles.length).toBeGreaterThan(0);
-        // Should have compiled JS/TS files
-        expect(distFiles.some(l => l.match(/\.(js|d\.ts)/))).toBe(true);
+        expect(listing).toContain('dist/index.js');
       } catch (e) {
-        throw new Error(`Tarball dist check failed: ${e}`);
+        throw new Error(`Tarball missing dist/index.js: ${e}`);
       }
     });
 
-    it('should exclude test/ directory from tarball', () => {
+    it('should include bin/cerber executable', () => {
       try {
-        const listOutput = execSync('npm pack --dry-run 2>&1', {
-          cwd: process.cwd(),
-          encoding: 'utf8'
+        const listing = execSync(`tar -tzf "${packFile}"`, {
+          cwd: packDir,
+          encoding: 'utf8',
+          stdio: 'pipe'
         });
 
-        const lines = listOutput.split('\n');
-        // Only look at file listings (lines with spaces/indentation)
-        const fileLines = lines.filter(l => l.match(/^\s+\S+/) && l.includes('test/'));
-
-        // May have minimal test references in CHANGELOG but not actual test files
-        const actualTestFiles = fileLines.filter(l => l.match(/\.test\.(ts|js)/));
-        expect(actualTestFiles.length).toBe(0);
+        expect(listing).toContain('bin/cerber');
       } catch (e) {
-        throw new Error(`Tarball exclusion check failed: ${e}`);
+        throw new Error(`Tarball missing bin/cerber: ${e}`);
       }
     });
 
-    it('should include package.json with correct metadata', () => {
+    it('should include setup-guardian-hooks.cjs in bin/', () => {
       try {
+        const listing = execSync(`tar -tzf "${packFile}"`, {
+          cwd: packDir,
+          encoding: 'utf8',
+          stdio: 'pipe'
+        });
+
+        expect(listing).toContain('bin/setup-guardian-hooks.cjs');
+      } catch (e) {
+        throw new Error(`Tarball missing setup-guardian-hooks.cjs: ${e}`);
+      }
+    });
+
+    it('should NOT include test/ files in tarball', () => {
+      try {
+        const listing = execSync(`tar -tzf "${packFile}"`, {
+          cwd: packDir,
+          encoding: 'utf8',
+          stdio: 'pipe'
+        });
+
+        const lines = listing.split('\n');
+        const testFiles = lines.filter(l => 
+          l.includes('/test/') && (l.match(/\.test\.(ts|js)/) || l.match(/\.spec\.(ts|js)/))
+        );
+
+        expect(testFiles).toEqual([]);
+      } catch (e) {
+        throw new Error(`Tarball validation failed: ${e}`);
+      }
+    });
+
+    it('should NOT include node_modules in tarball', () => {
+      try {
+        const listing = execSync(`tar -tzf "${packFile}"`, {
+          cwd: packDir,
+          encoding: 'utf8',
+          stdio: 'pipe'
+        });
+
+        expect(listing).not.toContain('node_modules');
+      } catch (e) {
+        throw new Error(`Tarball contains node_modules: ${e}`);
+      }
+    });
+
+    it('should have package.json with correct main/bin entries', () => {
+      try {
+        // Extract package.json from tarball
         const pkgJson = JSON.parse(
-          fs.readFileSync(path.join(process.cwd(), 'package.json'), 'utf8')
+          execSync(`tar -xzOf "${packFile}" package/package.json`, {
+            cwd: packDir,
+            encoding: 'utf8',
+            stdio: 'pipe'
+          })
         );
 
         expect(pkgJson.name).toContain('cerber');
-        expect(pkgJson.version).toBeDefined();
-        expect(pkgJson.main).toBeDefined();
-        expect(pkgJson.type).toBe('module');
+        expect(pkgJson.main).toBe('dist/index.js');
+        expect(pkgJson.bin).toBeDefined();
+        expect(pkgJson.bin.cerber).toBe('./bin/cerber');
       } catch (e) {
         throw new Error(`package.json validation failed: ${e}`);
       }
     });
+  });;
 
-    it('should have binary entry points', () => {
+  describe('E2E tarball installation', () => {
+    it('should install tarball in clean directory', () => {
       try {
-        const pkgJson = JSON.parse(
-          fs.readFileSync(path.join(process.cwd(), 'package.json'), 'utf8')
-        );
+        // Create package.json in install dir
+        execSync('npm init -y', {
+          cwd: installDir,
+          stdio: 'pipe'
+        });
 
-        expect(pkgJson.bin).toBeDefined();
-        expect(typeof pkgJson.bin).toBe('object');
-      } catch (e) {
-        throw new Error(`Binary entry points missing: ${e}`);
+        // Install the tarball
+        const tarballPath = path.join(packDir, packFile);
+        execSync(`npm install --silent "${tarballPath}"`, {
+          cwd: installDir,
+          encoding: 'utf8',
+          stdio: 'pipe',
+          timeout: 120000
+        });
+
+        // Verify node_modules/cerber-core exists
+        const pkgPath = path.join(installDir, 'node_modules', 'cerber-core');
+        const exists = fs.existsSync(pkgPath);
+        expect(exists).toBe(true);
+      } catch (e: any) {
+        throw new Error(`Tarball installation failed: ${e.message || e}`);
       }
     });
-  });
 
-  describe('CLI command availability from dist', () => {
-    it('should have cerber CLI available', () => {
+    it('npx cerber --help should work from installed tarball', () => {
       try {
-        const output = execSync('npx cerber --help 2>&1', {
-          cwd: process.cwd(),
-          encoding: 'utf8'
+        const output = execSync('npx --yes cerber --help', {
+          cwd: installDir,
+          encoding: 'utf8',
+          stdio: ['pipe', 'pipe', 'pipe'],
+          timeout: 30000
         });
 
         expect(output).toMatch(/cerber|usage|help/i);
-      } catch (e) {
-        throw new Error(`cerber --help failed: ${e}`);
-      }
-    });
-
-    it('should execute doctor command', () => {
-      try {
-        const output = execSync('npx cerber doctor 2>&1', {
-          cwd: process.cwd(),
-          encoding: 'utf8',
-          timeout: 5000
-        });
-
-        expect(output).toContain('doctor');
       } catch (e: any) {
-        // doctor may timeout but should start
-        expect((e as Error).toString()).not.toMatch(/command not found/i);
+        throw new Error(`npx cerber --help failed: ${e.message || e}`);
       }
     });
 
-    it('should handle init command', () => {
+    it('should have dist files installed in node_modules', () => {
       try {
-        const output = execSync('npx cerber init --help 2>&1', {
-          cwd: process.cwd(),
-          encoding: 'utf8'
-        });
+        const distPath = path.join(installDir, 'node_modules', 'cerber-core', 'dist');
+        const distExists = fs.existsSync(distPath);
+        expect(distExists).toBe(true);
 
-        expect(output).toMatch(/init/i);
+        const distFiles = fs.readdirSync(distPath);
+        expect(distFiles.length).toBeGreaterThan(0);
       } catch (e: any) {
-        // init may not exist but --help should work
-        expect((e as Error).toString()).not.toMatch(/command not found/i);
-      }
-    });
-  });
-
-  describe('Distribution integrity', () => {
-    it('should have reproducible tarball size', () => {
-      try {
-        const output = execSync('npm pack --dry-run 2>&1', {
-          cwd: process.cwd(),
-          encoding: 'utf8',
-          stdio: 'pipe'
-        });
-
-        // Extract size from output - looks for "package size: 254.2 kB"
-        const sizeMatch = output.match(/package size:\s*(\d+(?:\.\d+)?)\s*(kB|KB|k|b)/i);
-
-        if (sizeMatch) {
-          const sizeValue = parseFloat(sizeMatch[1]);
-          const sizeUnit = sizeMatch[2].toUpperCase();
-          
-          // Convert to KB if needed
-          const sizeKb = sizeUnit === 'B' ? sizeValue / 1024 : sizeValue;
-          
-          // Should be roughly 250-350 KB
-          expect(sizeKb).toBeGreaterThan(200);
-          expect(sizeKb).toBeLessThan(500);
-        }
-      } catch (e) {
-        throw new Error(`Pack size check failed: ${e}`);
+        throw new Error(`dist/ not properly installed: ${e.message || e}`);
       }
     });
 
-    it('should have compiled dist/ before pack', () => {
+    it('should have bin scripts installed', () => {
       try {
-        const distPath = path.join(process.cwd(), 'dist');
-        const hasDistFiles = fs.existsSync(distPath) &&
-          fs.readdirSync(distPath).length > 0;
+        const binPath = path.join(installDir, 'node_modules', 'cerber-core', 'bin');
+        const binExists = fs.existsSync(binPath);
+        expect(binExists).toBe(true);
 
-        expect(hasDistFiles).toBe(true);
-      } catch (e) {
-        throw new Error(`dist/ missing or empty: ${e}`);
-      }
-    });
-
-    it('should exit code 0 on successful pack validation', () => {
-      let exitCode = 0;
-
-      try {
-        execSync('npm pack --dry-run 2>&1', {
-          cwd: process.cwd(),
-          stdio: 'pipe'
-        });
-      } catch (e: any) {
-        exitCode = e.status || 1;
-      }
-
-      expect(exitCode).toBe(0);
-    });
-  });
-
-  describe('Post-install artifacts', () => {
-    it('should include guardian setup script in tarball', () => {
-      try {
-        const listOutput = execSync('npm pack --dry-run 2>&1', {
-          cwd: process.cwd(),
-          encoding: 'utf8'
-        });
-
-        // Guardian hook setup script should be packable
-        expect(listOutput).toContain('bin/setup-guardian-hooks.cjs');
-      } catch (e) {
-        throw new Error(`Guardian setup script check failed: ${e}`);
-      }
-    });
-
-    it('should have hook installation script', () => {
-      try {
-        const hookPath = path.join(process.cwd(), 'bin', 'setup-guardian-hooks.cjs');
-        const exists = fs.existsSync(hookPath);
-        expect(exists).toBe(true);
-
-        // Should be executable (on Unix)
-        if (process.platform !== 'win32') {
-          const stats = fs.statSync(hookPath);
-          expect(stats.mode & 0o111).toBeGreaterThan(0);
-        }
-
-        // Verify the script has expected content
-        const content = fs.readFileSync(hookPath, 'utf8');
-        expect(content).toContain('Guardian Hook Setup');
-        expect(content).toContain('--dry-run');
-        expect(content).toContain('.git');
-      } catch (e) {
-        throw new Error(`Hook script missing: ${e}`);
-      }
-    });
-
-    it('should run guardian hook installer with --dry-run safely', () => {
-      try {
-        const hookPath = path.join(process.cwd(), 'bin', 'setup-guardian-hooks.cjs');
+        const binFiles = fs.readdirSync(binPath);
+        const hasCerber = binFiles.includes('cerber');
+        const hasSetup = binFiles.some(f => f.includes('setup-guardian-hooks'));
         
-        // Test --dry-run mode (should not modify system)
-        const output = execSync(`node ${hookPath} --dry-run 2>&1`, {
-          cwd: process.cwd(),
+        expect(hasCerber).toBe(true);
+        expect(hasSetup).toBe(true);
+      } catch (e: any) {
+        throw new Error(`bin/ not properly installed: ${e.message || e}`);
+      }
+    });
+  });
+
+  describe('Tarball determinism (reproducibility)', () => {
+    it('should produce same tarball content on rebuild', () => {
+      try {
+        // Get listing of current tarball
+        const listing1 = execSync(`tar -tzf "${packFile}"`, {
+          cwd: packDir,
           encoding: 'utf8',
-          stdio: 'pipe',
-          timeout: 5000
+          stdio: 'pipe'
+        }).trim();
+
+        // Rebuild and pack again
+        execSync('npm run build', {
+          cwd: packDir,
+          stdio: 'pipe'
         });
 
-        // Should indicate dry-run mode and no changes
-        expect(output).toMatch(/DRY-RUN|would|No changes/i);
-        expect(output).not.toMatch(/ERROR|FATAL/i);
-      } catch (e: any) {
-        // Dry-run should not throw, but if it does, check if it's expected
-        if (e.status === 2) {
-          // Exit code 2 = blocker (e.g., not in a git repo during test)
-          // This is acceptable if we're testing in isolation
-          expect(e.toString()).toMatch(/not a git repository|FATAL/i);
-        } else {
-          throw new Error(`Hook installer failed unexpectedly: ${e}`);
-        }
+        const output2 = execSync('npm pack 2>&1', {
+          cwd: packDir,
+          encoding: 'utf8',
+          stdio: 'pipe'
+        });
+
+        const lines2 = output2.trim().split('\n');
+        const packFile2 = lines2[lines2.length - 1].trim();
+
+        const listing2 = execSync(`tar -tzf "${packFile2}"`, {
+          cwd: packDir,
+          encoding: 'utf8',
+          stdio: 'pipe'
+        }).trim();
+
+        // Both should list same files
+        expect(listing1).toEqual(listing2);
+
+        // Cleanup second tarball
+        try {
+          fs.unlinkSync(path.join(packDir, packFile2));
+        } catch {}
+      } catch (e) {
+        throw new Error(`Determinism check failed: ${e}`);
+      }
+    });
+  });
+
+  describe('Package.json files field alignment', () => {
+    it('package.json files should include dist/ and bin/', () => {
+      try {
+        const pkgJson = JSON.parse(
+          fs.readFileSync(path.join(packDir, 'package.json'), 'utf8')
+        );
+
+        expect(pkgJson.files).toBeDefined();
+        expect(Array.isArray(pkgJson.files)).toBe(true);
+        expect(pkgJson.files).toContain('dist');
+        expect(pkgJson.files).toContain('bin');
+      } catch (e) {
+        throw new Error(`package.json files field invalid: ${e}`);
+      }
+    });
+
+    it('package.json files should NOT include test/', () => {
+      try {
+        const pkgJson = JSON.parse(
+          fs.readFileSync(path.join(packDir, 'package.json'), 'utf8')
+        );
+
+        expect(pkgJson.files).toBeDefined();
+        const hasTestEntry = pkgJson.files.some((f: string) => 
+          f.includes('test') || f.includes('*.test') || f.includes('*.spec')
+        );
+        expect(hasTestEntry).toBe(false);
+      } catch (e) {
+        throw new Error(`package.json contains test files: ${e}`);
       }
     });
   });
