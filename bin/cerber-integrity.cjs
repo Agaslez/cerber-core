@@ -13,6 +13,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { execSync } = require('child_process');
 
 // Files that require owner approval to modify
 const PROTECTED_PATTERNS = [
@@ -31,38 +32,76 @@ const PROTECTED_PATTERNS = [
   'docs/BRANCH_PROTECTION.md',
 ];
 
-// Approval markers (any of these indicate owner approval)
-const APPROVAL_MARKERS = [
-  'OWNER_APPROVED: YES',
-  'CERBER-APPROVED-BY:',
-  'owner-approved',  // PR label (set via gh pr edit -l)
-  'CERBER_APPROVAL=',
-  'Approved-By:',
-];
+// Required approver (default = repo owner or explicit override)
+const REQUIRED_OWNER =
+  process.env.REQUIRED_OWNER ||
+  (process.env.GITHUB_REPOSITORY ? process.env.GITHUB_REPOSITORY.split('/')[0] : 'owner');
+
+// GitHub API helpers
+async function fetchJson(url, token) {
+  const res = await fetch(url, {
+    headers: {
+      Accept: 'application/vnd.github+json',
+      Authorization: `Bearer ${token}`,
+      'User-Agent': 'cerber-integrity-check',
+    },
+  });
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`GitHub API error ${res.status}: ${body}`);
+  }
+  return res.json();
+}
+
+function getPullRequestNumber() {
+  const eventPath = process.env.GITHUB_EVENT_PATH;
+  if (!eventPath || !fs.existsSync(eventPath)) {
+    return null;
+  }
+  try {
+    const payload = JSON.parse(fs.readFileSync(eventPath, 'utf8'));
+    return payload?.pull_request?.number || null;
+  } catch (e) {
+    return null;
+  }
+}
+
+async function hasOwnerApprovalFromGitHub(prNumber) {
+  const token = process.env.GITHUB_TOKEN;
+  const repo = process.env.GITHUB_REPOSITORY; // e.g., owner/repo
+
+  if (!token || !repo || !prNumber) {
+    throw new Error('Missing GITHUB_TOKEN or repository/pr context to verify approvals');
+  }
+
+  const [owner, repoName] = repo.split('/');
+  const reviewsUrl = `https://api.github.com/repos/${owner}/${repoName}/pulls/${prNumber}/reviews`;
+
+  const reviews = await fetchJson(reviewsUrl, token);
+  const approvals = reviews.filter(r => r.state === 'APPROVED');
+
+  const approver = approvals.find(r =>
+    (r.user?.login || '').toLowerCase() === REQUIRED_OWNER.toLowerCase()
+  );
+
+  return {
+    approved: Boolean(approver),
+    approver: approver?.user?.login,
+    approvalsCount: approvals.length,
+  };
+}
 
 /**
  * Get the commit message from environment or git
  */
 function getCommitMessage() {
-  // In GitHub Actions, we can check git log
-  const { execSync } = require('child_process');
   try {
-    // Get the full commit message of HEAD
     const msg = execSync('git log -1 --format=%B', { encoding: 'utf8' });
     return msg;
   } catch (e) {
     console.error('❌ Could not read commit message:', e.message);
     return '';
   }
-}
-
-/**
- * Check if commit message contains approval marker
- */
-function hasApprovalMarker(commitMessage) {
-  return APPROVAL_MARKERS.some(marker => 
-    commitMessage.includes(marker)
-  );
 }
 
 /**
@@ -110,7 +149,7 @@ function matchesProtectedPattern(filePath) {
 /**
  * Main check
  */
-function runIntegrityCheck() {
+async function runIntegrityCheck() {
   console.log('🛡️  CERBER INTEGRITY CHECK');
   console.log('═'.repeat(50));
   
@@ -132,52 +171,48 @@ function runIntegrityCheck() {
   console.log(`\n⚠️  Protected files modified (${protectedModified.length}):`);
   protectedModified.forEach(f => console.log(`   • ${f}`));
   
-  // Check for approval marker
-  const hasApproval = hasApprovalMarker(commitMsg);
-  
-  if (hasApproval) {
-    console.log('\n✅ Approval marker found in commit message. Check PASSED.');
-    console.log('   📌 Owner approval detected - protected file change authorized.\n');
-    return 0;
+  // GitHub PR approval check
+  try {
+    const prNumber = getPullRequestNumber();
+    const approval = await hasOwnerApprovalFromGitHub(prNumber);
+
+    if (approval.approved) {
+      console.log(`\n✅ Owner approval detected via GitHub: ${approval.approver}`);
+      console.log('   📌 Protected file change authorized.\n');
+      return 0;
+    }
+
+    console.log('\n❌ INTEGRITY CHECK FAILED');
+    console.log('═'.repeat(50));
+    console.log(`\n🔴 Protected files were modified without owner approval (required: ${REQUIRED_OWNER}).\n`);
+
+    console.log('To fix this:');
+    console.log('');
+    console.log('1️⃣  Request review from the owner on the PR (Code Owner).');
+    console.log('2️⃣  Wait for owner to click "Approve" in GitHub UI.');
+    console.log('3️⃣  Rerun the workflow (or push new commit).');
+
+    console.log('\n' + '═'.repeat(50));
+    console.log('📚 More info: docs/BRANCH_PROTECTION.md');
+    console.log('═'.repeat(50) + '\n');
+
+    process.exit(1);
+  } catch (err) {
+    console.log('\n❌ INTEGRITY CHECK FAILED');
+    console.log('═'.repeat(50));
+    console.log(`\nGitHub approval verification error: ${err.message}\n`);
+    console.log('Cannot verify owner approval. Failing closed.');
+    console.log('\n' + '═'.repeat(50));
+    process.exit(1);
   }
-  
-  // No approval
-  console.log('\n❌ INTEGRITY CHECK FAILED');
-  console.log('═'.repeat(50));
-  console.log('\n🔴 Protected files were modified without owner approval.\n');
-  
-  console.log('To fix this:');
-  console.log('');
-  console.log('1️⃣  Add approval marker to commit message:');
-  console.log('   git commit --amend -m "Your message');
-  console.log('');
-  console.log('   OWNER_APPROVED: YES');
-  console.log('   Reason: <why this change is needed>"');
-  console.log('');
-  console.log('2️⃣  Or add PR label:');
-  console.log('   gh pr edit <PR_NUM> -l owner-approved');
-  console.log('');
-  console.log('3️⃣  Or if using approval tokens:');
-  console.log('   git commit --amend -m "Your message');
-  console.log('');
-  console.log('   CERBER_APPROVAL=<HMAC_TOKEN_FROM_OWNER>"');
-  console.log('');
-  console.log('Protected patterns that require approval:');
-  PROTECTED_PATTERNS.forEach(p => console.log(`   • ${p}`));
-  
-  console.log('\n' + '═'.repeat(50));
-  console.log('📚 More info: docs/BRANCH_PROTECTION.md');
-  console.log('═'.repeat(50) + '\n');
-  
-  // Exit code 1 = soft blocker (shows as failure but can be discussed)
-  // Exit code 2 = hard blocker (cannot proceed)
-  // Using 1 to allow discussion in PR, but prevent auto-merge
-  process.exit(1);
 }
 
 // Run check
 if (require.main === module) {
-  runIntegrityCheck();
+  runIntegrityCheck().catch(err => {
+    console.error('❌ Unexpected error in cerber-integrity:', err);
+    process.exit(1);
+  });
 }
 
 module.exports = { runIntegrityCheck, getModifiedFiles, hasApprovalMarker };

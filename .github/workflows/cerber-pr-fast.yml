@@ -46,10 +46,14 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0  # Full history to compare against main
-      - run: node bin/cerber-integrity.cjs
+      - name: Verify protected files have owner approval
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REQUIRED_OWNER: owner
+        run: node bin/cerber-integrity.cjs
 
   pr_summary:
-    name: PR Summary
+    name: PR FAST (required)
     runs-on: ubuntu-latest
     needs: [lint_and_typecheck, build_and_test, cerber_integrity]
     if: always()

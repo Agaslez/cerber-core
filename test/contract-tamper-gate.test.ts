@@ -6,176 +6,53 @@
  * This is an "anti-bypass" mechanism for Cerber's One Truth policy.
  */
 
-import { existsSync, readFileSync } from 'fs';
+import { readFileSync } from 'fs';
 import { join } from 'path';
 
 describe('@fast Contract Tamper Gate', () => {
-  const PROTECTED_FILES = [
-    'CERBER.md',
-    '.cerber/contract.yml',
-    '.github/workflows/cerber-pr-fast.yml',
-    '.github/workflows/cerber-main-heavy.yml',
-    'package.json',
-    'src/cli/guardian.ts',
-    'src/core/Orchestrator.ts',
-  ];
+  const workflowPath = join(process.cwd(), '.github/workflows/cerber-pr-fast.yml');
+  const integrityScriptPath = join(process.cwd(), 'bin/cerber-integrity.cjs');
 
-  /**
-   * Check if OWNER_APPROVED marker exists in PROOF.md
-   * This indicates explicit owner sign-off for protected file changes
-   */
-  function hasOwnerApprovalMarker(): boolean {
-    const proofPath = join(process.cwd(), 'PROOF.md');
-    if (!existsSync(proofPath)) {
-      return false;
-    }
+  it('includes cerber_integrity job and PR FAST required summary in PR workflow', () => {
+    const workflow = readFileSync(workflowPath, 'utf-8');
 
-    const proof = readFileSync(proofPath, 'utf-8');
-    return (
-      proof.includes('OWNER_APPROVED: YES') ||
-      proof.includes('Protected files changed with owner approval') ||
-      proof.includes('PROTECTED_FILES_APPROVED')
-    );
-  }
-
-  /**
-   * Check if any protected files were modified in git
-   * Uses git diff to detect changes (simulated in test environment)
-   */
-  function getProtectedFilesModified(): string[] {
-    // In CI, this would check git diff HEAD~1
-    // For testing, we check if files exist and were recently modified
-    const now = Date.now();
-    const twoMinutesAgo = now - 2 * 60 * 1000;
-
-    const modified: string[] = [];
-    for (const file of PROTECTED_FILES) {
-      const filePath = join(process.cwd(), file);
-      if (existsSync(filePath)) {
-        try {
-          const stats = require('fs').statSync(filePath);
-          // If file was modified in the last 2 minutes, it's "new" in this commit
-          if (stats.mtimeMs > twoMinutesAgo) {
-            modified.push(file);
-          }
-        } catch (e) {
-          // File doesn't exist or can't be accessed - skip
-        }
-      }
-    }
-    return modified;
-  }
-
-  it('should allow normal commits without protected file changes', () => {
-    // This test passes as long as protected files aren't touched
-    const modified = getProtectedFilesModified();
-    
-    if (modified.length === 0) {
-      // Good: no protected files modified
-      expect(true).toBe(true);
-    } else {
-      // Protected files were modified - owner approval required
-      const hasApproval = hasOwnerApprovalMarker();
-      expect(hasApproval).toBe(true);
-    }
+    expect(workflow).toContain('cerber_integrity:');
+    expect(workflow).toContain('name: Cerber Integrity (Protected Files)');
+    expect(workflow).toContain('GITHUB_TOKEN:');
+    expect(workflow).toContain('REQUIRED_OWNER: owner');
+    expect(workflow).toContain('name: PR FAST (required)');
+    expect(workflow).toContain('needs: [lint_and_typecheck, build_and_test, cerber_integrity]');
   });
 
-  it('should block CERBER.md changes without owner approval', () => {
-    // If CERBER.md in git recently changed and no approval marker, fail
-    const proofPath = join(process.cwd(), 'PROOF.md');
-    
-    if (!existsSync(proofPath)) {
-      // No PROOF.md = test environment, skip
-      return;
-    }
+  it('enforces GitHub approval (reviews API) instead of file markers', () => {
+    const script = readFileSync(integrityScriptPath, 'utf-8');
 
-    const proof = readFileSync(proofPath, 'utf-8');
-    const cerberPath = join(process.cwd(), 'CERBER.md');
-    
-    if (existsSync(cerberPath)) {
-      const cerberStats = require('fs').statSync(cerberPath);
-      const now = Date.now();
-      const twoMinutesAgo = now - 2 * 60 * 1000;
-
-      // If CERBER.md was recently modified (in this commit)
-      if (cerberStats.mtimeMs > twoMinutesAgo) {
-        // It must have an approval marker in PROOF.md
-        expect(proof).toContain('OWNER_APPROVED: YES');
-      }
-    }
+    expect(script).toContain('/pulls/${prNumber}/reviews');
+    expect(script).toContain('GITHUB_TOKEN');
+    expect(script).toContain('REQUIRED_OWNER');
+    expect(script).toContain('Missing GITHUB_TOKEN');
   });
 
-  it('should block workflow changes without owner approval', () => {
-    const proofPath = join(process.cwd(), 'PROOF.md');
-    
-    if (!existsSync(proofPath)) {
-      return;
-    }
+  it('protects critical files list', () => {
+    const script = readFileSync(integrityScriptPath, 'utf-8');
 
-    const proof = readFileSync(proofPath, 'utf-8');
-    const workflows = [
-      '.github/workflows/cerber-pr-fast.yml',
-      '.github/workflows/cerber-main-heavy.yml',
+    const requiredPatterns = [
+      'CERBER.md',
+      '.cerber/**',
+      '.github/workflows/**',
+      'package.json',
+      'package-lock.json',
+      'bin/**',
+      'src/guardian/**',
+      'src/core/Orchestrator.ts',
+      'src/cli/generator.ts',
+      'src/cli/drift-checker.ts',
+      'src/cli/guardian.ts',
+      'src/cli/doctor.ts',
     ];
 
-    const now = Date.now();
-    const twoMinutesAgo = now - 2 * 60 * 1000;
-
-    for (const workflow of workflows) {
-      const wfPath = join(process.cwd(), workflow);
-      if (existsSync(wfPath)) {
-        const stats = require('fs').statSync(wfPath);
-        
-        if (stats.mtimeMs > twoMinutesAgo) {
-          // Workflow was recently modified
-          expect(proof).toContain('OWNER_APPROVED: YES');
-          expect(proof).toContain('OWNER_APPROVED: YES'); // Workflow modified
-        }
-      }
-    }
-  });
-
-  it('should block package.json changes without owner approval', () => {
-    const proofPath = join(process.cwd(), 'PROOF.md');
-    
-    if (!existsSync(proofPath)) {
-      return;
-    }
-
-    const proof = readFileSync(proofPath, 'utf-8');
-    const pkgPath = join(process.cwd(), 'package.json');
-
-    if (existsSync(pkgPath)) {
-      const stats = require('fs').statSync(pkgPath);
-      const now = Date.now();
-      const twoMinutesAgo = now - 2 * 60 * 1000;
-
-      if (stats.mtimeMs > twoMinutesAgo) {
-        // package.json was recently modified
-        expect(proof).toContain('OWNER_APPROVED: YES');
-      }
-    }
-  });
-
-  it('should document protected file changes with reason', () => {
-    const proofPath = join(process.cwd(), 'PROOF.md');
-    
-    if (!existsSync(proofPath)) {
-      return;
-    }
-
-    const proof = readFileSync(proofPath, 'utf-8');
-    const modified = getProtectedFilesModified();
-
-    if (modified.length > 0 && proof.includes('OWNER_APPROVED: YES')) {
-      // If protected files were changed AND approval given,
-      // there should be a reason documented
-      const hasReason = proof.includes('Protected files changed') ||
-                       proof.includes('Reason:') ||
-                       proof.includes('Rationale:') ||
-                       proof.includes('Updated');
-
-      expect(hasReason).toBe(true);
-    }
+    requiredPatterns.forEach(pattern => {
+      expect(script).toContain(pattern);
+    });
   });
 });
