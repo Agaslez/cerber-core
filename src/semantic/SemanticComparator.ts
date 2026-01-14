@@ -8,7 +8,7 @@
 
 export interface WorkflowAST {
   name?: string;
-  on?: Record<string, any>;
+  on?: Record<string, unknown>;
   jobs?: Record<string, Job>;
   permissions?: Permissions;
   env?: Record<string, string>;
@@ -29,14 +29,14 @@ export interface Step {
   name?: string;
   uses?: string;
   run?: string;
-  with?: Record<string, any>;
+  with?: Record<string, unknown>;
   env?: Record<string, string>;
   if?: string;
   id?: string;
 }
 
 export interface Strategy {
-  matrix?: Record<string, any>;
+  matrix?: Record<string, unknown>;
   'fail-fast'?: boolean;
   'max-parallel'?: number;
 }
@@ -429,7 +429,7 @@ export class SemanticComparator {
   /**
    * Helper: Validate workflow triggers
    */
-  private validateTriggers(triggers: Record<string, any>): Violation[] {
+  private validateTriggers(triggers: Record<string, unknown>): Violation[] {
     const violations: Violation[] = [];
 
     // Warn about wildcard triggers

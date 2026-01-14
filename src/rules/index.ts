@@ -61,10 +61,10 @@ export class RuleManager {
     if (rule) rule.enabled = false;
   }
 
-  async runRules(workflow: WorkflowAST, config?: RuleConfig): Promise<Violation[]> {
+  async runRules(workflow: WorkflowAST, _config?: RuleConfig): Promise<Violation[]> {
     const violations: Violation[] = [];
 
-    for (const [ruleId, rule] of this.rules) {
+    for (const [, rule] of this.rules) {
       if (!rule.enabled) continue;
 
       const ruleViolations = await rule.check(workflow);
@@ -253,7 +253,7 @@ function createNoWildcardTriggersRule(): Rule {
       const violations: Violation[] = [];
 
       if (workflow.on) {
-        const checkWildcard = (obj: any, path: string) => {
+        const checkWildcard = (obj: unknown, path: string) => {
           if (Array.isArray(obj) && obj.includes('*')) {
             violations.push({
               level: 'semantic',
@@ -446,7 +446,7 @@ function createAvoidUnnecessaryCheckoutRule(): Rule {
         for (const [jobName, job] of Object.entries(workflow.jobs)) {
           if (!job.steps) continue;
 
-          const checkoutSteps = job.steps.filter((s, idx) => {
+          const checkoutSteps = job.steps.filter((s) => {
             const isCheckout = s.uses?.includes('actions/checkout');
             const isDifferentRepo = s.with?.['repository'];
             return isCheckout && !isDifferentRepo;

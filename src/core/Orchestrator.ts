@@ -437,7 +437,7 @@ export class Orchestrator {
         violation.column || 0,
         messageHash,
       ].join('|');
-    } catch (error) {
+    } catch {
       // Fallback: if hashing fails, use full message (rare edge case)
       return [
         violation.source,

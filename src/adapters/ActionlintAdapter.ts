@@ -83,7 +83,7 @@ export class ActionlintAdapter {
       try {
         const issue = JSON.parse(trimmedLine) as ActionlintIssue;
         violations.push(this.issueToViolation(issue, options?.cwd));
-      } catch (error) {
+      } catch {
         // Skip invalid JSON lines
         continue;
       }
@@ -114,7 +114,7 @@ export class ActionlintAdapter {
       }
 
       return issues.map(issue => this.issueToViolation(issue, options?.cwd));
-    } catch (error) {
+    } catch {
       // Invalid JSON
       return [];
     }
@@ -224,10 +224,10 @@ export class ActionlintAdapter {
    * 
    * Most actionlint issues are errors, but some could be warnings
    * 
-   * @param kind Issue kind
+   * @param _kind Issue kind
    * @returns Severity
    */
-  private getSeverity(kind: string): 'error' | 'warning' | 'info' {
+  private getSeverity(_kind: string): 'error' | 'warning' | 'info' {
     // Future: map certain kinds to warnings
     // For now, all are errors
     return 'error';
