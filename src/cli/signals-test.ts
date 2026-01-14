@@ -27,8 +27,12 @@ export async function runSignalsTest(): Promise<void> {
   // Don't let this timer block process exit
   keepAlive.unref();
 
-  // Safety timeout declaration (will be created after this)
-  let safetyTimeout: NodeJS.Timeout;
+  // Safety timeout setup
+  const safetyTimeout = setTimeout(() => {
+    process.stdout.write('SAFETY_TIMEOUT_REACHED\n');
+    process.exit(0);
+  }, 60000);
+  safetyTimeout.unref();
 
   // Cleanup handler for SIGINT/SIGTERM
   const cleanup = async (reason: string) => {
@@ -54,14 +58,6 @@ export async function runSignalsTest(): Promise<void> {
   // Register signal handlers (using once to prevent double handling)
   process.once('SIGINT', () => void cleanup('SIGINT_RECEIVED'));
   process.once('SIGTERM', () => void cleanup('SIGTERM_RECEIVED'));
-
-  // Safety timeout: if no signal arrives within 60 seconds, auto-exit
-  // This prevents the test process from hanging indefinitely
-  safetyTimeout = setTimeout(() => {
-    process.stdout.write('SAFETY_TIMEOUT_REACHED\n');
-    process.exit(0);
-  }, 60000);
-  safetyTimeout.unref();
 
   // For the "handle errors during cleanup" test (if you use env toggle)
   if (process.env.CERBER_SIGNAL_TEST_FAIL_CLEANUP === '1') {
