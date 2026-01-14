@@ -1,0 +1,473 @@
+/**
+ * Cerber Drift Checker: Validates generated files match contract
+ * Command: npm run cerber:drift
+ * 
+ * Compares actual files with what should be generated from contract.yml
+ * Fails CI if differences found - alerts to run: npm run cerber:generate
+ */
+
+import { existsSync, readFileSync } from 'fs';
+import { join } from 'path';
+import { logger } from '../core/logger.js';
+import {
+    loadContract
+} from './generator.js';
+
+export interface DriftFile {
+  path: string;
+  hasDrift: boolean;
+  expected?: string;
+  actual?: string;
+  diff?: string;
+}
+
+export interface DriftCheckResult {
+  hasDrift: boolean;
+  files: DriftFile[];
+  summary: string;
+  exitCode: number;
+}
+
+/**
+ * Compare two file contents and return differences
+ */
+function getFileDiff(actual: string, expected: string): string {
+  const actualLines = actual.split('\n');
+  const expectedLines = expected.split('\n');
+
+  const lines: string[] = [];
+  const maxLen = Math.max(actualLines.length, expectedLines.length);
+
+  for (let i = 0; i < maxLen; i++) {
+    const actualLine = actualLines[i] ?? '';
+    const expectedLine = expectedLines[i] ?? '';
+
+    if (actualLine !== expectedLine) {
+      lines.push(`Line ${i + 1}:`);
+      lines.push(`  Expected: ${expectedLine.slice(0, 80)}`);
+      lines.push(`  Actual:   ${actualLine.slice(0, 80)}`);
+    }
+  }
+
+  return lines.slice(0, 20).join('\n'); // Show first 20 differences
+}
+
+/**
+ * Check if a file has drifted from contract
+ */
+function checkFileDrift(
+  filePath: string,
+  expectedContent: string,
+  cwd: string
+): DriftFile {
+  const fullPath = join(cwd, filePath);
+
+  if (!existsSync(fullPath)) {
+    return {
+      path: filePath,
+      hasDrift: true,
+      expected: expectedContent.slice(0, 200),
+      actual: '(file does not exist)'
+    };
+  }
+
+  try {
+    const actual = readFileSync(fullPath, 'utf-8');
+
+    // Normalize line endings
+    const actualNorm = actual.replace(/\r\n/g, '\n').trim();
+    const expectedNorm = expectedContent.replace(/\r\n/g, '\n').trim();
+
+    if (actualNorm === expectedNorm) {
+      return {
+        path: filePath,
+        hasDrift: false
+      };
+    }
+
+    return {
+      path: filePath,
+      hasDrift: true,
+      expected: expectedNorm.slice(0, 200),
+      actual: actualNorm.slice(0, 200),
+      diff: getFileDiff(actualNorm, expectedNorm)
+    };
+  } catch (error) {
+    return {
+      path: filePath,
+      hasDrift: true,
+      actual: `(error reading file: ${(error as Error).message})`
+    };
+  }
+}
+
+/**
+ * Main drift check function
+ */
+export async function checkDrift(cwd: string = process.cwd()): Promise<DriftCheckResult> {
+  const driftedFiles: DriftFile[] = [];
+
+  try {
+    const contractPath = join(cwd, '.cerber', 'contract.yml');
+
+    if (!existsSync(contractPath)) {
+      return {
+        hasDrift: true,
+        files: [
+          {
+            path: '.cerber/contract.yml',
+            hasDrift: true,
+            actual: '(not found)'
+          }
+        ],
+        summary: '❌ Contract file missing',
+        exitCode: 1
+      };
+    }
+
+    const contract = loadContract(contractPath);
+    logger.info(`Checking drift against contract v${contract.version}`);
+
+    // Generate expected content (without writing to disk)
+    const expectedCerberMd = generateCerberMdContent(contract);
+    const expectedFastYml = generatePrFastYmlContent(contract);
+    const expectedHeavyYml = generateMainHeavyYmlContent(contract);
+
+    // Check each file
+    const filesToCheck = [
+      { path: 'CERBER.md', content: expectedCerberMd },
+      { path: '.github/workflows/cerber-pr-fast.yml', content: expectedFastYml },
+      { path: '.github/workflows/cerber-main-heavy.yml', content: expectedHeavyYml }
+    ];
+
+    filesToCheck.forEach(({ path, content }) => {
+      const drift = checkFileDrift(path, content, cwd);
+      driftedFiles.push(drift);
+    });
+
+    const driftedCount = driftedFiles.filter(f => f.hasDrift).length;
+
+    if (driftedCount === 0) {
+      logger.info('✅ No drift detected - all files match contract');
+      return {
+        hasDrift: false,
+        files: driftedFiles,
+        summary: '✅ Repo is in sync with contract',
+        exitCode: 0
+      };
+    }
+
+    logger.error(`❌ Drift detected in ${driftedCount} file(s)`);
+    driftedFiles.forEach(file => {
+      if (file.hasDrift) {
+        logger.error(`  - ${file.path}`);
+      }
+    });
+
+    return {
+      hasDrift: true,
+      files: driftedFiles,
+      summary: `❌ Repo drifted from contract. Run: npm run cerber:generate`,
+      exitCode: 1
+    };
+  } catch (error) {
+    logger.error(`Drift check failed: ${(error as Error).message}`);
+    return {
+      hasDrift: true,
+      files: driftedFiles,
+      summary: '❌ Drift check failed',
+      exitCode: 2
+    };
+  }
+}
+
+/**
+ * Generate CERBER.md content without writing
+ */
+function generateCerberMdContent(contract: any): string {
+  const md: string[] = [];
+  const AUTO_GENERATED_HEADER = '<!-- AUTO-GENERATED BY CERBER — DO NOT EDIT -->';
+
+  md.push(AUTO_GENERATED_HEADER);
+  md.push('');
+  md.push('# Cerber Gates & Test Organization');
+  md.push('');
+  md.push(`Generated from: \`.cerber/contract.yml\` (${contract.version})`);
+  md.push('');
+
+  // Gates section
+  md.push('## CI Gates');
+  md.push('');
+  md.push('### Fast Gate (PR Required)');
+  md.push('');
+  if (contract.gates?.fast) {
+    const fast = contract.gates.fast;
+    md.push(`**Description:** ${fast.description}`);
+    md.push(`**Timeout:** ${fast.timeout}s`);
+    md.push('');
+    md.push('**Commands:**');
+    (fast.commands || []).forEach((cmd: string) => {
+      md.push(`- \`${cmd}\``);
+    });
+    md.push('');
+    md.push('**Test Filters:**');
+    (fast.testFilters || []).forEach((filter: string) => {
+      md.push(`- \`${filter}\``);
+    });
+  }
+
+  md.push('');
+  md.push('### Heavy Gate (Main/Nightly)');
+  md.push('');
+  if (contract.gates?.heavy) {
+    const heavy = contract.gates.heavy;
+    md.push(`**Description:** ${heavy.description}`);
+    md.push(`**Timeout:** ${heavy.timeout}s`);
+    md.push('');
+    md.push('**Jobs:**');
+    (heavy.jobs || []).forEach((job: any) => {
+      md.push(`- \`${job.name}\`: ${job.description}`);
+    });
+  }
+
+  md.push('');
+  md.push('## Test Tags Organization');
+  md.push('');
+  Object.entries(contract.testTags || {}).forEach(([tag, config]: [string, any]) => {
+    md.push(`### @${tag}`);
+    md.push(`**${config.name}**`);
+    md.push(`${config.description}`);
+    md.push('');
+    md.push(`- Command: \`${config.command}\``);
+    md.push(`- Timeout: ${config.timeout}ms`);
+    md.push(`- Max Retries: ${config.maxRetries}`);
+    md.push('');
+  });
+
+  md.push('## Available Commands');
+  md.push('');
+  md.push('```bash');
+  md.push('npm run test:fast          # Fast unit tests only (@fast)');
+  md.push('npm run test:integration   # Integration tests (@integration)');
+  md.push('npm run test:e2e           # End-to-end tests (@e2e)');
+  md.push('npm run test:signals       # Signal handling tests (@signals)');
+  md.push('npm run cerber:generate    # Regenerate this file from contract');
+  md.push('npm run cerber:drift       # Check for drift vs contract');
+  md.push('```');
+  md.push('');
+  md.push('---');
+  md.push('To regenerate this file: `npm run cerber:generate`');
+
+  return md.join('\n');
+}
+
+/**
+ * Generate cerber-pr-fast.yml content without writing
+ */
+function generatePrFastYmlContent(contract: any): string {
+  const lines: string[] = [];
+  const AUTO_GENERATED_HEADER_YML = '# AUTO-GENERATED BY CERBER — DO NOT EDIT';
+
+  lines.push(AUTO_GENERATED_HEADER_YML);
+  lines.push('');
+  lines.push('name: Cerber Fast Checks (PR)');
+  lines.push('');
+  lines.push('on:');
+  lines.push('  pull_request:');
+  lines.push('    branches: [main]');
+  lines.push('  workflow_dispatch:');
+  lines.push('');
+  lines.push('env:');
+  lines.push('  NODE_VERSION: 20');
+  lines.push('');
+  lines.push('jobs:');
+  lines.push('  lint_and_typecheck:');
+  lines.push('    name: Lint & Type Check');
+  lines.push('    runs-on: ubuntu-latest');
+  lines.push('    steps:');
+  lines.push('      - uses: actions/checkout@v4');
+  lines.push('      - uses: actions/setup-node@v4');
+  lines.push('        with:');
+  lines.push('          node-version: ${{ env.NODE_VERSION }}');
+  lines.push('      - run: npm ci');
+  lines.push('      - run: npm run lint || echo "⚠️  ESLint skipped"');
+  lines.push('      - run: npx tsc --noEmit');
+  lines.push('');
+  lines.push('  build_and_unit:');
+  lines.push('    name: Build & Unit Tests (@fast)');
+  lines.push('    runs-on: ubuntu-latest');
+  lines.push('    needs: lint_and_typecheck');
+  lines.push('    steps:');
+  lines.push('      - uses: actions/checkout@v4');
+  lines.push('      - uses: actions/setup-node@v4');
+  lines.push('        with:');
+  lines.push('          node-version: ${{ env.NODE_VERSION }}');
+  lines.push('      - run: chmod +x bin/*.cjs bin/cerber* || true');
+  lines.push('      - run: npm ci');
+  lines.push('      - run: npm run build');
+  lines.push('      - run: npm run test:fast');
+  lines.push('        env:');
+  lines.push('          CERBER_TEST_MODE: "1"');
+  lines.push('');
+  lines.push('  pr_summary:');
+  lines.push('    name: PR Summary');
+  lines.push('    runs-on: ubuntu-latest');
+  lines.push('    needs: [lint_and_typecheck, build_and_unit]');
+  lines.push('    if: always()');
+  lines.push('    steps:');
+  lines.push('      - run: |');
+  lines.push('          if [[ "${{ needs.lint_and_typecheck.result }}" != "success" ]] || \\');
+  lines.push('             [[ "${{ needs.build_and_unit.result }}" != "success" ]]; then');
+  lines.push('            echo "❌ Fast gate failed"');
+  lines.push('            exit 1');
+  lines.push('          fi');
+  lines.push('          echo "✅ All fast checks passed"');
+
+  return lines.join('\n');
+}
+
+/**
+ * Generate cerber-main-heavy.yml content without writing
+ */
+function generateMainHeavyYmlContent(contract: any): string {
+  const lines: string[] = [];
+  const AUTO_GENERATED_HEADER_YML = '# AUTO-GENERATED BY CERBER — DO NOT EDIT';
+
+  lines.push(AUTO_GENERATED_HEADER_YML);
+  lines.push('');
+  lines.push('name: Cerber Heavy Verification (Main)');
+  lines.push('');
+  lines.push('on:');
+  lines.push('  push:');
+  lines.push('    branches: [main]');
+  lines.push('  workflow_dispatch:');
+  lines.push('');
+  lines.push('env:');
+  lines.push('  NODE_VERSION: 20');
+  lines.push('  INIT_TIMEOUT_SECONDS: 90');
+  lines.push('');
+  lines.push('jobs:');
+  lines.push('  lint_and_typecheck:');
+  lines.push('    name: Lint & Type Check');
+  lines.push('    runs-on: ubuntu-latest');
+  lines.push('    steps:');
+  lines.push('      - uses: actions/checkout@v4');
+  lines.push('      - uses: actions/setup-node@v4');
+  lines.push('        with:');
+  lines.push('          node-version: ${{ env.NODE_VERSION }}');
+  lines.push('      - run: npm ci');
+  lines.push('      - run: npm run lint || echo "⚠️  ESLint skipped"');
+  lines.push('      - run: npx tsc --noEmit');
+  lines.push('');
+  lines.push('  build_and_unit:');
+  lines.push('    name: Build & Unit Tests (@fast)');
+  lines.push('    runs-on: ubuntu-latest');
+  lines.push('    needs: lint_and_typecheck');
+  lines.push('    steps:');
+  lines.push('      - uses: actions/checkout@v4');
+  lines.push('      - uses: actions/setup-node@v4');
+  lines.push('        with:');
+  lines.push('          node-version: ${{ env.NODE_VERSION }}');
+  lines.push('      - run: chmod +x bin/*.cjs bin/cerber* || true');
+  lines.push('      - run: npm ci');
+  lines.push('      - run: npm run build');
+  lines.push('      - run: npm run test:fast');
+  lines.push('        env:');
+  lines.push('          CERBER_TEST_MODE: "1"');
+  lines.push('');
+  lines.push('  integration_tests:');
+  lines.push('    name: Integration Tests (@integration)');
+  lines.push('    runs-on: ubuntu-latest');
+  lines.push('    needs: build_and_unit');
+  lines.push('    steps:');
+  lines.push('      - uses: actions/checkout@v4');
+  lines.push('      - uses: actions/setup-node@v4');
+  lines.push('        with:');
+  lines.push('          node-version: ${{ env.NODE_VERSION }}');
+  lines.push('      - run: npm ci');
+  lines.push('      - run: npm run build');
+  lines.push('      - run: npm run test:integration');
+  lines.push('        env:');
+  lines.push('          CERBER_TEST_MODE: "1"');
+  lines.push('');
+  lines.push('  e2e_tests:');
+  lines.push('    name: E2E Tests (@e2e)');
+  lines.push('    runs-on: ubuntu-latest');
+  lines.push('    needs: build_and_unit');
+  lines.push('    steps:');
+  lines.push('      - uses: actions/checkout@v4');
+  lines.push('      - uses: actions/setup-node@v4');
+  lines.push('        with:');
+  lines.push('          node-version: ${{ env.NODE_VERSION }}');
+  lines.push('      - run: npm ci');
+  lines.push('      - run: npm run build');
+  lines.push('      - run: npm run test:e2e');
+  lines.push('        env:');
+  lines.push('          CERBER_TEST_MODE: "1"');
+  lines.push('');
+  lines.push('  signals_tests:');
+  lines.push('    name: Signal Handling Tests (@signals)');
+  lines.push('    runs-on: ubuntu-latest');
+  lines.push('    needs: build_and_unit');
+  lines.push('    steps:');
+  lines.push('      - uses: actions/checkout@v4');
+  lines.push('      - uses: actions/setup-node@v4');
+  lines.push('        with:');
+  lines.push('          node-version: ${{ env.NODE_VERSION }}');
+  lines.push('      - run: npm ci');
+  lines.push('      - run: npm run build');
+  lines.push('      - run: npm run test:signals');
+  lines.push('        env:');
+  lines.push('          CERBER_TEST_MODE: "1"');
+  lines.push('');
+  lines.push('  summary:');
+  lines.push('    name: All Checks Summary');
+  lines.push('    runs-on: ubuntu-latest');
+  lines.push('    needs:');
+  lines.push('      - lint_and_typecheck');
+  lines.push('      - build_and_unit');
+  lines.push('      - integration_tests');
+  lines.push('      - e2e_tests');
+  lines.push('      - signals_tests');
+  lines.push('    if: always()');
+  lines.push('    steps:');
+  lines.push('      - run: |');
+  lines.push('          if [[ "${{ needs.lint_and_typecheck.result }}" != "success" ]] || \\');
+  lines.push('             [[ "${{ needs.build_and_unit.result }}" != "success" ]] || \\');
+  lines.push('             [[ "${{ needs.integration_tests.result }}" != "success" ]] || \\');
+  lines.push('             [[ "${{ needs.e2e_tests.result }}" != "success" ]] || \\');
+  lines.push('             [[ "${{ needs.signals_tests.result }}" != "success" ]]; then');
+  lines.push('            echo "❌ One or more checks failed"');
+  lines.push('            exit 1');
+  lines.push('          fi');
+  lines.push('          echo "✅ All checks passed"');
+
+  return lines.join('\n');
+}
+
+/**
+ * Run drift check and report
+ */
+export async function runDriftCheck(cwd: string = process.cwd()): Promise<void> {
+  const result = await checkDrift(cwd);
+
+  logger.info('');
+  logger.info(result.summary);
+  logger.info('');
+
+  if (result.hasDrift) {
+    logger.error('Drifted files:');
+    result.files.filter(f => f.hasDrift).forEach(file => {
+      logger.error(`  ❌ ${file.path}`);
+      if (file.diff) {
+        logger.error(`     ${file.diff}`);
+      }
+    });
+    logger.error('');
+    logger.error('Fix: npm run cerber:generate && git add . && git commit -m "chore: regenerate from contract"');
+  }
+
+  process.exit(result.exitCode);
+}
+
+export default { checkDrift, runDriftCheck };
