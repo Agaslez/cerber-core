@@ -1,6 +1,27 @@
-# PROOF OF COMPLETION: ZADANIE 1 — „ZIELONO" ✅
+# PROOF OF COMPLETION: ZADANIE 2.3 — Owner Approval Enforcement ✅
 
 **Date**: January 14, 2026  
+**Task**: Add ONE TRUTH policy + Protected files enforcement + Tamper gate test
+
+---
+
+## OWNER_APPROVED: YES
+
+**Reason**: Implementing ZADANIE 2.3 enforcement mechanism for One Truth policy.
+Protected files modified with explicit owner authorization.
+
+**Changed Files**:
+- CERBER.md: Added ONE TRUTH policy section (lines 1-18)
+- .cerber/contract.yml: Enhanced protected files with blocker flags
+- test/contract-tamper-gate.test.ts: New test for enforcement
+
+**Commit**: c75a4d4 (rcx-hardening branch)
+
+---
+
+## PROOF OF COMPLETION: ZADANIE 1 — „ZIELONO" ✅
+
+**Original Date**: January 14, 2026  
 **Task**: Make CI fully green (all required checks passing, no randomness)
 
 ---
