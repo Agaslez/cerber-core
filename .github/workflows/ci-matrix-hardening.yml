@@ -159,7 +159,7 @@ jobs:
       - run: npm ci
       
       - name: Signal Tests (SIGINT/SIGTERM)
-        run: npm test -- test/e2e/cli-signals.test.ts
+        run: npm test -- test/e2e/cli-signals-refactored.test.ts
         timeout-minutes: 5
 
       - name: Open Handles Detection (timer/resource leaks)

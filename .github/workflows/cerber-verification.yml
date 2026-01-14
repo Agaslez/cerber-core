@@ -105,12 +105,12 @@ jobs:
       - name: CLI Signals E2E test (full on main)
         if: github.ref == 'refs/heads/main'
         timeout-minutes: 5
-        run: npm test -- test/e2e/cli-signals.test.ts --runInBand
+        run: npm test -- test/e2e/cli-signals-refactored.test.ts --runInBand
 
       - name: CLI Signals E2E test (SIGINT-only on PR/feature)
         if: github.ref != 'refs/heads/main'
         timeout-minutes: 3
-        run: npm test -- test/e2e/cli-signals.test.ts --runInBand --testNamePattern="should handle SIGINT"
+        run: npm test -- test/e2e/cli-signals-refactored.test.ts --runInBand --testNamePattern="should handle SIGINT"
         env:
           CERBER_TEST_MODE: '1'
 
