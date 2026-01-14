@@ -30,7 +30,7 @@
     "test:unit": "jest --testPathPattern='test/unit' --runInBand --passWithNoTests",
     "test:fast": "jest --testNamePattern='@fast' --passWithNoTests",
     "test:integration": "jest --testNamePattern='@integration' --passWithNoTests",
-    "test:e2e": "jest --testPathPattern='test/e2e' --maxWorkers=1 --passWithNoTests",
+    "test:e2e": "jest --testPathPattern='test/e2e' --runInBand --passWithNoTests",
     "test:signals": "jest --testNamePattern='@signals' --passWithNoTests",
     "test:ci:pr": "jest --testNamePattern='@fast|@integration' --passWithNoTests",
     "test:ci:heavy": "jest --passWithNoTests",

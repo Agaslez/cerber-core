@@ -49,28 +49,45 @@ describe("@signals CLI Signal Handling", () => {
   }
 
   /**
-   * Helper: Wait for text to appear in output with timeout
+   * Helper: Wait for text to appear in output with timeout and retry logic
    */
   function waitForText(proc: ChildProcess, getOut: () => string, text: string, timeoutMs: number) {
     return new Promise<void>((resolve, reject) => {
       const start = Date.now();
+      let lastOutput = '';
 
       const tick = () => {
-        if (getOut().includes(text)) return resolve();
+        const output = getOut();
+        lastOutput = output;
+        
+        if (output.includes(text)) {
+          console.log(`✓ Found "${text}" after ${Date.now() - start}ms`);
+          return resolve();
+        }
+        
         if (Date.now() - start > timeoutMs) {
-          const output = getOut();
           const lastLine = output.split('\n').filter(l => l.trim()).pop() || '(empty)';
+          const fullContext = output.length > 500 
+            ? `...${output.substring(output.length - 500)}`
+            : output;
+          
           return reject(new Error(
-            `Timeout ${timeoutMs}ms waiting for "${text}". ` +
-            `Last output: "${lastLine}". ` +
-            `Full: "${output.substring(Math.max(0, output.length - 200))}"`
+            `[TIMEOUT] ${timeoutMs}ms waiting for "${text}"\n` +
+            `Last line: "${lastLine}"\n` +
+            `Full output (last 500 chars): "${fullContext}"`
           ));
         }
+        
         setTimeout(tick, 25);
       };
 
       proc.once('exit', (code, signal) => {
-        reject(new Error(`Process exited early while waiting for "${text}". code=${code} signal=${signal}. Output: "${getOut()}"`));
+        console.error(`[PROCESS EXIT] Code=${code}, Signal=${signal}, Output: "${lastOutput}"`);
+        reject(new Error(
+          `[EARLY EXIT] Process exited while waiting for "${text}"\n` +
+          `Code: ${code}, Signal: ${signal}\n` +
+          `Last output: "${lastOutput}"`
+        ));
       });
 
       tick();
@@ -82,11 +99,27 @@ describe("@signals CLI Signal Handling", () => {
    */
   let proc: ChildProcess | undefined;
 
-  afterEach(() => {
+  afterEach(async () => {
     if (proc && !proc.killed) {
       try {
+        console.log('[CLEANUP] Killing process...');
         proc.kill('SIGKILL');
-      } catch {}
+        // Wait for process to actually die
+        await new Promise<void>((resolve) => {
+          const timeout = setTimeout(() => {
+            console.warn('[CLEANUP] Process did not die after SIGKILL');
+            resolve();
+          }, 1000);
+          
+          proc!.once('exit', () => {
+            clearTimeout(timeout);
+            console.log('[CLEANUP] Process killed successfully');
+            resolve();
+          });
+        });
+      } catch (e) {
+        console.error('[CLEANUP] Error killing process:', e);
+      }
     }
     // Cleanup all timers to prevent interference
     jest.clearAllTimers();
@@ -111,32 +144,38 @@ describe("@signals CLI Signal Handling", () => {
 
       // Debug: Log process exit to catch early termination
       proc.on('exit', (code, signal) => {
-        console.log(`[DEBUG] Process exited early: code=${code}, signal=${signal}`);
+        console.log(`[DEBUG] Process exited: code=${code}, signal=${signal}, stdout="${io.stdout.trim()}", stderr="${io.stderr.trim()}"`);
       });
 
       // Wait for process to be ready
       try {
+        console.log(`[TEST] Waiting for READY (timeout: ${READY_TIMEOUT}ms)...`);
         await waitForText(proc, () => io.stdout + io.stderr, "READY", READY_TIMEOUT);
+        console.log(`[TEST] ✓ READY received`);
       } catch (e) {
-        console.error('FAILED TO GET READY:');
-        console.error('stdout:', io.stdout);
-        console.error('stderr:', io.stderr);
+        console.error('[TEST] ✗ FAILED TO GET READY');
+        console.error(`[TEST] stdout: ${io.stdout}`);
+        console.error(`[TEST] stderr: ${io.stderr}`);
         throw e;
       }
 
       // Wait before sending signal to ensure handlers are ready
+      console.log(`[TEST] Waiting ${SIGNAL_DELAY}ms before sending SIGINT...`);
       await new Promise((resolve) => setTimeout(resolve, SIGNAL_DELAY));
 
       // Send signal
+      console.log(`[TEST] Sending SIGINT...`);
       proc.kill("SIGINT");
 
       // Wait for cleanup to complete
       try {
+        console.log(`[TEST] Waiting for CLEANUP_DONE (timeout: ${CLEANUP_TIMEOUT}ms)...`);
         await waitForText(proc, () => io.stdout + io.stderr, "CLEANUP_DONE", CLEANUP_TIMEOUT);
+        console.log(`[TEST] ✓ CLEANUP_DONE received`);
       } catch (e) {
-        console.error('FAILED TO GET CLEANUP_DONE:');
-        console.error('stdout:', io.stdout);
-        console.error('stderr:', io.stderr);
+        console.error('[TEST] ✗ FAILED TO GET CLEANUP_DONE');
+        console.error(`[TEST] stdout: ${io.stdout}`);
+        console.error(`[TEST] stderr: ${io.stderr}`);
         throw e;
       }
 
