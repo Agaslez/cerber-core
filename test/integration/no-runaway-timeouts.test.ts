@@ -6,7 +6,7 @@
  */
 
 
-describe('No-Runaway Timeouts (Resilience)', () => {
+describe('@integration No-Runaway Timeouts (Resilience)', () => {
   let originalSetTimeout: typeof setTimeout;
   let originalClearTimeout: typeof clearTimeout;
 

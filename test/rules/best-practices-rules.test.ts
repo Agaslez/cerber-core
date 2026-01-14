@@ -10,7 +10,7 @@ import { describe, expect, it } from '@jest/globals';
 import { RuleManager } from '../../src/rules/index';
 import type { WorkflowAST } from '../../src/semantic/SemanticComparator';
 
-describe('Best Practices Rules', () => {
+describe('@fast Best Practices Rules', () => {
   describe('best-practices/cache-dependencies', () => {
     it('should detect missing cache after setup-node', async () => {
       const workflow: WorkflowAST = {

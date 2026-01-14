@@ -6,7 +6,7 @@
  */
 
 
-describe('Mutation Testing: Test Effectiveness', () => {
+describe('@integration Mutation Testing: Test Effectiveness', () => {
   describe('Orchestrator logic mutations', () => {
     it('should catch off-by-one in line numbers', () => {
       // If code mutates line number logic, this should fail

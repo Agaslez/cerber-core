@@ -12,7 +12,7 @@ import {
     withTimeouts
 } from '../../src/core/timeout.js';
 
-describe('Timeout Enforcement', () => {
+describe('@fast Timeout Enforcement', () => {
   describe('withTimeout', () => {
     it('returns result when function completes before timeout', async () => {
       const result = await withTimeout(

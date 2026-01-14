@@ -1,7 +1,7 @@
 import { Contract } from '../src/contract/types';
 import { ProfileResolver, createProfileResolver } from '../src/core/ProfileResolver';
 
-describe('COMMIT-6: Profile Resolution Logic', () => {
+describe('@fast COMMIT-6: Profile Resolution Logic', () => {
   const minimalContract: Contract = {
     contractVersion: 1,
     profiles: {

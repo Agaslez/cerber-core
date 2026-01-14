@@ -21,7 +21,7 @@ function stripNonDeterministicFields(result: OrchestratorResult): Omit<Orchestra
   return deterministicResult;
 }
 
-describe('Orchestrator Concurrency Determinism', () => {
+describe('@integration Orchestrator Concurrency Determinism', () => {
   const runs = 20;
   const outputChecksums: string[] = [];
 

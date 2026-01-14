@@ -12,7 +12,7 @@ import {
     CircuitState
 } from '../../src/core/circuit-breaker.js';
 
-describe('CircuitBreaker', () => {
+describe('@fast CircuitBreaker', () => {
   describe('State Transitions', () => {
     it('starts in CLOSED state', () => {
       const breaker = new CircuitBreaker({ name: 'test' });

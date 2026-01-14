@@ -17,7 +17,7 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 
-describe('Security: Path Traversal & Input Validation', () => {
+describe('@integration Security: Path Traversal & Input Validation', () => {
   let tempDir: string;
 
   beforeAll(() => {

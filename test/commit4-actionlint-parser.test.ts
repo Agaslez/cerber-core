@@ -7,7 +7,7 @@ import { readFileSync } from 'fs';
 import { join } from 'path';
 import { ActionlintAdapter } from '../src/adapters/ActionlintAdapter.js';
 
-describe('COMMIT 4: Actionlint Parser', () => {
+describe('@fast COMMIT 4: Actionlint Parser', () => {
   let adapter: ActionlintAdapter;
 
   beforeEach(() => {

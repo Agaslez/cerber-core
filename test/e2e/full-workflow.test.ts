@@ -19,7 +19,7 @@ import { SemanticComparator } from '../../src/semantic/SemanticComparator.js';
 
 const log = createLogger({ name: 'e2e-full-workflow' });
 
-describe('E2E: Full Workflow Validation', () => {
+describe('@e2e E2E: Full Workflow Validation', () => {
   let tempDir: string;
   let orchestrator: Orchestrator;
 

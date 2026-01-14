@@ -11,7 +11,7 @@ import { performance } from 'perf_hooks';
 import { Orchestrator } from '../../src/core/Orchestrator';
 import type { OrchestratorRunOptions } from '../../src/core/types';
 
-describe('Performance Regression Gates', () => {
+describe('@integration Performance Regression Gates', () => {
   describe('Orchestrator execution time', () => {
     it('should complete single adapter run in reasonable time', () => {
       const orchestrator = new Orchestrator();

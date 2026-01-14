@@ -10,7 +10,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { ActionlintAdapter } from '../../src/adapters/actionlint/ActionlintAdapter';
 
-describe('Differential Testing: actionlint', () => {
+describe('@integration Differential Testing: actionlint', () => {
   const fixturesDir = path.join(__dirname, '../fixtures/actionlint');
   const adapter = new ActionlintAdapter();
   let isActionlintAvailable = false;

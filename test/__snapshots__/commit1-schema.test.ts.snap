@@ -1,5 +1,38 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
+exports[`@fast COMMIT 1: Schema Consistency Deterministic Output Snapshot should produce identical JSON for same data 1`] = `
+"{
+  "schemaVersion": 1,
+  "deterministic": true,
+  "summary": {
+    "total": 1,
+    "errors": 1,
+    "warnings": 0,
+    "info": 0
+  },
+  "violations": [
+    {
+      "id": "security/no-hardcoded-secrets",
+      "severity": "error",
+      "message": "Hardcoded secret detected",
+      "source": "actionlint",
+      "path": ".github/workflows/ci.yml",
+      "line": 10,
+      "column": 5
+    }
+  ],
+  "metadata": {
+    "tools": {
+      "actionlint": {
+        "enabled": true,
+        "version": "1.6.27",
+        "exitCode": 1
+      }
+    }
+  }
+}"
+`;
+
 exports[`COMMIT 1: Schema Consistency Deterministic Output Snapshot should produce identical JSON for same data 1`] = `
 "{
   "schemaVersion": 1,

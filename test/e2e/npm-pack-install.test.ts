@@ -14,7 +14,7 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 
-describe('E2E: npm pack → install → run CLI', () => {
+describe('@e2e E2E: npm pack → install → run CLI', () => {
   let packDir: string;
   let installDir: string;
   let tarballPath: string;

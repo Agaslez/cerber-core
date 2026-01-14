@@ -15,7 +15,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { CerberOutput, Violation } from '../src/types';
 
-describe('Output Schema', () => {
+describe('@integration Output Schema', () => {
   let ajv: any;
   let schema: any;
 

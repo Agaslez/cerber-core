@@ -10,7 +10,7 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 
-describe('NPM Pack Smoke Test (Distribution)', () => {
+describe('@e2e NPM Pack Smoke Test (Distribution)', () => {
   let tempDir: string;
   let packFile: string;
 

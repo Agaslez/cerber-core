@@ -11,7 +11,7 @@ import { CircuitBreaker } from '../../src/core/circuit-breaker.js';
 import { ResilienceFactory } from '../../src/core/resilience-factory.js';
 import { LinearBackoffStrategy } from '../../src/core/retry-strategy.js';
 
-describe('ResilienceFactory', () => {
+describe('@fast ResilienceFactory', () => {
   describe('Profile Management', () => {
     it('should list available profiles', () => {
       const factory = new ResilienceFactory();

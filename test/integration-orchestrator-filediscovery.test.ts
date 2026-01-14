@@ -9,7 +9,7 @@ import * as path from 'path';
 import { Orchestrator } from '../src/core/Orchestrator.js';
 import { FileDiscovery } from '../src/core/file-discovery.js';
 
-describe('Integration: Orchestrator + FileDiscovery + Adapters', () => {
+describe('@integration Integration: Orchestrator + FileDiscovery + Adapters', () => {
   let tempDir: string;
   let orchestrator: Orchestrator;
   let fileDiscovery: FileDiscovery;

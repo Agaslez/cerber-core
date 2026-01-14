@@ -12,7 +12,7 @@ import { ActionlintAdapter } from '../../src/adapters/actionlint/ActionlintAdapt
 import { GitleaksAdapter } from '../../src/adapters/gitleaks/GitleaksAdapter';
 import { ZizmorAdapter } from '../../src/adapters/zizmor/ZizmorAdapter';
 
-describe('Property-Based Valid-Shape Testing: Must-Produce', () => {
+describe('@integration Property-Based Valid-Shape Testing: Must-Produce', () => {
   describe('ActionlintAdapter - shape validation', () => {
     it('should produce valid Violation shape from actionlint JSON', () => {
       const adapter = new ActionlintAdapter();

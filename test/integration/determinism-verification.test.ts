@@ -19,7 +19,7 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 
-describe('Determinism Verification', () => {
+describe('@integration Determinism Verification', () => {
   let testDir: string;
   const RUN_COUNT = 5;
 

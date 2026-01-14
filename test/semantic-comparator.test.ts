@@ -9,7 +9,7 @@ import { describe, expect, it } from '@jest/globals';
 import type { ContractAST, WorkflowAST } from '../src/semantic/SemanticComparator';
 import { SemanticComparator } from '../src/semantic/SemanticComparator';
 
-describe('SemanticComparator', () => {
+describe('@integration SemanticComparator', () => {
   describe('Structure Validation (Level 1)', () => {
     it('should detect missing "on" trigger', async () => {
       const workflow: WorkflowAST = {

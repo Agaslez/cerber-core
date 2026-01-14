@@ -14,7 +14,7 @@ import { ActionlintAdapter } from '../../src/adapters/actionlint/ActionlintAdapt
 import { GitleaksAdapter } from '../../src/adapters/gitleaks/GitleaksAdapter';
 import { ZizmorAdapter } from '../../src/adapters/zizmor/ZizmorAdapter';
 
-describe('Runtime Guard: parseOutput Type Safety', () => {
+describe('@integration Runtime Guard: parseOutput Type Safety', () => {
   describe('When non-string is passed (defensive)', () => {
     it('ActionlintAdapter: should handle gracefully when called with object (instead of string)', () => {
       const adapter = new ActionlintAdapter();

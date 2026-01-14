@@ -11,7 +11,7 @@
  */
 
 
-describe('Contract Fuzz + Schema Abuse', () => {
+describe('@e2e Contract Fuzz + Schema Abuse', () => {
   describe('CERBER.md parsing', () => {
     it('should reject injection in version', () => {
       const malicious = `# CERBER v1.0

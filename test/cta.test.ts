@@ -18,7 +18,7 @@ import {
     writeCtaState
 } from '../src/cli/cta';
 
-describe('CTA Module', () => {
+describe('@fast CTA Module', () => {
   describe('getConfigDir', () => {
     it('should return platform-specific config directory', () => {
       const configDir = getConfigDir();

@@ -14,7 +14,7 @@ import * as os from 'os';
 import * as path from 'path';
 import { getDoctorToolStatus, runDoctor } from '../../src/cli/doctor.js';
 
-describe('Exit Code Matrix (0/1/2 Consistency)', () => {
+describe('@e2e Exit Code Matrix (0/1/2 Consistency)', () => {
   let tempDir: string;
 
   beforeEach(() => {

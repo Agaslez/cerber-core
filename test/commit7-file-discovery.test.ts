@@ -2,7 +2,7 @@ import { FileDiscovery } from '../src/core/file-discovery';
 import { GitSCM } from '../src/scm/git';
 import { PathNormalizer } from '../src/scm/paths';
 
-describe('COMMIT-7: File Discovery (SCM Integration)', () => {
+describe('@fast COMMIT-7: File Discovery (SCM Integration)', () => {
   describe('PathNormalizer', () => {
     describe('normalize()', () => {
       it('should convert Windows backslashes to forward slashes', () => {

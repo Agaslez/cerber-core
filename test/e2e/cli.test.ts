@@ -12,7 +12,7 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 
-describe('CLI E2E Tests', () => {
+describe('@e2e CLI E2E Tests', () => {
   let tempDir: string;
 
   beforeAll(() => {

@@ -10,7 +10,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { ZizmorAdapter } from '../../src/adapters/zizmor/ZizmorAdapter';
 
-describe('Differential Testing: zizmor', () => {
+describe('@integration Differential Testing: zizmor', () => {
   const fixturesDir = path.join(__dirname, '../fixtures/zizmor');
   const adapter = new ZizmorAdapter();
   let isZizmorAvailable = false;

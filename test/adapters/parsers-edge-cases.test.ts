@@ -15,7 +15,7 @@
 
 import { describe, expect, it } from '@jest/globals';
 
-describe('Parser Stress Tests - Edge Cases', () => {
+describe('@fast Parser Stress Tests - Edge Cases', () => {
   
   describe('JSON Parser Robustness', () => {
     it('should reject invalid JSON gracefully', () => {

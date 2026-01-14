@@ -39,7 +39,7 @@ function randomUnicode(length: number): string {
   return result;
 }
 
-describe('Property-Based Chaos Testing: No-Crash', () => {
+describe('@integration Property-Based Chaos Testing: No-Crash', () => {
   const iterations = process.env.CHAOS_ITERATIONS ? parseInt(process.env.CHAOS_ITERATIONS) : 50;
 
   describe('ActionlintAdapter - chaos no-crash', () => {

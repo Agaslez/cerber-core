@@ -1,5 +1,44 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
+exports[`@fast COMMIT 2: Contract Profiles Profile Snapshot should produce consistent profile structure 1`] = `
+{
+  "dev": {
+    "description": "Full development check",
+    "gates": [
+      "fast",
+      "heavy",
+    ],
+    "tools": [
+      "actionlint",
+      "zizmor",
+    ],
+  },
+  "dev-fast": {
+    "description": "Fast pre-commit check (<2s)",
+    "gates": [
+      "fast",
+    ],
+    "tools": [
+      "actionlint",
+    ],
+  },
+  "team": {
+    "codeowners": true,
+    "description": "Team CI with secrets scanning",
+    "gates": [
+      "fast",
+      "heavy",
+    ],
+    "protectedBranch": true,
+    "tools": [
+      "actionlint",
+      "zizmor",
+      "gitleaks",
+    ],
+  },
+}
+`;
+
 exports[`COMMIT 2: Contract Profiles Profile Snapshot should produce consistent profile structure 1`] = `
 {
   "dev": {

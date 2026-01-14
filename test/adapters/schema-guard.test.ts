@@ -9,7 +9,7 @@ import { ActionlintAdapter } from '../../src/adapters/actionlint/ActionlintAdapt
 import { GitleaksAdapter } from '../../src/adapters/gitleaks/GitleaksAdapter';
 import { ZizmorAdapter } from '../../src/adapters/zizmor/ZizmorAdapter';
 
-describe('Output Schema Guard (Adapter Throws)', () => {
+describe('@fast Output Schema Guard (Adapter Throws)', () => {
   describe('ActionlintAdapter schema validation', () => {
     it('should return array even if input is invalid', () => {
       const adapter = new ActionlintAdapter();

@@ -15,7 +15,7 @@
 import { beforeEach, describe, expect, it } from '@jest/globals';
 import { GitleaksAdapter } from '../src/adapters/gitleaks/GitleaksAdapter.js';
 
-describe('GitleaksAdapter', () => {
+describe('@integration GitleaksAdapter', () => {
   let adapter: GitleaksAdapter;
 
   beforeEach(() => {

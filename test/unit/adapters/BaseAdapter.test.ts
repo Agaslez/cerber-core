@@ -42,7 +42,7 @@ class MockAdapter extends BaseAdapter {
   }
 }
 
-describe('BaseAdapter', () => {
+describe('@fast BaseAdapter', () => {
   let adapter: MockAdapter;
 
   beforeEach(() => {

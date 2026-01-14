@@ -8,7 +8,7 @@
  * - RTL/Bidi text handling
  */
 
-describe('Locale/Timezone/Encoding Torture', () => {
+describe('@integration Locale/Timezone/Encoding Torture', () => {
   describe('Locale handling', () => {
     it('should normalize paths regardless of locale', () => {
       const paths = {

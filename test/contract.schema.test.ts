@@ -15,7 +15,7 @@ const schemaPath = path.join(__dirname, '..', '.cerber', 'contract.schema.json')
 const schemaData = JSON.parse(fs.readFileSync(schemaPath, 'utf-8'));
 const validateContract = ajv.compile(schemaData);
 
-describe('Contract Schema (COMMIT-2)', () => {
+describe('@integration Contract Schema (COMMIT-2)', () => {
   describe('Schema Validation', () => {
     test('should validate well-formed contract', () => {
       const contract = {

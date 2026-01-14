@@ -6,7 +6,7 @@
 import { describe, expect, it } from '@jest/globals';
 import { createChildLogger, createLogger, generateRequestId, logError, startTimer } from '../../../src/core/logger.js';
 
-describe('Logger', () => {
+describe('@fast Logger', () => {
   describe('createLogger', () => {
     it('should create logger with default config', () => {
       const logger = createLogger();

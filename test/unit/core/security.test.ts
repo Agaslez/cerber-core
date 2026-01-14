@@ -18,7 +18,7 @@ import {
     validateProfileName
 } from '../../../src/core/security.js';
 
-describe('Security', () => {
+describe('@fast Security', () => {
   describe('sanitizePath', () => {
     it('should accept and normalize valid paths', () => {
       const result = sanitizePath('test.yml');

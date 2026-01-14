@@ -10,7 +10,7 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 
-describe('Guardian Protected Files Policy', () => {
+describe('@integration Guardian Protected Files Policy', () => {
   let tempDir: string;
   let gitDir: string;
 

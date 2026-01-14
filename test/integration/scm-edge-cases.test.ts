@@ -13,7 +13,7 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 
-describe('SCM Edge Cases - Stress Test', () => {
+describe('@integration SCM Edge Cases - Stress Test', () => {
   let tempDir: string;
 
   beforeAll(() => {

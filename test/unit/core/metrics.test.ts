@@ -10,7 +10,7 @@ import {
     metrics
 } from '../../../src/core/metrics.js';
 
-describe('Metrics', () => {
+describe('@fast Metrics', () => {
   beforeEach(() => {
     // Reset all metrics to zero (without clearing definitions)
     metrics.orchestratorRuns.reset();

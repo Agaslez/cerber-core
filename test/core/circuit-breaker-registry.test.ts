@@ -10,7 +10,7 @@ import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals
 import { CircuitBreakerRegistry } from '../../src/core/circuit-breaker-registry.js';
 import { CircuitState } from '../../src/core/circuit-breaker.js';
 
-describe('CircuitBreakerRegistry Cleanup', () => {
+describe('@fast CircuitBreakerRegistry Cleanup', () => {
   let registry: CircuitBreakerRegistry;
 
   beforeEach(() => {

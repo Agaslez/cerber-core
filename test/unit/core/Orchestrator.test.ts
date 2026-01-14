@@ -55,7 +55,7 @@ class MockAdapter implements Adapter {
   }
 }
 
-describe('Orchestrator', () => {
+describe('@fast Orchestrator', () => {
   let orchestrator: Orchestrator;
 
   beforeEach(() => {

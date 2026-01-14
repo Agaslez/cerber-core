@@ -8,7 +8,7 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 
-describe('Tool Detection Robustness', () => {
+describe('@integration Tool Detection Robustness', () => {
   describe('PATH parsing', () => {
     it('should handle PATH with spaces (Program Files)', () => {
       const testPath = 'C:\\Program Files\\Tool\\bin;C:\\Windows\\System32';

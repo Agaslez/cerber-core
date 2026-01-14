@@ -11,7 +11,7 @@ import type { WorkflowAST } from '../../src/semantic/SemanticComparator';
 import { SemanticComparator } from '../../src/semantic/SemanticComparator';
 
 describe.skip('Auto-Fix', () => {
-  describe('Fix confidence scoring', () => {
+  describe('@fast Fix confidence scoring', () => {
     it('should calculate high confidence for secret replacement', async () => {
       const workflow: WorkflowAST = {
         on: { push: { branches: ['main'] } },

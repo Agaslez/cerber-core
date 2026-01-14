@@ -52,7 +52,7 @@ class MockAdapter {
   }
 }
 
-describe('Resilience Integration', () => {
+describe('@fast Resilience Integration', () => {
   describe('executeResilientAdapter', () => {
     it('returns success for working adapter', async () => {
       const adapter = new MockAdapter('test-adapter') as any;

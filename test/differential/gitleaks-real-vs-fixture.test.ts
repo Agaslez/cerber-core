@@ -10,7 +10,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { GitleaksAdapter } from '../../src/adapters/gitleaks/GitleaksAdapter';
 
-describe('Differential Testing: gitleaks', () => {
+describe('@integration Differential Testing: gitleaks', () => {
   const fixturesDir = path.join(__dirname, '../fixtures/gitleaks');
   const adapter = new GitleaksAdapter();
   let isGitleaksAvailable = false;

@@ -14,7 +14,7 @@
 import { describe, expect, it } from '@jest/globals';
 import { Orchestrator } from '../../src/core/Orchestrator';
 
-describe('Orchestrator Chaos & Stress Tests', () => {
+describe('@integration Orchestrator Chaos & Stress Tests', () => {
   
   describe('Orchestrator Instantiation', () => {
     it('should create multiple orchestrator instances without conflict', () => {

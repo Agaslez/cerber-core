@@ -11,7 +11,7 @@ import * as os from 'os';
 import * as path from 'path';
 import { runDoctor } from '../../src/cli/doctor.js';
 
-describe('Contract Validation (Contract Tamper Gate)', () => {
+describe('@e2e Contract Validation (Contract Tamper Gate)', () => {
   let tempDir: string;
 
   beforeEach(() => {

@@ -10,7 +10,7 @@
 
 import type { Violation } from '../../src/types';
 
-describe('Backward Compatibility Gate (v1.1.12)', () => {
+describe('@e2e Backward Compatibility Gate (v1.1.12)', () => {
   describe('CLI command compatibility', () => {
     it('should support "guard" command (v1.1.12)', () => {
       // v1.1.12: cerber guard --files <glob>

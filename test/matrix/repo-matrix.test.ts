@@ -13,7 +13,7 @@
  */
 
 
-describe('Golden Contracts Repository Matrix', () => {
+describe('@integration Golden Contracts Repository Matrix', () => {
   describe('Repository Fixture 1: Node.js + GitHub Actions', () => {
     const repoType = 'node-gha';
 

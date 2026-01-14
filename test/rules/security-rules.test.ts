@@ -10,7 +10,7 @@ import { describe, expect, it } from '@jest/globals';
 import { RuleManager } from '../../src/rules/index';
 import type { WorkflowAST } from '../../src/semantic/SemanticComparator';
 
-describe('Security Rules', () => {
+describe('@fast Security Rules', () => {
   describe('security/no-hardcoded-secrets', () => {
     it('should detect Stripe API key (sk_live_)', async () => {
       const workflow: WorkflowAST = {

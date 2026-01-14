@@ -11,7 +11,7 @@ import {
   retryWithTimeout
 } from '../../src/core/retry.js';
 
-describe('Retry Logic', () => {
+describe('@fast Retry Logic', () => {
   describe('isRetryableError', () => {
     it('identifies network errors as retryable', () => {
       expect(isRetryableError(new Error('ETIMEDOUT'))).toBe(true);

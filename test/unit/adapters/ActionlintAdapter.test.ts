@@ -9,7 +9,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { ActionlintAdapter } from '../../../src/adapters/actionlint/ActionlintAdapter.js';
 
-describe('ActionlintAdapter', () => {
+describe('@fast ActionlintAdapter', () => {
   let adapter: ActionlintAdapter;
   const fixturesDir = join(__dirname, '../../fixtures/tool-outputs/actionlint');
 

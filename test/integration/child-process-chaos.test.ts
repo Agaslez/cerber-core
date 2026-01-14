@@ -11,7 +11,7 @@
 
 import { setTimeout as setTimeoutP } from 'timers/promises';
 
-describe('Child-Process Chaos Testing', () => {
+describe('@integration Child-Process Chaos Testing', () => {
   describe('Timeout handling', () => {
     it('should timeout hanging process', async () => {
       // Create a mock hanging process

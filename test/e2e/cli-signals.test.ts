@@ -12,7 +12,7 @@ import { spawn } from "node:child_process";
  * - No "worker force exit" warnings
  */
 
-describe("CLI Signal Handling", () => {
+describe("@signals CLI Signal Handling", () => {
   const isWindows = process.platform === "win32";
 
   /**
