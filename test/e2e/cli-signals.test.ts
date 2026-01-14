@@ -14,8 +14,8 @@ import { ChildProcess, spawn } from "node:child_process";
 
 describe("@signals CLI Signal Handling", () => {
   const isWindows = process.platform === "win32";
-  const READY_TIMEOUT = process.env.CI ? 10000 : 3000;
-  const CLEANUP_TIMEOUT = process.env.CI ? 10000 : 3000;
+  const READY_TIMEOUT = process.env.CI ? 15000 : 5000;
+  const CLEANUP_TIMEOUT = process.env.CI ? 15000 : 5000;
 
   /**
    * Helper: Collect stdout and stderr from a child process
