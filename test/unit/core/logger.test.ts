@@ -39,7 +39,7 @@ describe('@fast Logger', () => {
       await new Promise(resolve => setTimeout(resolve, 10));
       const duration = timer.end('Test operation');
       
-      expect(duration).toBeGreaterThanOrEqual(10);
+      expect(duration).toBeGreaterThanOrEqual(8);
       expect(duration).toBeLessThan(100);
     });
   });

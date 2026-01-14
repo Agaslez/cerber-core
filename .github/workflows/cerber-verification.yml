@@ -61,7 +61,12 @@ jobs:
         run: npm run build
 
       - name: Unit tests
-        run: npm test -- --runInBand
+        run: npm run test:unit
+        env:
+          CERBER_TEST_MODE: '1'
+
+      - name: CLI Signals E2E test (isolated)
+        run: npm run test:e2e -- test/e2e/cli-signals.test.ts --detectOpenHandles
         env:
           CERBER_TEST_MODE: '1'
 

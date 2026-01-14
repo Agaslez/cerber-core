@@ -93,13 +93,27 @@ describe("@signals CLI Signal Handling", () => {
       const io = collect(proc);
 
       // Wait for process to be ready
-      await waitForText(proc, () => io.stdout + io.stderr, "READY", READY_TIMEOUT);
+      try {
+        await waitForText(proc, () => io.stdout + io.stderr, "READY", READY_TIMEOUT);
+      } catch (e) {
+        console.error('FAILED TO GET READY:');
+        console.error('stdout:', io.stdout);
+        console.error('stderr:', io.stderr);
+        throw e;
+      }
 
       // Send signal
       proc.kill("SIGINT");
 
       // Wait for cleanup to complete
-      await waitForText(proc, () => io.stdout + io.stderr, "CLEANUP_DONE", CLEANUP_TIMEOUT);
+      try {
+        await waitForText(proc, () => io.stdout + io.stderr, "CLEANUP_DONE", CLEANUP_TIMEOUT);
+      } catch (e) {
+        console.error('FAILED TO GET CLEANUP_DONE:');
+        console.error('stdout:', io.stdout);
+        console.error('stderr:', io.stderr);
+        throw e;
+      }
 
       // Verify output sequence
       expect(io.stdout).toContain("READY");
@@ -191,13 +205,27 @@ describe("@signals CLI Signal Handling", () => {
       const io = collect(proc);
 
       // Wait for READY
-      await waitForText(proc, () => io.stdout + io.stderr, "READY", READY_TIMEOUT);
+      try {
+        await waitForText(proc, () => io.stdout + io.stderr, "READY", READY_TIMEOUT);
+      } catch (e) {
+        console.error('SIGTERM test: FAILED TO GET READY:');
+        console.error('stdout:', io.stdout);
+        console.error('stderr:', io.stderr);
+        throw e;
+      }
 
       // Send signal
       proc.kill("SIGTERM");
 
       // Wait for cleanup
-      await waitForText(proc, () => io.stdout + io.stderr, "CLEANUP_DONE", CLEANUP_TIMEOUT);
+      try {
+        await waitForText(proc, () => io.stdout + io.stderr, "CLEANUP_DONE", CLEANUP_TIMEOUT);
+      } catch (e) {
+        console.error('SIGTERM test: FAILED TO GET CLEANUP_DONE:');
+        console.error('stdout:', io.stdout);
+        console.error('stderr:', io.stderr);
+        throw e;
+      }
 
       const elapsed = Date.now() - start;
 
@@ -223,13 +251,27 @@ describe("@signals CLI Signal Handling", () => {
       const io = collect(proc);
 
       // Wait for READY
-      await waitForText(proc, () => io.stdout + io.stderr, "READY", READY_TIMEOUT);
+      try {
+        await waitForText(proc, () => io.stdout + io.stderr, "READY", READY_TIMEOUT);
+      } catch (e) {
+        console.error('SIGTERM graceful test: FAILED TO GET READY:');
+        console.error('stdout:', io.stdout);
+        console.error('stderr:', io.stderr);
+        throw e;
+      }
 
       // Send signal
       proc.kill("SIGTERM");
 
       // Wait for cleanup
-      await waitForText(proc, () => io.stdout + io.stderr, "CLEANUP_DONE", CLEANUP_TIMEOUT);
+      try {
+        await waitForText(proc, () => io.stdout + io.stderr, "CLEANUP_DONE", CLEANUP_TIMEOUT);
+      } catch (e) {
+        console.error('SIGTERM graceful test: FAILED TO GET CLEANUP_DONE:');
+        console.error('stdout:', io.stdout);
+        console.error('stderr:', io.stderr);
+        throw e;
+      }
 
       // Verify signal was handled
       expect(io.stdout).toContain("SIGTERM_RECEIVED");
