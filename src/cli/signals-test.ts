@@ -33,7 +33,7 @@ export function runSignalsTest(): void {
   // Guard: prevent cleanup from running multiple times
   let cleanupStarted = false;
 
-  // Cleanup handler with guaranteed stdout flush via callback
+  // Cleanup handler with cork/uncork for atomic flush guarantee
   const cleanup = (reason: string): void => {
     // CRITICAL: Guard against multiple cleanup calls
     if (cleanupStarted) {
@@ -43,29 +43,37 @@ export function runSignalsTest(): void {
     cleanupStarted = true;
 
     try {
-      process.stderr.write(`[DEBUG] Cleanup started for: ${reason}\n`);
+      process.stderr.write(`[DEBUG] Cleanup START for: ${reason}\n`);
       
       // Step 1: Clear timers immediately
       clearInterval(keepAlive);
       clearTimeout(safetyTimeout);
+      process.stderr.write(`[DEBUG] Step 1: Timers cleared\n`);
 
-      // Step 2: Log signal received with callback-based flush guarantee
-      process.stdout.write(`${reason}\n`, () => {
-        process.stderr.write(`[DEBUG] Signal logged, performing cleanup work...\n`);
+      // Step 2: Atomically write signal with cork/uncork
+      process.stdout.cork();
+      process.stdout.write(`${reason}\n`);
+      process.stderr.write(`[DEBUG] Step 2a: Signal message written (corked)\n`);
+
+      // Step 3: Simulate cleanup work (100ms delay BEFORE cleanup_done)
+      setTimeout(() => {
+        process.stderr.write(`[DEBUG] Step 3: Cleanup work simulation done\n`);
         
-        // Step 3: Simulate cleanup work (100ms)
-        setTimeout(() => {
-          process.stderr.write(`[DEBUG] Cleanup work done, logging CLEANUP_DONE...\n`);
-          
-          // Step 4: Log cleanup done with callback-based flush guarantee
-          process.stdout.write('CLEANUP_DONE\n', () => {
-            process.stderr.write(`[DEBUG] CLEANUP_DONE logged, exiting process...\n`);
-            // This callback fires ONLY after CLEANUP_DONE is flushed
-            // Now safe to exit
-            process.exit(0);
-          });
-        }, 100);
-      });
+        // Step 4: Write cleanup_done THEN uncork to flush atomically
+        process.stdout.write('CLEANUP_DONE\n');
+        process.stderr.write(`[DEBUG] Step 4a: CLEANUP_DONE written (still corked)\n`);
+        
+        // CRITICAL: uncork() flushes the corked writes atomically
+        process.stdout.uncork();
+        process.stderr.write(`[DEBUG] Step 4b: uncork() called - buffer will flush\n`);
+        
+        // Step 5: Exit AFTER uncork to allow flush
+        process.stderr.write(`[DEBUG] Step 5: Scheduling exit via setImmediate\n`);
+        setImmediate(() => {
+          process.stderr.write(`[DEBUG] Step 5b: setImmediate fired - calling process.exit(0)\n`);
+          process.exit(0);
+        });
+      }, 100);
     } catch (e) {
       process.stderr.write(`CLEANUP_ERROR: ${String(e)}\n`);
       clearInterval(keepAlive);
@@ -74,10 +82,11 @@ export function runSignalsTest(): void {
     }
   };
 
-  // Write READY immediately with guaranteed flush via callback
-  process.stdout.write('READY\n', () => {
-    process.stderr.write(`[DEBUG] READY signal flushed, handlers registered\n`);
-  });
+  // Write READY immediately with cork/uncork guarantee
+  process.stdout.cork();
+  process.stdout.write('READY\n');
+  process.stdout.uncork();
+  process.stderr.write(`[DEBUG] READY flushed, handlers registered\n`);
 
   // Register signal handlers (synchronous, no async overhead)
   process.on('SIGINT', () => {
