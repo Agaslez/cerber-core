@@ -30,8 +30,16 @@ describe("@signals CLI Signal Handling", () => {
     proc.stdout?.setEncoding('utf8');
     proc.stderr?.setEncoding('utf8');
 
-    proc.stdout?.on('data', (d) => (stdout += d));
-    proc.stderr?.on('data', (d) => (stderr += d));
+    // Diagnostic: log all output in real-time for debugging
+    proc.stdout?.on('data', (d) => {
+      stdout += d;
+      console.log(`[STDOUT] ${d.toString().trim()}`);
+    });
+    
+    proc.stderr?.on('data', (d) => {
+      stderr += d;
+      console.error(`[STDERR] ${d.toString().trim()}`);
+    });
 
     return {
       get stdout() { return stdout; },
@@ -73,6 +81,8 @@ describe("@signals CLI Signal Handling", () => {
         proc.kill('SIGKILL');
       } catch {}
     }
+    // Cleanup all timers to prevent interference
+    jest.clearAllTimers();
   });
 
   describe("SIGINT (CTRL+C)", () => {

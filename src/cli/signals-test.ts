@@ -53,7 +53,10 @@ export async function runSignalsTest(): Promise<void> {
   };
 
   // Signal ready to receive signals - IMMEDIATELY and guaranteed
-  process.stdout.write('READY\n');
+  // Use sync write + flush to ensure READY is sent before anything else
+  process.stdout.write('READY\n', () => {
+    // Callback ensures READY is flushed to stdout before continuing
+  });
 
   // Register signal handlers (using once to prevent double handling)
   process.once('SIGINT', () => void cleanup('SIGINT_RECEIVED'));
