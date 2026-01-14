@@ -34,8 +34,8 @@ export async function runSignalsTest(): Promise<void> {
   }, 60000);
   safetyTimeout.unref();
 
-  // Cleanup handler for SIGINT/SIGTERM
-  const cleanup = async (reason: string) => {
+  // Cleanup handler for SIGINT/SIGTERM - MUST BE SYNC to guarantee execution
+  const cleanup = (reason: string) => {
     try {
       process.stdout.write(`${reason}\n`);
       clearInterval(keepAlive);
@@ -59,8 +59,8 @@ export async function runSignalsTest(): Promise<void> {
   });
 
   // Register signal handlers (using once to prevent double handling)
-  process.once('SIGINT', () => void cleanup('SIGINT_RECEIVED'));
-  process.once('SIGTERM', () => void cleanup('SIGTERM_RECEIVED'));
+  process.once('SIGINT', () => cleanup('SIGINT_RECEIVED'));
+  process.once('SIGTERM', () => cleanup('SIGTERM_RECEIVED'));
 
   // For the "handle errors during cleanup" test (if you use env toggle)
   if (process.env.CERBER_SIGNAL_TEST_FAIL_CLEANUP === '1') {
