@@ -37,18 +37,19 @@ export function runSignalsTest(): void {
   // Cleanup handler for SIGINT/SIGTERM - MUST BE SYNC to guarantee execution
   const cleanup = (reason: string): void => {
     try {
+      // Signal received - must flush immediately
       process.stdout.write(`${reason}\n`);
       clearInterval(keepAlive);
       clearTimeout(safetyTimeout);
 
-      // Simulate cleanup / flush steps
+      // Cleanup operations
       process.stdout.write('CLEANUP_DONE\n');
       
-      // Force synchronous flush before exit (critical for tests)
-      // Add a tiny delay to allow stdout buffer to flush
-      setImmediate(() => {
+      // CRITICAL: Wait longer to ensure stdout buffer flushes completely
+      // 100ms is minimum on CI to guarantee flush
+      setTimeout(() => {
         process.exit(0);
-      });
+      }, 100);
     } catch (e) {
       process.stderr.write(`CLEANUP_ERROR: ${String(e)}\n`);
       clearInterval(keepAlive);
