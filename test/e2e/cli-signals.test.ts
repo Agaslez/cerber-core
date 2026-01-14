@@ -81,7 +81,7 @@ describe("CLI Signal Handling", () => {
         // Spawn long-running CLI process
         const proc = spawn(
           "node",
-          ["dist/bin/cerber", "_signals-test"],
+          ["bin/cerber", "_signals-test"],
           {
             stdio: ["ignore", "pipe", "pipe"],
             env: { ...process.env, CERBER_TEST_MODE: "1" },
@@ -147,7 +147,7 @@ describe("CLI Signal Handling", () => {
 
       const proc = spawn(
         "node",
-        ["dist/bin/cerber", "_signals-test"],
+        ["bin/cerber", "_signals-test"],
         {
           stdio: "pipe",
           env: { ...process.env, CERBER_TEST_MODE: "1" },
@@ -180,7 +180,7 @@ describe("CLI Signal Handling", () => {
 
       const proc = spawn(
         "node",
-        ["dist/bin/cerber", "_signals-test"],
+        ["bin/cerber", "_signals-test"],
         {
           stdio: ["ignore", "pipe", "pipe"],
           env: { ...process.env, CERBER_TEST_MODE: "1" },
@@ -224,7 +224,7 @@ describe("CLI Signal Handling", () => {
       const exitTime = await new Promise<number>((resolve) => {
         const proc = spawn(
           "node",
-          ["dist/bin/cerber", "_signals-test"],
+          ["bin/cerber", "_signals-test"],
           {
             stdio: "pipe",
             env: { ...process.env, CERBER_TEST_MODE: "1" },
@@ -265,7 +265,7 @@ describe("CLI Signal Handling", () => {
 
       const proc = spawn(
         "node",
-        ["dist/bin/cerber", "_signals-test"],
+        ["bin/cerber", "_signals-test"],
         {
           stdio: "pipe",
           env: { ...process.env, CERBER_TEST_MODE: "1" },
@@ -301,7 +301,7 @@ describe("CLI Signal Handling", () => {
 
       const proc = spawn(
         "node",
-        ["dist/bin/cerber", "_signals-test"],
+        ["bin/cerber", "_signals-test"],
         {
           stdio: "pipe",
           env: { ...process.env, CERBER_TEST_MODE: "1" },
@@ -330,7 +330,7 @@ describe("CLI Signal Handling", () => {
 
       const proc = spawn(
         "node",
-        ["dist/bin/cerber", "_signals-test"],
+        ["bin/cerber", "_signals-test"],
         {
           stdio: "pipe",
           env: { ...process.env, CERBER_TEST_MODE: "1" },
@@ -363,7 +363,7 @@ describe("CLI Signal Handling", () => {
 
       const proc = spawn(
         "node",
-        ["dist/bin/cerber", "_signals-test"],
+        ["bin/cerber", "_signals-test"],
         {
           stdio: "pipe",
           env: { ...process.env, CERBER_TEST_MODE: "1" },
