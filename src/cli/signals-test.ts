@@ -13,12 +13,14 @@
 export async function runSignalsTest(): Promise<void> {
   // Gate: only available in test mode
   if (process.env.CERBER_TEST_MODE !== '1') {
-    console.error('❌ _signals-test is disabled (test mode only)');
+    process.stderr.write('❌ _signals-test is disabled (test mode only)\n');
     process.exit(2); // 2 = blocker/forbidden
   }
 
-  // Signal ready to receive signals
-  console.log('READY');
+  // Signal ready to receive signals - IMMEDIATELY and guaranteed
+  process.stdout.write('READY\n');
+  // Flush output streams to ensure READY reaches parent process
+  process.stdout.once('drain', () => {});
 
   // Track cleanup state
   let isCleaningUp = false;
@@ -32,12 +34,12 @@ export async function runSignalsTest(): Promise<void> {
     }
     isCleaningUp = true;
 
-    console.log('SIGINT_RECEIVED');
+    process.stdout.write('SIGINT_RECEIVED\n');
 
     // Simulate cleanup work (close connections, flush logs, etc)
     await new Promise((resolve) => setTimeout(resolve, 100));
 
-    console.log('CLEANUP_DONE');
+    process.stdout.write('CLEANUP_DONE\n');
     process.exit(0);
   };
 

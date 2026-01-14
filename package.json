@@ -23,6 +23,7 @@
   },
   "scripts": {
     "build": "tsc",
+    "pretest": "npm run build",
     "test": "jest --passWithNoTests",
     "postinstall": "node bin/setup-guardian-hooks.cjs || true",
     "test:all": "jest --passWithNoTests",
